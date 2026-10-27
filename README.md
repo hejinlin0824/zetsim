@@ -23,15 +23,19 @@ zetsim serve                                    # 打开浏览器仪表盘
 ## 安装
 
 ```bash
-pip install -e .          # 或直接 python -m zetsim ...
+git clone https://github.com/hejinlin0824/zetsim.git
+cd zetsim
+pip install -e .                                    # 安装依赖（Python ≥3.10）
+python -m zetsim serve --firmware firmware/button_exti.hex
+# 浏览器打开 http://127.0.0.1:8000 —— 点画布上的按键 SW1，LED 随中断翻转
 ```
 
-依赖：Python ≥3.10、unicorn、intelhex、pyelftools、rich、fastapi、uvicorn。
+演示固件已随仓库提供（`firmware/*.hex`），无需编译器。跑测试：`pip install -e ".[dev]" && pytest`。
 
 ## 快速开始
 
 ```bash
-python tools/gen_firmware.py       # 生成演示固件到 firmware/
+python tools/gen_firmware.py       # （可选）重新生成演示固件到 firmware/
 zetsim run firmware/hello_echo.hex --time 50ms --uart 1
 zetsim serve                       # 浏览器打开 http://127.0.0.1:8000
 ```
