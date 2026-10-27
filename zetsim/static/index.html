@@ -112,6 +112,8 @@ input[type=text]:focus{border-color:var(--accent)}
 .ptab{padding:5px 14px;font:12px var(--mono);color:var(--muted);cursor:pointer;
   border-radius:7px 7px 0 0;border:1px solid transparent;border-bottom:none}
 .ptab.sel{color:var(--accent);background:#0d1117;border-color:var(--border)}
+.projFileOps{display:flex;gap:6px;align-items:center;padding:4px 10px;border-bottom:1px solid var(--border)}
+.projFileOps .hint{font-size:10px;color:var(--muted);margin-left:auto}
 #projCode{flex:1;resize:none;border:0;background:#0d1117;color:#d8e2f0;
   font:13px/1.6 var(--mono);padding:12px 16px;outline:none;tab-size:2;white-space:pre}
 #projLog{height:120px;overflow:auto;margin:0;padding:8px 14px;font:11px/1.5 var(--mono);
@@ -214,13 +216,20 @@ input[type=text]:focus{border-color:var(--accent)}
 <div id="projModal">
   <div class="projBox">
     <div class="projHead">
-      <b>✎ 项目 · 给板子写 C 代码</b>
+      <b>✎ 项目</b>
+      <button class="btn icon" id="projNewBtn" title="新建项目（从 led_marquee 复制模板）">＋ 项目</button>
+      <button class="btn icon danger" id="projDelBtn" title="删除当前项目">🗑 项目</button>
       <select id="projSel"><option value="">选择项目…</option></select>
       <span class="spacer"></span>
       <button class="btn primary" id="projBuildBtn">保存并编译运行 ⏎</button>
       <button class="btn icon" id="projClose">✕</button>
     </div>
     <div id="projTabs"></div>
+    <div class="projFileOps">
+      <button class="btn icon" id="fileNewBtn" title="新建 .c / .h 文件（参与编译）">＋ 文件</button>
+      <button class="btn icon danger" id="fileDelBtn" title="删除当前打开的文件">🗑 文件</button>
+      <span class="hint">main.c / startup.c / link.ld 为必需文件</span>
+    </div>
     <textarea id="projCode" spellcheck="false" wrap="off"></textarea>
     <pre id="projLog">选择项目 → 改代码 → 编译运行。固件编译成功后自动加载开跑；编译报错会显示在这里。</pre>
   </div>
@@ -903,6 +912,46 @@ async function buildProj(){
   if(b.ok)$('fwpath').value=b.firmware;
 }
 $('projBuildBtn').onclick=buildProj;
+async function refreshProjList(keep){
+  const j=await(await fetch('/api/projects')).json();
+  $('projSel').innerHTML='<option value="">选择项目…</option>'+
+    (j.items||[]).map(n=>`<option${n===keep?' selected':''}>${n}</option>`).join('');
+}
+$('projNewBtn').onclick=async()=>{
+  const name=prompt('新项目名（字母开头，如 button_led）：');
+  if(!name)return;
+  const r=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name})});
+  const b=await r.json();
+  if(!b.ok){$('projLog').textContent='新建失败：'+b.error;$('projLog').style.color='#ff6b6b';return;}
+  await refreshProjList(b.name);await loadProj(b.name);
+  $('projLog').textContent='已创建 '+b.name+'（从 led_marquee 复制）。改 main.c 后编译运行。';
+};
+$('projDelBtn').onclick=async()=>{
+  if(!proj.name||!confirm('删除项目 '+proj.name+'（含全部文件，不可恢复）？'))return;
+  const b=await(await fetch('/api/project/'+proj.name,{method:'DELETE'})).json();
+  if(!b.ok){$('projLog').textContent='删除失败：'+b.error;return;}
+  proj.name=null;proj.files={};proj.cur=null;$('projCode').value='';$('projTabs').innerHTML='';
+  await refreshProjList();$('projLog').textContent='已删除。';
+};
+$('fileNewBtn').onclick=async()=>{
+  if(!proj.name){$('projLog').textContent='先选择项目。';return;}
+  const name=prompt('新文件名（.c 参与编译 / .h 头文件）：');
+  if(!name)return;
+  const b=await(await(await fetch('/api/project/'+proj.name+'/file',{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})).json());
+  if(!b.ok){$('projLog').textContent='新建失败：'+b.error;$('projLog').style.color='#ff6b6b';return;}
+  await loadProj(proj.name);showProjFile(name);
+};
+$('fileDelBtn').onclick=async()=>{
+  if(!proj.name||!proj.cur)return;
+  if(['main.c','startup.c','link.ld'].includes(proj.cur)){
+    $('projLog').textContent=proj.cur+' 是必需文件，不能删除。';return;}
+  if(!confirm('删除 '+proj.cur+'？'))return;
+  const b=await(await fetch('/api/project/'+proj.name+'/file/'+proj.cur,{method:'DELETE'})).json();
+  if(!b.ok){$('projLog').textContent='删除失败：'+b.error;return;}
+  await loadProj(proj.name);
+};
 $('projCode').addEventListener('keydown',e=>{
   if(e.key==='Tab'){e.preventDefault();const t=e.target,s=t.selectionStart;
     t.value=t.value.slice(0,s)+'  '+t.value.slice(t.selectionEnd);t.selectionStart=t.selectionEnd=s+2;}

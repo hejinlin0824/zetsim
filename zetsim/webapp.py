@@ -254,30 +254,99 @@ def build_app(firmware: str | None = None) -> FastAPI:
                        if d.is_dir() and (d / "main.c").exists()) if root.exists() else []
         return {"items": items}
 
+    @app.post("/api/projects")
+    async def project_create(body: dict):
+        import re, shutil
+        name = str(body.get("name", "")).strip()
+        if not re.match(r"^[A-Za-z][A-Za-z0-9_\-]*$", name):
+            return JSONResponse({"ok": False, "error": "项目名：字母开头，只用字母数字_-"}, status_code=400)
+        root = Path.cwd() / "projects"
+        dst = root / name
+        if dst.exists():
+            return JSONResponse({"ok": False, "error": f"项目 {name} 已存在"}, status_code=400)
+        src = root / "led_marquee"
+        if not (src / "main.c").exists():
+            return JSONResponse({"ok": False, "error": "模板 led_marquee 缺失"}, status_code=400)
+        dst.mkdir(parents=True)
+        for f in PROJECT_FILES:
+            if (src / f).exists():
+                shutil.copy(src / f, dst / f)
+        return {"ok": True, "name": name}
+
+    @app.delete("/api/project/{name}")
+    async def project_delete(name: str):
+        import shutil
+        try:
+            pdir = _proj_dir(name)
+        except ValueError as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        if not (pdir / "main.c").exists():
+            return JSONResponse({"ok": False, "error": "项目不存在"}, status_code=404)
+        shutil.rmtree(pdir)
+        return {"ok": True}
+
     @app.get("/api/project/{name}")
     async def project_get(name: str):
         try:
             pdir = _proj_dir(name)
         except ValueError as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
-        files = {}
-        for f in PROJECT_FILES:
-            path = pdir / f
-            if path.exists():
-                files[f] = path.read_text(encoding="utf-8")
+        files: dict[str, str] = {}
+        order = {"main.c": 0, "startup.c": 1}
+        paths = sorted(pdir.glob("*.c"), key=lambda p: order.get(p.name, 2))
+        paths += sorted(pdir.glob("*.h"))
+        if (pdir / "link.ld").exists():
+            paths.append(pdir / "link.ld")
+        for path in paths:
+            files[path.name] = path.read_text(encoding="utf-8")
         if not files:
             return JSONResponse({"ok": False, "error": "项目不存在"}, status_code=404)
         return {"ok": True, "files": files}
 
+    @app.post("/api/project/{name}/file")
+    async def file_create(name: str, body: dict):
+        import re
+        fname = str(body.get("name", "")).strip()
+        if not re.match(r"^[A-Za-z][A-Za-z0-9_\-]*\.(c|h)$", fname):
+            return JSONResponse({"ok": False, "error": "文件名：字母开头，扩展名 .c 或 .h"}, status_code=400)
+        try:
+            pdir = _proj_dir(name)
+        except ValueError as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        if (pdir / fname).exists():
+            return JSONResponse({"ok": False, "error": f"{fname} 已存在"}, status_code=400)
+        content = str(body.get("content", "")) or (
+            f"/* {fname} */\n" if fname.endswith(".h") else
+            f"/* {fname}：新源文件，函数在 main.c 里声明后调用 */\n")
+        (pdir / fname).write_text(content, encoding="utf-8")
+        return {"ok": True}
+
+    @app.delete("/api/project/{name}/file/{fname}")
+    async def file_delete(name: str, fname: str):
+        from .build import PROTECTED
+        if fname in PROTECTED:
+            return JSONResponse({"ok": False, "error": f"{fname} 是必需文件，不能删"}, status_code=400)
+        try:
+            pdir = _proj_dir(name)
+        except ValueError as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        target = pdir / fname
+        if not target.exists():
+            return JSONResponse({"ok": False, "error": "文件不存在"}, status_code=404)
+        target.unlink()
+        return {"ok": True}
+
     @app.post("/api/project/{name}")
     async def project_save(name: str, body: dict):
+        import re
         try:
             pdir = _proj_dir(name)
         except ValueError as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
         files = body.get("files", {})
         for fname, content in files.items():
-            if fname not in PROJECT_FILES:
+            ok_name = fname in PROJECT_FILES or re.match(r"^[A-Za-z][A-Za-z0-9_\-]*\.(c|h)$", fname)
+            if not ok_name:
                 return JSONResponse({"ok": False, "error": f"不允许写 {fname}"}, status_code=400)
             (pdir / fname).write_text(str(content), encoding="utf-8")
         return {"ok": True}

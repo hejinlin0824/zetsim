@@ -25,12 +25,14 @@ zetsim serve                                    # 打开浏览器仪表盘
 ```bash
 git clone https://github.com/hejinlin0824/zetsim.git
 cd zetsim
-pip install -e .                                    # 安装依赖（Python ≥3.10）
+python setup_env.py        # 一键：装 Python 依赖 + 检查/下载 arm-gcc（项目级 .toolchain/，不动系统）
 python -m zetsim serve --firmware firmware/button_exti.hex
 # 浏览器打开 http://127.0.0.1:8000 —— 点画布上的按键 SW1，LED 随中断翻转
 ```
 
-演示固件已随仓库提供（`firmware/*.hex`），无需编译器。跑测试：`pip install -e ".[dev]" && pytest`。
+没有 C 编译器的电脑直接跑 `setup_env.py`：它会把 xPack GNU Arm 下载解压到项目内 `.toolchain/`（已 gitignore），
+编译时自动优先使用；无网络时也可 `winget install Arm.GnuArmEmbeddedToolchain` 装系统版。
+跑测试：`pip install -e ".[dev]" && pytest`。
 
 ## 快速开始
 

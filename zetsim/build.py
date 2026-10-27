@@ -12,17 +12,24 @@ import shutil
 import subprocess
 from pathlib import Path
 
-PROJECT_FILES = ("main.c", "startup.c", "stm32f103.h", "link.ld")   # 可编辑白名单
-
+PROJECT_FILES = ("main.c", "startup.c", "stm32f103.h", "link.ld")   # 模板文件
+PROTECTED = ("main.c", "startup.c", "link.ld")                      # 不可删除
 _CFLAGS = ["-mcpu=cortex-m3", "-mthumb", "-nostdlib", "-O0", "-g",
            "-ffreestanding", "-Wall"]
+_REPO = Path(__file__).resolve().parent.parent
 
 
 def find_gcc() -> str | None:
-    """找到 arm-none-eabi-gcc：PATH 优先，其次 winget 默认安装目录。"""
+    """找到 arm-none-eabi-gcc：PATH → 项目级 .toolchain/ → winget 安装目录。"""
     gcc = shutil.which("arm-none-eabi-gcc")
     if gcc:
         return gcc
+    local = _REPO / ".toolchain"                    # setup_env.py 装的项目级编译器
+    if local.exists():
+        for pat in ("**/bin/arm-none-eabi-gcc.exe", "**/bin/arm-none-eabi-gcc"):
+            hits = sorted(local.glob(pat))
+            if hits:
+                return str(hits[0])
     for base in (r"C:\Program Files (x86)", r"C:\Program Files"):
         p = Path(base)
         if not p.exists():
@@ -37,18 +44,19 @@ def find_gcc() -> str | None:
 
 
 def build_project(project_dir: str | Path) -> tuple[bool, str]:
-    """编译项目 → firmware.hex。返回 (成功, 编译日志)。"""
+    """编译项目 → firmware.hex。项目里所有 .c 都参与编译。返回 (成功, 编译日志)。"""
     project_dir = Path(project_dir).resolve()
     if not (project_dir / "main.c").exists():
         return False, f"目录里没有 main.c：{project_dir}"
     gcc = find_gcc()
     if not gcc:
         return False, ("未找到 arm-none-eabi-gcc（C 编译器）。安装：\n"
+                       "  python setup_env.py        （推荐：项目级，不动系统）\n"
                        "  winget install Arm.GnuArmEmbeddedToolchain\n"
-                       "装完重启 zetsim serve 即可。")
+                       "装完重试编译即可。")
     tool_prefix = str(Path(gcc).parent) + "\\"         # .../bin/
-    srcs = [str(project_dir / f) for f in ("startup.c", "main.c")
-            if (project_dir / f).exists()]
+    srcs = sorted((str(p) for p in project_dir.glob("*.c")),
+                  key=lambda p: (Path(p).name != "startup.c", p))   # startup 排最前
     elf = project_dir / "firmware.elf"
     hexf = project_dir / "firmware.hex"
 
