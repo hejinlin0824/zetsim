@@ -103,7 +103,28 @@ class Simulation:
             if self.on_slice:
                 self.on_slice(self.now)
             # --- 处理停因 ---
-            if reason == "exc_return":
+            if reason == "st_poll":
+                # CPU 在原地轮询 SysTick COUNTFLAG：时间直接快进到
+                # 定时到期或下一个事件（中断可打断），轮询零开销
+                wake = None
+                st = board.sysctrl.next_event_ns()
+                if st is not None:
+                    wake = st
+                for p_ in board.all_periphs():
+                    ev = p_.next_event_ns()
+                    if ev is not None and (wake is None or ev < wake):
+                        wake = ev
+                ext = self._next_ext_ns()
+                if ext is not None and (wake is None or ext < wake):
+                    wake = ext
+                if wake is None or wake <= self.now:
+                    wake = self.now + 1_000
+                self._set_time(wake)
+                for p_ in board.all_periphs():
+                    p_.step_to(self.now)
+                self._run_due_ext()
+                self._tick_devices()
+            elif reason == "exc_return":
                 if not core.exception_return():
                     self._halt("corrupt_exc_return", "EXC_RETURN 出栈失败")
                     break

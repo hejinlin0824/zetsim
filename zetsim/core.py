@@ -206,6 +206,14 @@ class CortexM3Core:
             UC_ARM_REG_R8, UC_ARM_REG_R9, UC_ARM_REG_R10, UC_ARM_REG_R11,
             UC_ARM_REG_R12]
 
+    def request_stop(self, reason: str):
+        """钩子里请求停机（SysTick 轮询快进等）。PC 保持在当前指令。"""
+        self.stop_reason = reason
+        try:
+            self.uc.emu_stop()
+        except Exception:
+            pass
+
     def run_slice(self, budget_instr: int):
         """执行至多 budget_instr 条指令。返回 (executed, stop_reason)。"""
         self.instr_count = 0

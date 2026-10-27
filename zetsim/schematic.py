@@ -29,7 +29,7 @@ PIN_DEFS = {
     "probe": ["P"],
 }
 
-ANALOG_TYPES = {"resistor", "capacitor", "vcc"}     # 触发 SPICE 参与的元件
+ANALOG_TYPES = {"resistor", "capacitor"}     # 只有真实模拟元件才触发 SPICE（VCC 走网表电源判定，不拖慢仿真）
 
 
 class _UF:

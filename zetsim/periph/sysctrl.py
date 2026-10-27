@@ -43,6 +43,8 @@ class SysCtrl(Peripheral):
         self._st_val = 0.0            # SysTick 懒计数（浮点精确）
         self._st_base_ns = 0
         self._st_countflag = False
+        self._poll_pc = None
+        self._poll_n = 0
 
     def reset(self):
         super().reset()
@@ -53,10 +55,14 @@ class SysCtrl(Peripheral):
         self._st_val = 0.0
         self._st_base_ns = 0
         self._st_countflag = False
+        self._poll_pc = None
+        self._poll_n = 0
         self.regs[0xD00] = 0x411FC231        # CPUID: Cortex-M3
 
     # ---------------- 总线读写 ----------------
     def read(self, off, size):
+        if off != 0x10:
+            self._poll_n = 0                     # 非 CTRL 访问：不是在轮询延时
         if 0x100 <= off < 0x120:
             return self._iser[(off - 0x100) // 4]
         if 0x180 <= off < 0x1A0:
@@ -66,6 +72,7 @@ class SysCtrl(Peripheral):
         if 0x280 <= off < 0x2A0:
             return self._ispr[(off - 0x280) // 4]
         if off == 0x10:                       # SysTick CTRL（COUNTFLAG=bit16 读清）
+            self._poll_detect()
             cf = 1 if self._st_countflag else 0
             self._st_countflag = False
             return self.regs.get(0x10, 0) | (cf << 16)
@@ -83,6 +90,7 @@ class SysCtrl(Peripheral):
         return super().read(off, size)
 
     def write(self, off, size, value):
+        self._poll_n = 0
         if off == 0xD04:                     # ICSR（SCB 区）
             if value & (1 << 28):
                 self.sys_pend.add(EXC_PENDSV)
@@ -122,6 +130,27 @@ class SysCtrl(Peripheral):
             self._ispr[(off - 0x280) // 4] &= ~value
             return
         super().write(off, size, value)
+
+    def _poll_detect(self):
+        """原地轮询 SysTick COUNTFLAG（HAL_Delay 式忙等）→ 请求引擎时间快进。"""
+        ctrl = self.regs.get(0x10, 0)
+        load = self.regs.get(0x14, 0)
+        if self._st_countflag or not (ctrl & 1) or load == 0 or (ctrl & 2):
+            self._poll_n = 0
+            return
+        try:
+            from unicorn.arm_const import UC_ARM_REG_PC
+            pc = self.core.uc.reg_read(UC_ARM_REG_PC)
+        except Exception:
+            self._poll_n = 0
+            return
+        if self._poll_pc is not None and abs(pc - self._poll_pc) <= 48:
+            self._poll_n += 1
+        else:
+            self._poll_pc, self._poll_n = pc, 1
+        if self._poll_n >= 3:                  # 连续 3 次同址读 → 判定轮询
+            self.core.request_stop("st_poll")
+            self._poll_n = 0
 
     # ---------------- SysTick ----------------
     def _st_freq(self):
