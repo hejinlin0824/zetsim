@@ -101,21 +101,38 @@ input[type=text]:focus{border-color:var(--accent)}
 #projModal{position:fixed;inset:0;background:rgba(4,8,14,.74);z-index:50;display:none;
   align-items:center;justify-content:center}
 #projModal.open{display:flex}
-.projBox{width:min(880px,94vw);height:min(660px,90vh);background:var(--panel);
+.projBox{width:min(1150px,96vw);height:min(720px,92vh);background:var(--panel);
   border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;
   box-shadow:0 18px 60px rgba(0,0,0,.5)}
 .projHead{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border)}
 .projHead b{font-size:13px}
 #projSel{background:var(--panel2);border:1px solid var(--border);color:var(--text);
   border-radius:6px;padding:4px 8px;font:12px var(--mono)}
+.projMain{display:flex;flex:1;min-height:0}
+#projTree{width:190px;flex-shrink:0;border-right:1px solid var(--border);overflow:auto;padding:6px 0;background:#0d1117}
+.treeHead{font:12px var(--mono);color:var(--accent);padding:6px 12px;border-bottom:1px solid #1e2632;margin-bottom:4px}
+.treeRow{display:flex;gap:7px;align-items:center;padding:5px 12px;font:12px var(--mono);color:#9aa7b5;cursor:pointer;white-space:nowrap}
+.treeRow:hover{background:#161d27;color:#d8e2f0}
+.treeRow.sel{background:#12233a;color:var(--accent)}
+.treeEmpty{font:11px var(--mono);color:var(--muted);padding:14px 12px;line-height:1.8}
+.editorCol{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
 #projTabs{display:flex;gap:2px;padding:6px 10px 0;border-bottom:1px solid var(--border)}
 .ptab{padding:5px 14px;font:12px var(--mono);color:var(--muted);cursor:pointer;
   border-radius:7px 7px 0 0;border:1px solid transparent;border-bottom:none}
 .ptab.sel{color:var(--accent);background:#0d1117;border-color:var(--border)}
 .projFileOps{display:flex;gap:6px;align-items:center;padding:4px 10px;border-bottom:1px solid var(--border)}
 .projFileOps .hint{font-size:10px;color:var(--muted);margin-left:auto}
-#projCode{flex:1;resize:none;border:0;background:#0d1117;color:#d8e2f0;
-  font:13px/1.6 var(--mono);padding:12px 16px;outline:none;tab-size:2;white-space:pre}
+.editorWrap{position:relative;flex:1;min-height:0;background:#0d1117}
+#hl,#projCode{position:absolute;inset:0;margin:0;border:0;font:13px/1.6 var(--mono);
+  padding:12px 16px;white-space:pre;overflow:auto;tab-size:2}
+#hl{pointer-events:none;color:#d8e2f0}
+#projCode{background:transparent;color:transparent;caret-color:#aeafad;resize:none;outline:none}
+#projCode::selection{background:rgba(88,166,255,.30)}
+.c-com{color:#6a9955}.c-str{color:#ce9178}.c-pre{color:#c586c0}.c-num{color:#b5cea8}
+.c-kw{color:#c586c0}.c-ty{color:#569cd6}.c-fn{color:#dcdcaa}.c-mcu{color:#4ec9b0}
+.tog.on{background:#12233a;color:var(--accent);border-color:#264a78}
+.panel.hidden{display:none}
+#scopePanel.hidden{display:none}
 #projLog{height:120px;overflow:auto;margin:0;padding:8px 14px;font:11px/1.5 var(--mono);
   color:var(--muted);border-top:1px solid var(--border);white-space:pre-wrap;background:#0a0d13}
 </style>
@@ -126,13 +143,17 @@ input[type=text]:focus{border-color:var(--accent)}
   <div class="sep"></div>
   <div class="chip">仿真时间 <b id="simtime">0.000 ms</b></div>
   <div class="chip" id="fwname">未加载固件</div>
+  <div class="sep"></div>
+  <button class="btn icon tog" id="togLeft" title="显示/隐藏元件库">◧ 元件库</button>
+  <button class="btn icon tog" id="togScope" title="显示/隐藏示波器">⌄ 示波器</button>
+  <button class="btn icon tog" id="togRight" title="显示/隐藏调试台（固件/串口/OLED）">◨ 调试台</button>
   <div class="spacer"></div>
   <button class="btn primary" id="runbtn"><span class="pulse off" id="runDot"></span><span id="runTxt">运行</span></button>
   <button class="btn" id="resetbtn">⟲ 复位</button>
 </header>
 <main>
   <!-- 左：元件库 -->
-  <section class="panel">
+  <section class="panel" id="leftPanel">
     <h3>元件库</h3>
     <div class="body">
       <div class="pal" id="palette"></div>
@@ -156,7 +177,7 @@ input[type=text]:focus{border-color:var(--accent)}
   </section>
 
   <!-- 中：画布 + 示波器 -->
-  <section class="panel" style="min-width:0">
+  <section class="panel" style="min-width:0" id="centerPanel">
     <div id="toolbar">
       <button class="btn icon" id="wireBtn" title="连线模式 (W)">⚡ 连线</button>
       <button class="btn icon" id="selBtn" title="选择 (Esc)">⌖ 选择</button>
@@ -192,7 +213,7 @@ input[type=text]:focus{border-color:var(--accent)}
   </section>
 
   <!-- 右：固件 / 终端 -->
-  <section class="panel">
+  <section class="panel" id="rightPanel">
     <h3>固件</h3>
     <div class="body" style="display:flex;flex-direction:column;gap:8px">
       <div id="fwlist"></div>
@@ -224,14 +245,25 @@ input[type=text]:focus{border-color:var(--accent)}
       <button class="btn primary" id="projBuildBtn">保存并编译运行 ⏎</button>
       <button class="btn icon" id="projClose">✕</button>
     </div>
-    <div id="projTabs"></div>
-    <div class="projFileOps">
-      <button class="btn icon" id="fileNewBtn" title="新建 .c / .h 文件（参与编译）">＋ 文件</button>
-      <button class="btn icon danger" id="fileDelBtn" title="删除当前打开的文件">🗑 文件</button>
-      <span class="hint">main.c / startup.c / link.ld 为必需文件</span>
+    <div class="projMain">
+      <div id="projTree">
+        <div class="treeHead">📦 <span id="treeProj">未选择</span></div>
+        <div id="treeFiles"><div class="treeEmpty">选择项目后<br>显示文件树</div></div>
+      </div>
+      <div class="editorCol">
+        <div id="projTabs"></div>
+        <div class="projFileOps">
+          <button class="btn icon" id="fileNewBtn" title="新建 .c / .h 文件（参与编译）">＋ 文件</button>
+          <button class="btn icon danger" id="fileDelBtn" title="删除当前打开的文件">🗑 文件</button>
+          <span class="hint">main.c / startup.c / link.ld 为必需文件 · Ctrl+Enter 编译</span>
+        </div>
+        <div class="editorWrap">
+          <pre id="hl" aria-hidden="true"></pre>
+          <textarea id="projCode" spellcheck="false" wrap="off"></textarea>
+        </div>
+        <pre id="projLog">选择项目 → 改代码 → 编译运行。固件编译成功后自动加载开跑；编译报错会显示在这里。</pre>
+      </div>
     </div>
-    <textarea id="projCode" spellcheck="false" wrap="off"></textarea>
-    <pre id="projLog">选择项目 → 改代码 → 编译运行。固件编译成功后自动加载开跑；编译报错会显示在这里。</pre>
   </div>
 </div>
 <script>
@@ -892,11 +924,53 @@ async function loadProj(name){
   showProjFile('main.c');
   $('projLog').textContent='已载入 '+name+'。改完代码点「保存并编译运行」。';
 }
+/* ---- C 语法高亮（VSCode Dark+ 配色）---- */
+const C_KW=new Set('if else while for do return break continue switch case default goto sizeof static extern const volatile register inline typedef struct union enum'.split(' '));
+const C_TY=new Set('void int char long short unsigned signed float double uint8_t uint16_t uint32_t int8_t int16_t int32_t size_t bool _Bool'.split(' '));
+const C_MCU=new Set('RCC GPIOA GPIOB GPIOC GPIOD GPIOE SysTick TIM1 TIM2 TIM3 TIM4 TIM5 TIM6 TIM7 TIM8 USART1 USART2 USART3 ADC1 ADC2 ADC3 DMA1 SPI1 SPI2 I2C1 I2C2 EXTI AFIO FLASH'.split(' '));
+function hlC(src){
+  const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const re=/(\/\*[\s\S]*?\*\/|\/\/[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(^[ \t]*#[^\n]*)|\b(0[xX][0-9a-fA-F]+|\d+\.?\d*[uUlLfF]*)\b|\b([A-Za-z_][A-Za-z0-9_]*)\b/gm;
+  let out='',last=0,m;
+  while((m=re.exec(src))){
+    out+=esc(src.slice(last,m.index));
+    if(m[1])out+=`<span class="c-com">${esc(m[1])}</span>`;
+    else if(m[2])out+=`<span class="c-str">${esc(m[2])}</span>`;
+    else if(m[3])out+=`<span class="c-pre">${esc(m[3])}</span>`;
+    else if(m[4])out+=`<span class="c-num">${esc(m[4])}</span>`;
+    else{const w=m[5];
+      if(C_KW.has(w))out+=`<span class="c-kw">${w}</span>`;
+      else if(C_TY.has(w))out+=`<span class="c-ty">${w}</span>`;
+      else if(C_MCU.has(w))out+=`<span class="c-mcu">${w}</span>`;
+      else if(src[re.lastIndex]==='(')out+=`<span class="c-fn">${w}</span>`;
+      else out+=w;}
+    last=re.lastIndex;
+  }
+  return out+esc(src.slice(last));
+}
+function syncHl(){
+  const ta=$('projCode');
+  $('hl').innerHTML=hlC(ta.value)+'\n';
+  $('hl').scrollTop=ta.scrollTop;$('hl').scrollLeft=ta.scrollLeft;
+}
+$('projCode').addEventListener('input',syncHl);
+$('projCode').addEventListener('scroll',()=>{$('hl').scrollTop=$('projCode').scrollTop;$('hl').scrollLeft=$('projCode').scrollLeft;});
+function buildTree(){
+  $('treeProj').textContent=proj.name||'未选择';
+  const box=$('treeFiles');box.innerHTML='';
+  if(!proj.name){box.innerHTML='<div class="treeEmpty">选择项目后<br>显示文件树</div>';return;}
+  Object.keys(proj.files).forEach(f=>{
+    const d=document.createElement('div');d.className='treeRow'+(f===proj.cur?' sel':'');
+    d.innerHTML=(f.endsWith('.c')?'📄':f.endsWith('.h')?'📑':'⚙️')+' '+f;
+    d.onclick=()=>showProjFile(f);box.appendChild(d);});
+}
 function showProjFile(f){
   saveProjBuffer();
   proj.cur=f;
   document.querySelectorAll('.ptab').forEach(d=>d.classList.toggle('sel',d.textContent===f));
+  document.querySelectorAll('.treeRow').forEach(d=>d.classList.toggle('sel',d.textContent.trim().endsWith(f)));
   $('projCode').value=proj.files[f]||'';
+  syncHl();buildTree();
 }
 function saveProjBuffer(){if(proj.cur)proj.files[proj.cur]=$('projCode').value;}
 async function buildProj(){
@@ -931,7 +1005,7 @@ $('projDelBtn').onclick=async()=>{
   if(!proj.name||!confirm('删除项目 '+proj.name+'（含全部文件，不可恢复）？'))return;
   const b=await(await fetch('/api/project/'+proj.name,{method:'DELETE'})).json();
   if(!b.ok){$('projLog').textContent='删除失败：'+b.error;return;}
-  proj.name=null;proj.files={};proj.cur=null;$('projCode').value='';$('projTabs').innerHTML='';
+  proj.name=null;proj.files={};proj.cur=null;$('projCode').value='';$('projTabs').innerHTML='';syncHl();buildTree();
   await refreshProjList();$('projLog').textContent='已删除。';
 };
 $('fileNewBtn').onclick=async()=>{
@@ -957,6 +1031,17 @@ $('projCode').addEventListener('keydown',e=>{
     t.value=t.value.slice(0,s)+'  '+t.value.slice(t.selectionEnd);t.selectionStart=t.selectionEnd=s+2;}
   if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();buildProj();}
 });
+/* 面板按需展开（记住状态） */
+function bindTog(btnId, targetId, key){
+  const btn=$(btnId),el=$(targetId);
+  const apply=on=>{btn.classList.toggle('on',on);el.classList.toggle('hidden',!on);};
+  apply((localStorage.getItem('zetsim.tog.'+key)??'1')==='1');
+  btn.onclick=()=>{const on=!btn.classList.contains('on');apply(on);
+    localStorage.setItem('zetsim.tog.'+key,on?'1':'0');};
+}
+bindTog('togLeft','leftPanel','left');
+bindTog('togScope','scopePanel','scope');
+bindTog('togRight','rightPanel','right');
 /* 电路预设 */
 $('presetSel').onchange=async e=>{
   const v=e.target.value;if(!v)return;e.target.value='';
