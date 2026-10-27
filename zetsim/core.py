@@ -161,6 +161,11 @@ class CortexM3Core:
         self.flash_bytes = total
         self.uc.mem_write(self.FLASH_BASE, bytes(total))
         self.uc.mem_write(self.ALIAS_BASE, bytes(total[: self.ALIAS_SIZE]))
+        try:
+            from unicorn import UC_CTL_TB_FLUSH
+            self.uc.ctl(UC_CTL_TB_FLUSH, 1)   # API 层重写 Flash 后必须清翻译块缓存，否则 CPU 继续执行旧指令
+        except Exception:
+            pass
         self.reset_cpu()
 
     def load_file(self, path: str):

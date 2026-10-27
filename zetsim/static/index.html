@@ -898,7 +898,20 @@ function renderState(s){
 }
 
 /* ================= 轮询 / 固件控制 ================= */
-async function poll(){try{const r=await fetch('/api/state');renderState(await r.json())}catch(e){}setTimeout(poll,350)}
+let lastBoot=null;
+async function poll(){
+  try{
+    const r=await fetch('/api/state');const s=await r.json();
+    if(s.boot_id&&s.boot_id!==lastBoot){          // 服务器换代（重启）→ 自动重同步电路和固件
+      const first=lastBoot===null;lastBoot=s.boot_id;
+      if(!first){pushSchematic();
+        if($('fwpath').value)fetch('/api/load',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({path:$('fwpath').value})});}
+    }
+    renderState(s);
+  }catch(e){}
+  setTimeout(poll,150);
+}
 async function loadFw(path){
   if(!path)return;
   const r=await fetch('/api/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})});

@@ -79,6 +79,7 @@ class Dashboard:
     """Board + 原理图 + 仿真线程。"""
 
     def __init__(self, firmware: str | None = None):
+        self.boot_id = time.time()          # 服务器换代标识：前端据此重新同步电路/固件
         self.board = Board()
         self.board.reset()
         self.sch = Schematic(self.board)
@@ -109,6 +110,7 @@ class Dashboard:
             self.running = False
             self.board.reset()
             self.board.core.load_file(path)
+            self.board.core.reset_cpu()      # 烧录=复位：从新固件的复位向量重新执行
             self.firmware_path = path
             self.uart_text.clear()
             self.sim.halted = False
@@ -211,6 +213,7 @@ class Dashboard:
             oled_b64 = base64.b64encode(bytes(oled.fb)).decode()
         st = {
             "type": "state",
+            "boot_id": self.boot_id,
             "t_ms": round(self.sim.now / 1e6, 3),
             "running": self.running,
             "sim_halted": self.sim.halted,
