@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>zetsim — STM32F103ZET6 电路仿真器</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c2129; --border:#30363d; --border2:#3d4451;
+  --text:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950; --red:#f85149;
+  --amber:#e3b341; --mono:"Cascadia Code",Consolas,"SF Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);
+  font:13px/1.5 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+  display:flex;flex-direction:column;overflow:hidden}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:#2c333d;border-radius:5px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- 顶栏 ---------- */
+header{display:flex;align-items:center;gap:12px;padding:0 14px;height:46px;
+  background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}
+.logo .mark{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#1f6feb,#58a6ff);
+  display:grid;place-items:center;font-size:12px;color:#fff}
+.logo small{color:var(--muted);font-weight:400}
+.chip{background:var(--panel2);border:1px solid var(--border);border-radius:999px;
+  padding:2px 10px;font:11px var(--mono);color:var(--muted)}
+.chip b{color:var(--amber);font-weight:600}
+.sep{width:1px;height:22px;background:var(--border)}
+.spacer{flex:1}
+.btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:7px;
+  padding:5px 12px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:6px;
+  transition:border-color .12s, background .12s}
+.btn:hover{border-color:var(--accent);background:#202733}
+.btn.primary{background:#238636;border-color:#2ea043;font-weight:600}
+.btn.primary:hover{background:#2ea043}
+.btn.danger:hover{border-color:var(--red);color:var(--red)}
+.btn.icon{padding:5px 8px}
+.btn.active{border-color:var(--accent);color:var(--accent);background:#12233a}
+.btn:disabled{opacity:.45;cursor:default}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pl 1.2s infinite}
+.pulse.off{background:var(--muted);animation:none}
+@keyframes pl{50%{opacity:.35}}
+
+/* ---------- 主体 ---------- */
+main{flex:1;display:grid;grid-template-columns:196px 1fr 292px;gap:8px;padding:8px;min-height:0}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.panel h3{font-size:11px;color:var(--muted);letter-spacing:1.2px;padding:10px 12px 6px;
+  text-transform:uppercase;flex-shrink:0}
+.panel .body{padding:0 10px 10px;overflow-y:auto;flex:1;min-height:0}
+
+/* 元件库 */
+.pal{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pal .item{background:var(--panel2);border:1px solid var(--border);border-radius:8px;
+  padding:8px 4px 6px;cursor:pointer;text-align:center;transition:all .12s;user-select:none}
+.pal .item:hover{border-color:var(--accent);transform:translateY(-1px)}
+.pal .item.active{border-color:var(--accent);background:#12233a;box-shadow:0 0 0 1px var(--accent) inset}
+.pal .item svg{display:block;margin:0 auto 4px}
+.pal .item span{font-size:11px;color:var(--text)}
+.tip{font-size:11px;color:var(--muted);line-height:1.75;padding:8px 2px}
+.tip b{color:var(--text);font-weight:600}
+
+/* 画布区 */
+#canvasWrap{position:relative;flex:1;min-height:0;background:#0b0e14}
+#sch{position:absolute;inset:0;width:100%;height:100%;display:block}
+#statusbar{display:flex;gap:14px;align-items:center;height:28px;padding:0 12px;flex-shrink:0;
+  background:var(--panel2);border-top:1px solid var(--border);font:11px var(--mono);color:var(--muted)}
+#statusbar .mode{color:var(--accent)}
+#toolbar{display:flex;gap:5px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+#zoomPct{min-width:46px;text-align:center;font:11px var(--mono);color:var(--muted);margin:0 2px}
+
+/* 示波器 */
+#scopePanel{height:196px;flex-shrink:0}
+#scope{display:block;width:100%;height:120px}
+.legend{display:flex;gap:8px;flex-wrap:wrap;padding:6px 10px}
+.legend .lg{display:flex;align-items:center;gap:5px;font:11px var(--mono);color:var(--muted);
+  background:var(--panel2);border-radius:6px;padding:2px 8px}
+.legend .dot{width:8px;height:8px;border-radius:50%}
+
+/* 右栏 */
+.fw-item{cursor:pointer;padding:5px 9px;border-radius:6px;font:12px var(--mono);
+  display:flex;justify-content:space-between;color:var(--text)}
+.fw-item:hover{background:var(--panel2)}
+.fw-item.sel{background:#12233a;color:var(--accent)}
+.fw-item .r{color:var(--muted);font-size:10px}
+input[type=text]{background:#0b0e14;color:var(--text);border:1px solid var(--border);border-radius:7px;
+  padding:6px 9px;width:100%;font:12px var(--mono);outline:none}
+input[type=text]:focus{border-color:var(--accent)}
+#uart{background:#0b0e14;border:1px solid var(--border);border-radius:8px;height:128px;overflow-y:auto;
+  padding:8px;font:11px/1.55 var(--mono);white-space:pre-wrap;word-break:break-all;color:#7ee787}
+#uart:empty::before{content:"— 等待固件串口输出 —";display:block;text-align:center;margin-top:44px;
+  color:#484f58;font-size:11px}
+.pal .item svg{filter:brightness(1.65)}
+#oled{display:block;margin:0 auto;background:#05070a;border-radius:6px}
+.empty{color:var(--muted);font-size:11px;text-align:center;padding:14px 6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="mark">Z</div>zetsim <small>STM32F103ZET6 仿真器</small></div>
+  <div class="sep"></div>
+  <div class="chip">仿真时间 <b id="simtime">0.000 ms</b></div>
+  <div class="chip" id="fwname">未加载固件</div>
+  <div class="spacer"></div>
+  <button class="btn primary" id="runbtn"><span class="pulse off" id="runDot"></span><span id="runTxt">运行</span></button>
+  <button class="btn" id="resetbtn">⟲ 复位</button>
+</header>
+<main>
+  <!-- 左：元件库 -->
+  <section class="panel">
+    <h3>元件库</h3>
+    <div class="body">
+      <div class="pal" id="palette"></div>
+      <h3 style="padding:12px 2px 4px">电路文件</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <button class="btn" id="demoBtn">示例电路</button>
+        <button class="btn danger" id="clearBtn">清空画布</button>
+        <button class="btn" id="exportBtn">导出</button>
+        <button class="btn" id="importBtn">导入</button>
+      </div>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+      <div class="tip">
+        <b>连线</b>：点引脚 → 点另一引脚<br>
+        <b>移动</b>：拖动元件<br>
+        <b>缩放</b>：滚轮 · <b>平移</b>：右键拖<br>
+        <b>删除</b>：选中后 Delete<br>
+        <b>参数</b>：双击元件<br>
+        <b>按键</b>：按住不放 · <b>电位器</b>：左右拖
+      </div>
+    </div>
+  </section>
+
+  <!-- 中：画布 + 示波器 -->
+  <section class="panel" style="min-width:0">
+    <div id="toolbar">
+      <button class="btn icon" id="wireBtn" title="连线模式 (W)">⚡ 连线</button>
+      <button class="btn icon" id="selBtn" title="选择 (Esc)">⌖ 选择</button>
+      <div class="sep"></div>
+      <button class="btn icon" id="zoomOut">−</button>
+      <span id="zoomPct">100%</span>
+      <button class="btn icon" id="zoomIn">＋</button>
+      <button class="btn icon" id="fitBtn" title="适配视图">⛶</button>
+      <div class="sep"></div>
+      <button class="btn icon" id="gridBtn" title="网格">▦</button>
+      <div class="spacer"></div>
+      <span style="font-size:11px;color:var(--muted)" id="schCount"></span>
+    </div>
+    <div id="canvasWrap"><canvas id="sch"></canvas></div>
+    <div id="statusbar">
+      <span class="mode" id="stMode">就绪</span>
+      <span id="stPos">x 0, y 0</span>
+      <span style="flex:1"></span>
+      <span id="stHint">从元件库选择并放置元件，或直接点引脚连线</span>
+    </div>
+    <div id="scopePanel">
+      <h3 style="padding-top:6px">示波器 · 探针通道</h3>
+      <canvas id="scope"></canvas>
+      <div class="legend" id="legend"><span class="lg">放置探针以查看波形</span></div>
+    </div>
+  </section>
+
+  <!-- 右：固件 / 终端 -->
+  <section class="panel">
+    <h3>固件</h3>
+    <div class="body" style="display:flex;flex-direction:column;gap:8px">
+      <div id="fwlist"></div>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="fwpath" placeholder="路径 .hex / .elf">
+        <button class="btn" id="loadbtn">加载</button>
+      </div>
+      <h3 style="padding:6px 2px 0">USART1 终端</h3>
+      <div id="uart"></div>
+      <div style="display:flex;gap:6px">
+        <input type="text" id="uart-in" placeholder="发送到固件 RX…">
+        <button class="btn" id="sendbtn">发送</button>
+      </div>
+      <h3 style="padding:6px 2px 0">OLED · I2C1 @0x3C</h3>
+      <canvas id="oled" width="128" height="64" style="width:256px;image-rendering:pixelated"></canvas>
+      <div class="empty">未运行固件时黑屏 · 固定挂接 I2C1（PB6/PB7）</div>
+    </div>
+  </section>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+
+/* ================= 数据模型 ================= */
+let sch={components:[],wires:[]};
+let st=null, sel=null, autoId=0;
+let mode='idle', placeType=null, wireFrom=null;
+let mouse={x:0,y:0}, mouseW={x:0,y:0};
+let dragC=null, dragOff={x:0,y:0}, potDrag=null, moved=false;
+let panDrag=null, panStart=null;
+const heldBtns=new Set();
+let view={x:0,y:0,z:1};
+let showGrid=true;
+let hoverPin=null, hoverComp=null;
+
+const TYPES={
+  mcu:{w:170,h:470,label:'STM32'},
+  led:{w:64,h:44}, resistor:{w:84,h:34}, capacitor:{w:64,h:34},
+  button:{w:74,h:52}, pot:{w:92,h:40}, gnd:{w:40,h:34}, vcc:{w:40,h:34}, probe:{w:44,h:40},
+};
+const MCU_R=[...Array(16).keys()].map(i=>'PA'+i), MCU_L=['PB0','PB1'];
+const PINS={mcu:[...MCU_R,...MCU_L],led:['A','K'],resistor:['1','2'],capacitor:['1','2'],
+  button:['1','2'],pot:['W','B'],gnd:['G'],vcc:['V'],probe:['P']};
+const PSTEP=27;
+const COLORS={wire:'#3fb950',wireSel:'#58a6ff',body:'#1c2330',stroke:'#7d8590',text:'#e6edf3',
+  label:'#8b949e',led:{red:[248,81,73],green:[63,185,80]},accent:'#58a6ff'};
+const PROBE_COLORS=['#58a6ff','#f85149','#3fb950','#e3b341'];
+
+function pinPos(c,p){
+  const t=TYPES[c.type],x=c.x,y=c.y;
+  if(c.type==='mcu'){
+    if(MCU_R.includes(p))return{x:x+t.w,y:y+20+MCU_R.indexOf(p)*PSTEP};
+    return{x:x,y:y+20+MCU_L.indexOf(p)*PSTEP};
+  }
+  if(c.type==='gnd')return{x:x+t.w/2,y:y};
+  if(c.type==='vcc')return{x:x+t.w/2,y:y+t.h};
+  if(c.type==='probe')return{x:x,y:y+t.h/2};
+  if(c.type==='led')return p==='A'?{x:x,y:y+t.h/2}:{x:x+t.w,y:y+t.h/2};
+  return p==='1'||p==='W'?{x:x,y:y+t.h/2}:{x:x+t.w,y:y+t.h/2};
+}
+const compById=id=>sch.components.find(c=>c.id===id);
+function compHit(wx,wy){
+  for(const c of sch.components.slice().reverse()){
+    const t=TYPES[c.type];
+    if(wx>=c.x-3&&wx<=c.x+t.w+3&&wy>=c.y-3&&wy<=c.y+t.h+3)return c;
+  } return null;
+}
+function pinHit(wx,wy){
+  for(const c of sch.components)for(const p of PINS[c.type]){
+    const pp=pinPos(c,p);
+    if(Math.hypot(wx-pp.x,wy-pp.y)<7/Math.min(view.z,1.2))return{c,pin:p,pos:pp};
+  } return null;
+}
+
+/* ================= 画布 ================= */
+const cv=$('sch'),ctx=cv.getContext('2d');
+function resize(){
+  const r=cv.parentElement.getBoundingClientRect();
+  cv.width=r.width*devicePixelRatio;cv.height=r.height*devicePixelRatio;
+  render();
+}
+addEventListener('resize',resize);
+new ResizeObserver(resize).observe(cv.parentElement);   // 布局变化（面板展开等）也同步画布
+const s2w=(sx,sy)=>({x:(sx-view.x)/view.z,y:(sy-view.y)/view.z});
+const w2s=(wx,wy)=>({x:wx*view.z+view.x,y:wy*view.z+view.y});
+
+function render(){
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.save();ctx.translate(view.x,view.y);ctx.scale(view.z,view.z);
+  if(showGrid)drawGrid();
+  // wires（正交走线 + 跨线弧）
+  const hopMap=computeHops();
+  for(let wi=0;wi<sch.wires.length;wi++){
+    const w=sch.wires[wi];
+    const a=findPin(w.a),b=findPin(w.b);if(!a||!b)continue;
+    drawWire(a,b,mode==='wire'&&wireFrom&&(samePin(w.a)||samePin(w.b))?COLORS.wireSel:COLORS.wire,false,hopMap[wi]);
+  }
+  // 结点：引出 >=2 根导线的引脚画实心结点
+  const pinUse={};
+  for(const w of sch.wires){for(const ref of[w.a,w.b]){const k=ref[0]+'.'+ref[1];pinUse[k]=(pinUse[k]||0)+1;}}
+  for(const c of sch.components)for(const p of PINS[c.type]){
+    if((pinUse[c.id+'.'+p]||0)>=2){const pp=pinPos(c,p);
+      ctx.fillStyle=COLORS.wire;ctx.beginPath();ctx.arc(pp.x,pp.y,4,0,7);ctx.fill();}
+  }
+  // 连线预览 + 十字光标
+  if(mode==='wire'&&wireFrom){
+    ctx.strokeStyle='rgba(88,166,255,.35)';ctx.lineWidth=1/view.z;ctx.setLineDash([4,4]);
+    ctx.beginPath();
+    ctx.moveTo(wireFrom.pos.x,-1e4);ctx.lineTo(wireFrom.pos.x,1e4);
+    ctx.moveTo(-1e4,mouseW.y);ctx.lineTo(1e4,mouseW.y);
+    ctx.stroke();ctx.setLineDash([]);
+    drawWire(wireFrom.pos,mouseW,COLORS.accent,true,null);
+  }
+  // 放置幽灵
+  if(mode==='place'&&placeType){
+    ctx.globalAlpha=.45;drawComp({id:'?',type:placeType,x:mouseW.x-30,y:mouseW.y-16,props:{}},true);
+    ctx.globalAlpha=1;
+  }
+  for(const c of sch.components)drawComp(c);
+  ctx.restore();
+}
+function samePin(ref){return wireFrom&&ref[0]===wireFrom.c.id&&ref[1]===wireFrom.pin}
+function findPin(ref){const c=compById(ref[0]);return c?pinPos(c,ref[1]):null}
+
+function drawGrid(){
+  const step=10;
+  const gr=cv.getBoundingClientRect();
+  const tl=s2w(0,0),br=s2w(gr.width,gr.height);
+  ctx.fillStyle='#1b212b';
+  for(let x=Math.floor(tl.x/step)*step;x<br.x;x+=step)
+    for(let y=Math.floor(tl.y/step)*step;y<br.y;y+=step){
+      if(x%50===0&&y%50===0)ctx.fillRect(x-.8,y-.8,1.6,1.6);
+      else if(view.z>.65)ctx.fillRect(x-.5,y-.5,1,1);
+    }
+}
+function wirePts(a,b){
+  if(Math.abs(a.y-b.y)<2)return[a,b];
+  const mx=Math.round((a.x+b.x)/2);
+  return[a,{x:mx,y:a.y},{x:mx,y:b.y},b];
+}
+// 交叉检测：不同导线的横段×竖段相交（非端点）→ 横线画半圆跳弧（初中物理的"跨线"）
+function computeHops(){
+  const segs=[];
+  sch.wires.forEach((w,wi)=>{
+    const a=findPin(w.a),b=findPin(w.b);if(!a||!b)return;
+    const pts=wirePts(a,b);
+    for(let i=0;i<pts.length-1;i++){
+      const p=pts[i],q=pts[i+1];
+      if(p.y===q.y)segs.push({wi,h:true,x1:Math.min(p.x,q.x),x2:Math.max(p.x,q.x),y:p.y});
+      else segs.push({wi,h:false,y1:Math.min(p.y,q.y),y2:Math.max(p.y,q.y),x:p.x});
+    }
+  });
+  const hops={};
+  for(const s of segs)if(s.h)
+    for(const v of segs)if(!v.h&&v.wi!==s.wi
+        &&v.x>s.x1+1&&v.x<s.x2-1&&s.y>v.y1+1&&s.y<v.y2-1){
+      (hops[s.wi]=hops[s.wi]||[]).push({x:v.x,y:s.y});
+    }
+  return hops;
+}
+function drawWire(a,b,color,dash,hopList){
+  const pts=wirePts(a,b);
+  const R=5;
+  ctx.strokeStyle=color;ctx.lineWidth=2/Math.max(view.z*.85,.7);ctx.lineCap='round';
+  if(dash)ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++){
+    const p=pts[i-1],q=pts[i];
+    const hseg=hopList&&hopList.filter(h=>h.y===p.y&&h.x>p.x+R&&h.x<q.x-R).sort((m,n)=>m.x-n.x);
+    if(p.y===q.y&&hseg&&hseg.length){
+      let cx=p.x;
+      for(const h of hseg){
+        ctx.lineTo(h.x-R,p.y);
+        ctx.arc(h.x,p.y,R,Math.PI,0,true);   // 上拱半圆
+        cx=h.x+R;
+      }
+      ctx.lineTo(q.x,q.y);
+    } else ctx.lineTo(q.x,q.y);
+  }
+  ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=color;
+  for(const p of[a,b]){ctx.beginPath();ctx.arc(p.x,p.y,2.4/Math.max(view.z*.8,.7),0,7);ctx.fill();}
+}
+
+function drawComp(c,ghost){
+  const t=TYPES[c.type];
+  const L=(st&&st.leds||{})[c.id],B=(st&&st.buttons||{})[c.id],P=(st&&st.pots||{})[c.id];
+  const lw=1.6/Math.max(view.z*.85,.6);
+  ctx.lineWidth=lw;ctx.font=`${10}px "Cascadia Code",Consolas`;ctx.textBaseline='middle';
+  // 引脚
+  for(const p of PINS[c.type]){
+    const pp=pinPos(c,p);
+    const hot=hoverPin&&hoverPin.c===c&&hoverPin.pin===p;
+    if(c.type==='mcu'){
+      const right=pp.x>c.x+1;
+      ctx.fillStyle=right?'#7d8590':'#7d8590';ctx.textAlign=right?'left':'right';
+      ctx.fillText(p,right?pp.x+5:pp.x-5,pp.y);
+    }
+    ctx.fillStyle=hot?COLORS.accent:(mode==='wire'?'#58a6ff':'#aab3bf');
+    ctx.beginPath();ctx.arc(pp.x,pp.y,3.2,0,7);ctx.fill();
+    if(hot){ctx.strokeStyle=COLORS.accent;ctx.beginPath();ctx.arc(pp.x,pp.y,6,0,7);ctx.stroke();}
+  }
+  const stroke=sel===c?COLORS.accent:COLORS.stroke;
+  if(c.type==='mcu')drawMcu(c,stroke);
+  else if(c.type==='led')drawLed(c,L);
+  else if(c.type==='resistor')drawRes(c,stroke,fmtOhms(c.props.ohms||1000));
+  else if(c.type==='capacitor')drawCap(c,stroke,fmtF(c.props.farads||100e-9));
+  else if(c.type==='button')drawBtn(c,B);
+  else if(c.type==='pot')drawPot(c,P,stroke);
+  else if(c.type==='gnd')drawGnd(c);
+  else if(c.type==='vcc')drawVcc(c);
+  else if(c.type==='probe')drawProbe(c);
+  if(!ghost&&sel===c){
+    ctx.strokeStyle='rgba(88,166,255,.7)';ctx.setLineDash([5,4]);ctx.lineWidth=1;
+    ctx.strokeRect(c.x-7,c.y-7,t.w+14,t.h+14);ctx.setLineDash([]);
+  }
+}
+function drawMcu(c,stroke){
+  const t=TYPES.mcu;
+  ctx.fillStyle=COLORS.body;ctx.strokeStyle=stroke;
+  ctx.beginPath();ctx.roundRect(c.x,c.y,t.w,t.h,8);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.arc(c.x+t.w/2,c.y,7,Math.PI,0);ctx.strokeStyle='#4a5361';ctx.stroke();
+  ctx.strokeStyle='#3d4451';ctx.beginPath();
+  MCU_L.forEach((p,i)=>{const y=c.y+20+i*PSTEP;ctx.moveTo(c.x,y-8);ctx.lineTo(c.x+9,y-8);});
+  MCU_R.forEach((p,i)=>{const y=c.y+20+i*PSTEP;ctx.moveTo(c.x+t.w-9,y-8);ctx.lineTo(c.x+t.w,y-8);});
+  ctx.stroke();
+  ctx.textAlign='center';
+  ctx.fillStyle=COLORS.accent;ctx.font='bold 13px "Cascadia Code",Consolas';
+  ctx.fillText('STM32F103',c.x+t.w/2,c.y+t.h+26);
+  ctx.fillStyle=COLORS.label;ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillText('ZET6 · LQFP144',c.x+t.w/2,c.y+t.h+40);
+  ctx.fillStyle='#3d4451';ctx.font='9px "Cascadia Code",Consolas';
+  ctx.fillText('zetsim',c.x+t.w/2,c.y+t.h-12);
+}
+function drawLed(c,L){
+  const cx=c.x+32,cy=c.y+22,on=L&&L.on,br=L?L.brightness:0;
+  const col=COLORS.led[c.props.color]||COLORS.led.red;
+  ctx.strokeStyle='#7d8590';
+  ctx.beginPath();ctx.moveTo(c.x,cy);ctx.lineTo(cx-11,cy);ctx.moveTo(cx+11,cy);ctx.lineTo(c.x+64,cy);ctx.stroke();
+  if(on){ctx.save();ctx.shadowColor=`rgb(${col})`;ctx.shadowBlur=30*br;
+    ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${.45+.55*br})`;}
+  else ctx.fillStyle='rgba(120,130,145,.13)';
+  ctx.beginPath();ctx.arc(cx,cy,11,0,7);ctx.fill();if(on)ctx.restore();
+  ctx.strokeStyle=on?`rgb(${col})`:'#7d8590';
+  ctx.beginPath();ctx.arc(cx,cy,11,0,7);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-4,cy-5);ctx.lineTo(cx+4,cy);ctx.lineTo(cx-4,cy+5);ctx.closePath();
+  ctx.fillStyle=on?'#fff':'#5b636e';ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx+4,cy-5);ctx.lineTo(cx+4,cy+5);ctx.stroke();
+  ctx.fillStyle=COLORS.label;ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillText(c.id+(on?` ${(br*100)|0}%`:''),cx,c.y+40);
+}
+function drawRes(c,stroke,label){
+  const cy=c.y+14,x0=c.x+14,x1=c.x+70;
+  ctx.strokeStyle=stroke;
+  ctx.beginPath();ctx.moveTo(c.x,cy);ctx.lineTo(x0,cy);ctx.lineTo(x0+5,cy-8);ctx.lineTo(x0+15,cy+8);
+  ctx.lineTo(x0+25,cy-8);ctx.lineTo(x0+35,cy+8);ctx.lineTo(x0+45,cy-8);ctx.lineTo(x0+51,cy);
+  ctx.lineTo(x1,cy);ctx.lineTo(c.x+84,cy);ctx.stroke();
+  ctx.fillStyle=COLORS.text;ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillText(label,(x0+x1)/2,cy+13);
+}
+function drawCap(c,stroke,label){
+  const cx=c.x+32,cy=c.y+14;
+  ctx.strokeStyle=stroke;
+  ctx.beginPath();ctx.moveTo(c.x,cy);ctx.lineTo(cx-4,cy);ctx.moveTo(cx+4,cy);ctx.lineTo(c.x+64,cy);
+  ctx.moveTo(cx-4,cy-11);ctx.lineTo(cx-4,cy+11);ctx.moveTo(cx+4,cy-11);ctx.lineTo(cx+4,cy+11);ctx.stroke();
+  ctx.fillStyle=COLORS.text;ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillText(label,cx,cy+16);
+}
+function drawBtn(c,B){
+  const x=c.x+9,cy=c.y+18,dn=B||heldBtns.has(c.id);
+  ctx.strokeStyle=dn?COLORS.accent:'#7d8590';
+  ctx.beginPath();
+  ctx.moveTo(c.x,cy);ctx.lineTo(x,cy);ctx.arc(x+8,cy,2.5,Math.PI,0,true);
+  ctx.moveTo(x+19,cy);ctx.lineTo(c.x+74,cy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+4,cy+(dn?1:-5));ctx.lineTo(x+17,cy+(dn?-1:5));ctx.stroke();
+  ctx.fillStyle=dn?COLORS.accent:'#5b636e';
+  ctx.beginPath();ctx.arc(x+2,cy+7,2,0,7);ctx.arc(x+19,cy+7,2,0,7);ctx.fill();
+  ctx.beginPath();ctx.moveTo(x+2,cy+7);ctx.lineTo(c.x+2,cy+7);ctx.moveTo(x+19,cy+7);ctx.lineTo(c.x+72,cy+7);
+  ctx.strokeStyle=dn?COLORS.accent:'#7d8590';ctx.stroke();
+  ctx.fillStyle=COLORS.label;ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillText(c.id+'（按住）',c.x+37,c.y+44);
+}
+function drawPot(c,P,stroke){
+  const x0=c.x+14,cy=c.y+14,x1=c.x+78;
+  ctx.strokeStyle=stroke;
+  ctx.beginPath();ctx.moveTo(c.x,cy);ctx.lineTo(x0,cy);ctx.lineTo(x0+5,cy-8);ctx.lineTo(x0+15,cy+8);
+  ctx.lineTo(x0+25,cy-8);ctx.lineTo(x0+35,cy+8);ctx.lineTo(x0+45,cy-8);ctx.lineTo(x0+50,cy);
+  ctx.lineTo(x1,cy);ctx.lineTo(c.x+92,cy);ctx.stroke();
+  const v=P!=null?P:1.65,fx=x0+8+(x1-x0-16)*(v/3.3);
+  ctx.strokeStyle='#e3b341';
+  ctx.beginPath();ctx.moveTo(fx,cy-14);ctx.lineTo(fx,cy-2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(fx-3,cy-8);ctx.lineTo(fx,cy-3);ctx.lineTo(fx+3,cy-8);ctx.stroke();
+  ctx.fillStyle='#e3b341';ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillText(v.toFixed(2)+'V',(x0+x1)/2,cy+13);
+}
+function drawGnd(c){
+  const x=c.x+20,y=c.y;
+  ctx.strokeStyle='#7d8590';
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+10);
+  ctx.moveTo(x-13,y+10);ctx.lineTo(x+13,y+10);
+  ctx.moveTo(x-8,y+16);ctx.lineTo(x+8,y+16);
+  ctx.moveTo(x-3,y+22);ctx.lineTo(x+3,y+22);ctx.stroke();
+}
+function drawVcc(c){
+  const x=c.x+20,y=c.y+34;
+  ctx.strokeStyle='#3fb950';
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-12);ctx.moveTo(x-13,y-12);ctx.lineTo(x+13,y-12);ctx.stroke();
+  ctx.fillStyle='#3fb950';ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillText('+3.3V',x,c.y-20+12);
+}
+function drawProbe(c){
+  const idx=Object.keys((st&&st.probes)||{}).indexOf(c.id);
+  const col=PROBE_COLORS[idx<0?0:idx];
+  ctx.strokeStyle=col;ctx.lineWidth=1.8/Math.max(view.z*.85,.6);
+  ctx.beginPath();ctx.arc(c.x+24,c.y+20,11,0,7);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(c.x+24,c.y+9);ctx.lineTo(c.x+24,c.y);ctx.moveTo(c.x,c.y+20);ctx.lineTo(c.x+13,c.y+20);ctx.stroke();
+  ctx.fillStyle=col;ctx.beginPath();ctx.arc(c.x+24,c.y+20,3.4,0,7);ctx.fill();
+  ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillText(c.id,c.x+24,c.y+38);
+}
+const fmtOhms=v=>v>=1e6?(v/1e6)+'MΩ':v>=1e3?(v/1e3)+'kΩ':v+'Ω';
+const fmtF=f=>f>=1e-6?(f*1e6)+'µF':(f*1e9)+'nF';
+
+/* ================= 交互 ================= */
+function evtPos(e){const r=cv.getBoundingClientRect();
+  const k=cv.width/r.width/devicePixelRatio;   // 属性尺寸与显示尺寸脱钩时仍按显示位置换算
+  return{x:(e.clientX-r.left)*k,y:(e.clientY-r.top)*k}}
+cv.addEventListener('mousemove',e=>{
+  const p=evtPos(e);mouse=p;mouseW=s2w(p.x,p.y);
+  $('stPos').textContent=`x ${mouseW.x|0}, y ${mouseW.y|0}`;
+  if(panDrag){view.x=panStart.vx+(p.x-panStart.x);view.y=panStart.vy+(p.y-panStart.y);}
+  if(dragC){dragC.x=Math.round((mouseW.x-dragOff.x)/10)*10;dragC.y=Math.round((mouseW.y-dragOff.y)/10)*10;moved=true;}
+  if(potDrag){
+    const c=potDrag,frac=Math.max(0,Math.min(1,(mouseW.x-c.x-22)/56));
+    api('comp/'+c.id+'/pot',{volts:+(frac*3.3).toFixed(2)});
+  }
+  hoverPin=(mode==='wire'||mode==='idle')?pinHit(mouseW.x,mouseW.y):null;
+  hoverComp=compHit(mouseW.x,mouseW.y);
+  cv.style.cursor=panDrag?'grabbing':mode==='place'?'copy':mode==='wire'?'crosshair':
+    hoverPin?'pointer':dragC?'grabbing':hoverComp?'move':'default';
+  render();
+});
+cv.addEventListener('mousedown',e=>{
+  const p=evtPos(e),w=s2w(p.x,p.y);moved=false;
+  if(e.button===1||e.button===2){panDrag=true;panStart={x:p.x,y:p.y,vx:view.x,vy:view.y};return;}
+  if(mode==='wire'){
+    const hit=pinHit(w.x,w.y);
+    if(hit&&!(hit.c===wireFrom.c&&hit.pin===wireFrom.pin)){
+      sch.wires.push({a:[wireFrom.c.id,wireFrom.pin],b:[hit.c.id,hit.pin]});
+      pushSchematic();
+    }
+    setMode('idle');wireFrom=null;return;
+  }
+  if(mode==='place'){
+    const id=placeType.toUpperCase()+'_'+(++autoId);
+    const props=placeType==='resistor'?{ohms:1000}:placeType==='capacitor'?{farads:100e-9}:
+                placeType==='led'?{color:'red'}:{};
+    sch.components.push({id,type:placeType,x:Math.round(w.x/10)*10-30,y:Math.round(w.y/10)*10-16,props});
+    pushSchematic();setMode('idle');setPalette(null);return;
+  }
+  const ph=pinHit(w.x,w.y);
+  if(ph){setMode('wire');wireFrom=ph;return;}
+  const c=compHit(w.x,w.y);
+  if(c){sel=c;
+    if(c.type==='button'){api('comp/'+c.id+'/press');heldBtns.add(c.id);}
+    else if(c.type==='pot'){potDrag=c;}
+    else{dragC=c;dragOff={x:w.x-c.x,y:w.y-c.y};}
+  } else sel=null;
+  render();
+});
+addEventListener('mouseup',e=>{
+  if(dragC&&moved)pushSchematic();
+  for(const id of heldBtns)api('comp/'+id+'/release');
+  heldBtns.clear();
+  dragC=null;potDrag=null;panDrag=null;render();
+});
+addEventListener('blur',()=>{                 // 失焦时 mouseup 会被吞掉——补发释放，防止按键卡死在按下态
+  if(heldBtns.size){for(const id of heldBtns)api('comp/'+id+'/release');heldBtns.clear();render();}
+});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const p=evtPos(e),w0=s2w(p.x,p.y);
+  view.z=Math.max(.3,Math.min(3,view.z*(e.deltaY<0?1.12:.89)));
+  const w1=s2w(p.x,p.y);
+  view.x+=(w1.x-w0.x)*view.z;view.y+=(w1.y-w0.y)*view.z;
+  $('zoomPct').textContent=(view.z*100|0)+'%';render();
+},{passive:false});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('dblclick',e=>{
+  const p=evtPos(e),w=s2w(p.x,p.y),c=compHit(w.x,w.y);
+  if(!c)return;
+  if(c.type==='resistor'){const v=prompt('电阻值（Ω）：',c.props.ohms||1000);if(v){c.props.ohms=+v;pushSchematic();}}
+  else if(c.type==='capacitor'){const v=prompt('电容值（F），100nF 填 1e-7：',c.props.farads||100e-9);if(v){c.props.farads=+v;pushSchematic();}}
+  else if(c.type==='led'){const v=prompt('颜色 red / green：',c.props.color||'red');if(v){c.props.color=v;pushSchematic();}}
+});
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'){setMode('idle');wireFrom=null;setPalette(null);sel=null;render();}
+  if(e.key.toLowerCase()==='w'&&!wireFrom&&document.activeElement.tagName!=='INPUT'){setMode('wire');render();}
+  if((e.key==='Delete'||e.key==='Backspace')&&sel&&document.activeElement.tagName!=='INPUT'){
+    sch.components=sch.components.filter(c=>c!==sel);
+    sch.wires=sch.wires.filter(w=>w.a[0]!==sel.id&&w.b[0]!==sel.id);
+    sel=null;pushSchematic();render();
+  }
+});
+function setMode(m){
+  mode=m;
+  $('wireBtn').classList.toggle('active',m==='wire');
+  $('selBtn').classList.toggle('active',m==='idle');
+  $('stMode').textContent=m==='wire'?(wireFrom?`连线中：从 ${wireFrom.pin}`:'连线模式：点起始引脚'):
+    m==='place'?`放置：${placeType}`:'就绪';
+}
+$('wireBtn').onclick=()=>{setMode('wire');render();};
+$('selBtn').onclick=()=>{setMode('idle');wireFrom=null;render();};
+$('zoomIn').onclick=()=>{view.z=Math.min(3,view.z*1.2);$('zoomPct').textContent=(view.z*100|0)+'%';render();};
+$('zoomOut').onclick=()=>{view.z=Math.max(.3,view.z/1.2);$('zoomPct').textContent=(view.z*100|0)+'%';render();};
+$('fitBtn').onclick=fitView;
+$('gridBtn').onclick=()=>{showGrid=!showGrid;render();};
+function fitView(){
+  if(!sch.components.length){view={x:40,y:20,z:1};render();return;}
+  let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9;
+  for(const c of sch.components){const t=TYPES[c.type];
+    x1=Math.min(x1,c.x-20);y1=Math.min(y1,c.y-20);x2=Math.max(x2,c.x+t.w+70);y2=Math.max(y2,c.y+t.h+50);}
+  const fr=cv.getBoundingClientRect(),cw=fr.width,ch=fr.height;
+  view.z=Math.max(.3,Math.min(2,Math.min(cw/(x2-x1),ch/(y2-y1))));
+  view.x=-x1*view.z+(cw-(x2-x1)*view.z)/2;view.y=-y1*view.z+(ch-(y2-y1)*view.z)/2;
+  $('zoomPct').textContent=(view.z*100|0)+'%';render();
+}
+
+/* ================= 元件库 ================= */
+const SVG_ICON={
+  led:'<svg width="34" height="24" viewBox="0 0 34 24"><circle cx="17" cy="12" r="7" fill="none" stroke="#f85149"/><path d="M14 8l5 4-5 4z" fill="#f85149"/><path d="M19 8v8M2 12h8M24 12h8" stroke="#7d8590" stroke-width="1.5"/></svg>',
+  resistor:'<svg width="34" height="24" viewBox="0 0 34 24"><path d="M2 12h6l2-5 3 10 3-10 3 10 2-5h13" fill="none" stroke="#7d8590" stroke-width="1.5"/></svg>',
+  capacitor:'<svg width="34" height="24" viewBox="0 0 34 24"><path d="M2 12h12M20 12h12M14 5v14M20 5v14" stroke="#7d8590" stroke-width="1.5"/></svg>',
+  button:'<svg width="34" height="24" viewBox="0 0 34 24"><path d="M2 12h6M26 12h6M10 10l14-3M9 17h2M23 17h2" stroke="#7d8590" stroke-width="1.5"/><circle cx="10" cy="12" r="1.6" fill="#7d8590"/><circle cx="24" cy="12" r="1.6" fill="#7d8590"/></svg>',
+  pot:'<svg width="34" height="24" viewBox="0 0 34 24"><path d="M2 12h6l2-5 3 10 3-10 3 10 2-5h13" fill="none" stroke="#7d8590" stroke-width="1.5"/><path d="M20 2v8M17 5l3 3 3-3" stroke="#e3b341" stroke-width="1.5" fill="none"/></svg>',
+  gnd:'<svg width="34" height="24" viewBox="0 0 34 24"><path d="M17 2v8M6 10h22M10 15h14M14 20h6" stroke="#7d8590" stroke-width="1.5"/></svg>',
+  vcc:'<svg width="34" height="24" viewBox="0 0 34 24"><path d="M17 22v-8M6 14h22" stroke="#3fb950" stroke-width="1.5"/><text x="17" y="9" fill="#3fb950" font-size="8" text-anchor="middle">3V3</text></svg>',
+  probe:'<svg width="34" height="24" viewBox="0 0 34 24"><circle cx="20" cy="12" r="7" fill="none" stroke="#58a6ff" stroke-width="1.5"/><circle cx="20" cy="12" r="2" fill="#58a6ff"/><path d="M2 12h11M20 5V1" stroke="#58a6ff" stroke-width="1.5"/></svg>',
+};
+const PAL=[['led','LED'],['resistor','电阻'],['capacitor','电容'],['button','按键'],
+           ['pot','电位器'],['gnd','地'],['vcc','3.3V'],['probe','探针']];
+PAL.forEach(([t,label])=>{
+  const d=document.createElement('div');d.className='item';d.dataset.t=t;
+  d.innerHTML=SVG_ICON[t]+`<span>${label}</span>`;
+  d.onclick=()=>{const on=placeType===t;setPalette(on?null:t);setMode(on?'idle':'place');render();};
+  $('palette').appendChild(d);
+});
+function setPalette(t){
+  placeType=t;
+  document.querySelectorAll('#palette .item').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
+}
+
+/* ================= 服务器同步 ================= */
+async function pushSchematic(){
+  saveLocal();render();
+  try{const r=await fetch('/api/schematic',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(sch)});
+    const j=await r.json();
+    if(j.ok&&j.snapshot){st=Object.assign(st||{},j.snapshot);render();renderScope();}
+  }catch(e){}
+}
+async function api(p,body){                          // p = /api/ 之后的路径，如 comp/SW1/press
+  try{const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body||{})});return await r.json();}catch(e){}
+}
+function saveLocal(){try{localStorage.setItem('zetsim.sch',JSON.stringify(sch))}catch(e){}}
+async function defSch(){const r=await fetch('/api/schematic/default');return await r.json();}
+async function loadLocalOrDefault(){
+  const s=localStorage.getItem('zetsim.sch');
+  if(s){try{sch=JSON.parse(s)}catch(e){sch=JSON.parse(JSON.stringify(await defSch()))}}
+  else sch=JSON.parse(JSON.stringify(await defSch()));
+  sch.components.forEach(c=>{const n=+((c.id.match(/_(\d+)/)||[])[1]||0);if(n>autoId)autoId=n;});
+  await pushSchematic();fitView();
+}
+$('demoBtn').onclick=async()=>{sch=JSON.parse(JSON.stringify(await defSch()));await pushSchematic();fitView();};
+$('clearBtn').onclick=()=>{if(!confirm('清空画布？'))return;sch={components:[],wires:[]};pushSchematic();};
+$('exportBtn').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(sch,null,1)],{type:'application/json'}));
+  a.download='circuit.json';a.click();};
+$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;
+  f.text().then(t=>{try{sch=JSON.parse(t);pushSchematic();fitView();}catch(err){alert('JSON 解析失败')}})};
+
+/* ================= 状态渲染 ================= */
+function renderScope(){
+  const c2=$('scope'),g=c2.getContext('2d');
+  const W=c2.clientWidth||600,H=120;
+  if(c2.width!==W*devicePixelRatio){c2.width=W*devicePixelRatio;c2.height=H*devicePixelRatio;}
+  g.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  g.clearRect(0,0,W,H);
+  g.strokeStyle='#1c222c';g.lineWidth=1;g.beginPath();
+  for(let x=0;x<=W;x+=33){g.moveTo(x+.5,0);g.lineTo(x+.5,H);}
+  for(let y=0;y<=H;y+=20){g.moveTo(0,y+.5);g.lineTo(W,y+.5);}
+  g.stroke();
+  g.strokeStyle='#39414f';g.beginPath();g.moveTo(0,H/2);g.lineTo(W,H/2);g.stroke();
+  g.fillStyle='#59626d';g.font='9px Consolas';
+  g.fillText('3.3V',3,9);g.fillText('1.65V',3,H/2-2);g.fillText('0V',3,H-3);
+  const lg=[];
+  Object.entries((st&&st.probes)||{}).forEach(([pid,tr],i)=>{
+    if(!tr||tr.length<2)return;
+    const col=PROBE_COLORS[i%4];
+    const t0=tr[0][0],t1=tr[tr.length-1][0]||t0+1;
+    g.strokeStyle=col;g.lineWidth=1.8;g.beginPath();
+    tr.forEach(([t,v],k)=>{const x=(t-t0)/Math.max(t1-t0,.001)*W;
+      const y=H-v/3.6*H;k?g.lineTo(x,y):g.moveTo(x,y);});
+    g.stroke();
+    const rises=tr.filter(p=>p[1]>1.65).map(p=>p[0]);
+    let txt=tr[tr.length-1][1].toFixed(2)+'V';
+    if(rises.length>=3){const per=[];for(let k=1;k<rises.length;k++)if(rises[k]-rises[k-1]>0)per.push(rises[k]-rises[k-1]);
+      per.sort((a,b)=>a-b);
+      if(per.length){const f=1000/per[per.length>>1];txt=(f>=1000?(f/1000).toFixed(2)+'kHz':f.toFixed(0)+'Hz')+' · '+txt;}}
+    lg.push(`<span class="lg"><span class="dot" style="background:${col}"></span>${pid} ${txt}</span>`);
+  });
+  $('legend').innerHTML=lg.length?lg.join(''):'<span class="lg">放置探针以查看波形</span>';
+}
+function renderOled(b64){
+  if(!b64)return;
+  const raw=atob(b64),c=$('oled'),g=c.getContext('2d');
+  const img=g.createImageData(128,64);
+  for(let i=0;i<1024;i++){const col=i%128,page=Math.floor(i/128),bits=raw.charCodeAt(i);
+    for(let b=0;b<8;b++){const y=page*8+b,idx=(y*128+col)*4,on=(bits>>b)&1;
+      img.data[idx]=on?46:6;img.data[idx+1]=on?234:9;img.data[idx+2]=on?146:15;img.data[idx+3]=255;}}
+  g.putImageData(img,0,0);
+}
+function renderState(s){
+  st=s;
+  $('simtime').textContent=s.t_ms.toFixed(3)+' ms';
+  $('fwname').textContent=s.firmware?'▸ '+s.firmware.split(/[\\/]/).pop():'未加载固件';
+  $('runDot').classList.toggle('off',!s.running);
+  $('runTxt').textContent=s.running?'运行中':'运行';
+  const fwNow=(s.firmware||'').split(/[\/]/).pop();
+  document.querySelectorAll('.fw-item').forEach(d=>
+    d.classList.toggle('sel',d.querySelector('span').textContent===fwNow));
+  const u=$('uart');if(u.textContent!==s.uart){u.textContent=s.uart;u.scrollTop=u.scrollHeight;}
+  $('schCount').textContent=`${sch.components.length} 元件 · ${sch.wires.length} 连线`;
+  const pr=cv.parentElement.getBoundingClientRect();          // 布局变化后画布尺寸自愈
+  if(Math.abs(cv.width-pr.width*devicePixelRatio)>2)resize();
+  render();renderScope();renderOled(s.oled);
+}
+
+/* ================= 轮询 / 固件控制 ================= */
+async function poll(){try{const r=await fetch('/api/state');renderState(await r.json())}catch(e){}setTimeout(poll,350)}
+async function loadFw(path){
+  if(!path)return;
+  const r=await fetch('/api/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})});
+  const j=await r.json();if(!j.ok)alert('加载失败：'+(j.error||path));else runFw();
+}
+function runFw(){$('runTxt').textContent='…';fetch('/api/control/run',{method:'POST'})}
+$('runbtn').onclick=()=>fetch('/api/state').then(r=>r.json()).then(s=>s.running?
+  fetch('/api/control/pause',{method:'POST'}):runFw());
+$('resetbtn').onclick=()=>fetch('/api/control/reset',{method:'POST'});
+$('loadbtn').onclick=()=>loadFw($('fwpath').value.trim());
+$('fwpath').addEventListener('keydown',e=>e.key==='Enter'&&loadFw($('fwpath').value.trim()));
+$('sendbtn').onclick=sendUart;
+$('uart-in').addEventListener('keydown',e=>e.key==='Enter'&&sendUart());
+function sendUart(){const t=$('uart-in').value;if(!t)return;
+  fetch('/api/uart-rx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t+'\n'})});
+  $('uart-in').value='';}
+async function loadFwList(){
+  try{const r=await fetch('/api/firmwares');const j=await r.json();
+    const box=$('fwlist');box.innerHTML='';
+    (j.items||[]).forEach(name=>{
+      const d=document.createElement('div');d.className='fw-item';
+      d.innerHTML=`<span>${name}</span><span class="r">HEX</span>`;
+      d.onclick=()=>{$('fwpath').value='firmware/'+name;loadFw('firmware/'+name);
+        document.querySelectorAll('.fw-item').forEach(x=>x.classList.remove('sel'));d.classList.add('sel');};
+      box.appendChild(d);});
+  }catch(e){}
+}
+setMode('idle');
+loadFwList();
+loadLocalOrDefault().then(()=>{poll();});
+resize();
+</script>
+</body>
+</html>

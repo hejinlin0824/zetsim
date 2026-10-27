@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zetsim"
+version = "0.1.0"
+description = "STM32F103ZET6 个人仿真器 — Unicorn 内核 + 自研外设模型 + Web 仪表盘"
+requires-python = ">=3.10"
+dependencies = [
+    "unicorn>=2.1",
+    "intelhex",
+    "pyelftools",
+    "rich",
+    "fastapi",
+    "uvicorn",
+    "websockets",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+zetsim = "zetsim.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["zetsim*"]
+
+[tool.setuptools.package-data]
+zetsim = ["static/*.html"]
