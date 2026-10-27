@@ -242,14 +242,15 @@ let showGrid=true;
 let hoverPin=null, hoverComp=null;
 
 const TYPES={
-  mcu:{w:170,h:470,label:'STM32'},
+  mcu:{w:170,h:814,label:'STM32'},   /* 20+48*16+26 */
   led:{w:64,h:44}, resistor:{w:84,h:34}, capacitor:{w:64,h:34},
   button:{w:74,h:52}, pot:{w:92,h:40}, gnd:{w:40,h:34}, vcc:{w:40,h:34}, probe:{w:44,h:40},
 };
-const MCU_R=[...Array(16).keys()].map(i=>'PA'+i), MCU_L=['PB0','PB1'];
+const PORT=p=>[...Array(16).keys()].map(i=>p+i);
+const MCU_R=[...PORT('PA'),...PORT('PB'),...PORT('PC')], MCU_L=[...PORT('PD'),...PORT('PE')];
 const PINS={mcu:[...MCU_R,...MCU_L],led:['A','K'],resistor:['1','2'],capacitor:['1','2'],
   button:['1','2'],pot:['W','B'],gnd:['G'],vcc:['V'],probe:['P']};
-const PSTEP=27;
+const PSTEP=16;
 const COLORS={wire:'#1f7a33',wireSel:'#0a66c2',body:'#f9f9f0',stroke:'#26261f',text:'#1a1a14',
   label:'#5c5c50',led:{red:[224,42,42],green:[27,142,54]},accent:'#0a66c2'};
 const PROBE_COLORS=['#0a66c2','#c62828','#0f8a2e','#b8860b'];
@@ -461,16 +462,10 @@ function drawComp(c,ghost){
   const L=(st&&st.leds||{})[c.id],B=(st&&st.buttons||{})[c.id],P=(st&&st.pots||{})[c.id];
   const lw=1.6/Math.max(view.z*.85,.6);
   ctx.lineWidth=lw;ctx.font=`${10}px "Cascadia Code",Consolas`;ctx.textBaseline='middle';
-  // 引脚
+  // 引脚圆点（在下层；MCU 的名字必须在芯片体之后画才不被盖住）
   for(const p of PINS[c.type]){
     const pp=pinPos(c,p);
     const hot=hoverPin&&hoverPin.c===c&&hoverPin.pin===p;
-    if(c.type==='mcu'){
-      const right=pp.x>c.x+1;
-      ctx.font='bold 10px "Cascadia Code",Consolas';
-      ctx.fillStyle='#1a1a14';ctx.textAlign=right?'right':'left';
-      ctx.fillText(p,right?pp.x-5:pp.x+5,pp.y);   // 黑字浅底（SimulIDE 式），一眼可见
-    }
     ctx.fillStyle=hot?COLORS.accent:(mode==='wire'?COLORS.accent:'#3d3d33');
     ctx.beginPath();ctx.arc(pp.x,pp.y,3.2,0,7);ctx.fill();
     if(hot){ctx.strokeStyle=COLORS.accent;ctx.beginPath();ctx.arc(pp.x,pp.y,6,0,7);ctx.stroke();}
@@ -485,6 +480,15 @@ function drawComp(c,ghost){
   else if(c.type==='gnd')drawGnd(c);
   else if(c.type==='vcc')drawVcc(c);
   else if(c.type==='probe')drawProbe(c);
+  if(c.type==='mcu'){                    // 引脚名：黑字浅底，最后画（否则被芯片体盖住）
+    ctx.font=`bold ${Math.min(12,10/Math.max(view.z,.8))}px "Cascadia Code",Consolas`;
+    ctx.textBaseline='middle';
+    for(const p of PINS.mcu){
+      const pp=pinPos(c,p),right=pp.x>c.x+1;
+      ctx.fillStyle='#1a1a14';ctx.textAlign=right?'right':'left';
+      ctx.fillText(p,right?pp.x-5:pp.x+5,pp.y);
+    }
+  }
   if(!ghost&&sel===c){
     ctx.strokeStyle='rgba(10,102,194,.8)';ctx.setLineDash([5,4]);ctx.lineWidth=1.2;
     ctx.strokeRect(c.x-7,c.y-7,t.w+14,t.h+14);ctx.setLineDash([]);
@@ -506,6 +510,13 @@ function drawMcu(c,stroke){
   ctx.fillText('ZET6 · LQFP144',c.x+t.w/2,c.y+t.h+40);
   ctx.fillStyle='#b8b89e';ctx.font='9px "Cascadia Code",Consolas';
   ctx.fillText('zetsim',c.x+t.w/2,c.y+t.h-12);
+  ctx.font='bold 12px "Cascadia Code",Consolas';ctx.fillStyle='#a8a890';
+  ctx.textAlign='left';
+  ['PA','PB','PC'].forEach(nm=>{const i=MCU_R.indexOf(nm+'0');
+    if(i>=0)ctx.fillText(nm,c.x+t.w-64,c.y+20+(i+7.5)*PSTEP);});
+  ctx.textAlign='right';
+  ['PD','PE'].forEach(nm=>{const i=MCU_L.indexOf(nm+'0');
+    if(i>=0)ctx.fillText(nm,c.x+64,c.y+20+(i+7.5)*PSTEP);});
 }
 function drawLed(c,L){
   const cx=c.x+32,cy=c.y+22,on=L&&L.on,br=L?L.brightness:0;

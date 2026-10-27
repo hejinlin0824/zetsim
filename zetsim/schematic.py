@@ -18,7 +18,7 @@ from .spice import CoupledCircuit
 
 # 元件类型定义: 引脚名列表
 PIN_DEFS = {
-    "mcu": [f"PA{i}" for i in range(16)] + ["PB0", "PB1"],
+    "mcu": [f"P{p}{i}" for p in "ABCDE" for i in range(16)],   # ZET6 全部 80 个 GPIO
     "led": ["A", "K"],
     "resistor": ["1", "2"],
     "capacitor": ["1", "2"],
