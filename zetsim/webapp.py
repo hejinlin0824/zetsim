@@ -50,7 +50,7 @@ def _led8_schematic() -> dict:
         y = 70 + i * 60
         comps.append({"id": f"LED{i+1}", "type": "led", "x": 470, "y": y,
                       "props": {"color": "red" if i % 2 == 0 else "green"}})
-        comps.append({"id": f"GND{i+1}", "type": "gnd", "x": 650, "y": y, "props": {}})
+        comps.append({"id": f"GND{i+1}", "type": "gnd", "x": 650, "y": y + 22, "props": {}})  # 与 LED 阴极同高→直线
         wires.append({"a": ["MCU", f"PA{i}"], "b": [f"LED{i+1}", "A"]})
         wires.append({"a": [f"LED{i+1}", "K"], "b": [f"GND{i+1}", "G"]})
     return {"components": comps, "wires": wires}

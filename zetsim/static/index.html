@@ -296,12 +296,13 @@ function render(){
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.save();ctx.translate(view.x,view.y);ctx.scale(view.z,view.z);
   if(showGrid)drawGrid();
-  // wires（正交走线 + 跨线弧）
+  // wires（正交走线 + 通道分离 + 跨线弧）
+  computeRoutes();
   const hopMap=computeHops();
   for(let wi=0;wi<sch.wires.length;wi++){
+    if(!wireRoutes[wi])continue;
     const w=sch.wires[wi];
-    const a=findPin(w.a),b=findPin(w.b);if(!a||!b)continue;
-    drawWire(a,b,mode==='wire'&&wireFrom&&(samePin(w.a)||samePin(w.b))?COLORS.wireSel:COLORS.wire,false,hopMap[wi]);
+    drawWirePts(wireRoutes[wi],mode==='wire'&&wireFrom&&(samePin(w.a)||samePin(w.b))?COLORS.wireSel:COLORS.wire,false,hopMap[wi]);
   }
   // 结点：引出 >=2 根导线的引脚画实心结点
   const pinUse={};
@@ -317,7 +318,7 @@ function render(){
     ctx.moveTo(wireFrom.pos.x,-1e4);ctx.lineTo(wireFrom.pos.x,1e4);
     ctx.moveTo(-1e4,mouseW.y);ctx.lineTo(1e4,mouseW.y);
     ctx.stroke();ctx.setLineDash([]);
-    drawWire(wireFrom.pos,mouseW,COLORS.accent,true,null);
+    drawWirePts(basePts(wireFrom.pos,mouseW),COLORS.accent,true,null);
   }
   // 放置幽灵
   if(mode==='place'&&placeType){
@@ -325,33 +326,98 @@ function render(){
     ctx.globalAlpha=1;
   }
   for(const c of sch.components)drawComp(c);
+  // 对齐辅助线（拖动中吸附时显示）
+  if(alignGuides){
+    ctx.strokeStyle='#e3b341';ctx.lineWidth=1/view.z;ctx.setLineDash([6,4]);
+    ctx.beginPath();
+    for(const x of alignGuides.v){ctx.moveTo(x,-1e4);ctx.lineTo(x,1e4);}
+    for(const y of alignGuides.h){ctx.moveTo(-1e4,y);ctx.lineTo(1e4,y);}
+    ctx.stroke();ctx.setLineDash([]);
+  }
   ctx.restore();
 }
 function samePin(ref){return wireFrom&&ref[0]===wireFrom.c.id&&ref[1]===wireFrom.pin}
 function findPin(ref){const c=compById(ref[0]);return c?pinPos(c,ref[1]):null}
 
+/* ============ 对齐吸附（Figma 式辅助线） ============ */
+let alignGuides=null;
+function snapAlign(c,nx,ny){
+  const g={v:[],h:[]},T=TYPES[c.type],th=6/view.z;
+  const cX=[nx,nx+T.w/2,nx+T.w],cY=[ny,ny+T.h/2,ny+T.h];
+  for(const o of sch.components){
+    if(o===c)continue;
+    const OT=TYPES[o.type];
+    for(const ox of[o.x,o.x+OT.w/2,o.x+OT.w])
+      for(let i=0;i<3;i++)if(Math.abs(cX[i]-ox)<th){
+        const d=ox-cX[i];nx+=d;for(let k=0;k<3;k++)cX[k]+=d;g.v.push(ox);break;}
+    for(const oy of[o.y,o.y+OT.h/2,o.y+OT.h])
+      for(let i=0;i<3;i++)if(Math.abs(cY[i]-oy)<th){
+        const d=oy-cY[i];ny+=d;for(let k=0;k<3;k++)cY[k]+=d;g.h.push(oy);break;}
+  }
+  g.v=[...new Set(g.v)];g.h=[...new Set(g.h)];
+  return[nx,ny,g.v.length||g.h.length?g:null];
+}
+
 function drawGrid(){
-  const step=10;
   const gr=cv.getBoundingClientRect();
   const tl=s2w(0,0),br=s2w(gr.width,gr.height);
-  ctx.fillStyle='#1b212b';
-  for(let x=Math.floor(tl.x/step)*step;x<br.x;x+=step)
-    for(let y=Math.floor(tl.y/step)*step;y<br.y;y+=step){
-      if(x%50===0&&y%50===0)ctx.fillRect(x-.8,y-.8,1.6,1.6);
-      else if(view.z>.65)ctx.fillRect(x-.5,y-.5,1,1);
-    }
+  if(view.z>.5){                                   // 次网格点（10）：放大时才画，防摩尔纹
+    ctx.fillStyle='#242e3d';
+    for(let x=Math.floor(tl.x/10)*10;x<br.x;x+=10)
+      for(let y=Math.floor(tl.y/10)*10;y<br.y;y+=10){
+        if(x%50===0&&y%50===0)continue;
+        ctx.fillRect(x-.6,y-.6,1.2,1.2);
+      }
+  }
+  ctx.fillStyle='#46586f';                         // 主网格点（50）
+  for(let x=Math.floor(tl.x/50)*50;x<br.x;x+=50)
+    for(let y=Math.floor(tl.y/50)*50;y<br.y;y+=50)
+      ctx.fillRect(x-1.1,y-1.1,2.2,2.2);
 }
-function wirePts(a,b){
+/* ============ 正交走线（统一计算，渲染/跳弧/预览共用） ============ */
+let wireRoutes=[];         // 与 sch.wires 对齐：每条导线的折线点（null=引脚缺失）
+function basePts(a,b){
   if(Math.abs(a.y-b.y)<2)return[a,b];
-  const mx=Math.round((a.x+b.x)/2);
+  const mx=Math.round((a.x+b.x)/2/10)*10;
   return[a,{x:mx,y:a.y},{x:mx,y:b.y},b];
+}
+function computeRoutes(){
+  const items=sch.wires.map(w=>{
+    const a=findPin(w.a),b=findPin(w.b);
+    return(a&&b)?{w,a,b,pts:basePts(a,b)}:null;
+  });
+  // 1) 同一引脚引出多根线：起点横线各错开一档（短引出竖线分开）
+  const byPin={};
+  items.forEach(it=>{if(!it)return;const k=it.w.a[0]+'.'+it.w.a[1];(byPin[k]=byPin[k]||[]).push(it);});
+  for(const k in byPin){const g=byPin[k];if(g.length<2)continue;
+    g.forEach((it,i)=>{if(it.pts.length<3)return;
+      const dy=(i-(g.length-1)/2)*9;if(!dy)return;
+      it.pts=[it.a,{x:it.a.x,y:it.a.y+dy},
+              {x:it.pts[1].x,y:it.a.y+dy},
+              {x:it.pts[1].x,y:it.pts[2].y},it.b];
+    });
+  }
+  // 2) 竖段同列且可能重叠 → 中线左右错开通道（8-LED 一排线不再挤成一条）
+  const cols={};
+  items.forEach(it=>{if(it&&it.pts.length>=4){
+    const i1=it.pts.length-3;                      // 竖段两点（不动首尾的引脚对象）
+    (cols[it.pts[i1].x]=cols[it.pts[i1].x]||[]).push(it);}});
+  for(const x in cols){const g=cols[x];if(g.length<2)continue;
+    g.sort((p,q)=>p.a.y-q.a.y);
+    g.forEach((it,kk)=>{const d=(kk-(g.length-1)/2)*9;
+      if(!d)return;
+      const i1=it.pts.length-3,i2=it.pts.length-2;
+      it.pts[i1]={x:it.pts[i1].x+d,y:it.pts[i1].y};
+      it.pts[i2]={x:it.pts[i2].x+d,y:it.pts[i2].y};
+    });
+  }
+  wireRoutes=items.map(it=>it?it.pts:null);
 }
 // 交叉检测：不同导线的横段×竖段相交（非端点）→ 横线画半圆跳弧（初中物理的"跨线"）
 function computeHops(){
   const segs=[];
-  sch.wires.forEach((w,wi)=>{
-    const a=findPin(w.a),b=findPin(w.b);if(!a||!b)return;
-    const pts=wirePts(a,b);
+  wireRoutes.forEach((pts,wi)=>{
+    if(!pts)return;
     for(let i=0;i<pts.length-1;i++){
       const p=pts[i],q=pts[i+1];
       if(p.y===q.y)segs.push({wi,h:true,x1:Math.min(p.x,q.x),x2:Math.max(p.x,q.x),y:p.y});
@@ -366,8 +432,7 @@ function computeHops(){
     }
   return hops;
 }
-function drawWire(a,b,color,dash,hopList){
-  const pts=wirePts(a,b);
+function drawWirePts(pts,color,dash,hopList){
   const R=5;
   ctx.strokeStyle=color;ctx.lineWidth=2/Math.max(view.z*.85,.7);ctx.lineCap='round';
   if(dash)ctx.setLineDash([5,4]);
@@ -387,7 +452,7 @@ function drawWire(a,b,color,dash,hopList){
   }
   ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle=color;
-  for(const p of[a,b]){ctx.beginPath();ctx.arc(p.x,p.y,2.4/Math.max(view.z*.8,.7),0,7);ctx.fill();}
+  for(const p of[pts[0],pts[pts.length-1]]){ctx.beginPath();ctx.arc(p.x,p.y,2.4/Math.max(view.z*.8,.7),0,7);ctx.fill();}
 }
 
 function drawComp(c,ghost){
@@ -401,8 +466,9 @@ function drawComp(c,ghost){
     const hot=hoverPin&&hoverPin.c===c&&hoverPin.pin===p;
     if(c.type==='mcu'){
       const right=pp.x>c.x+1;
-      ctx.fillStyle=right?'#7d8590':'#7d8590';ctx.textAlign=right?'left':'right';
-      ctx.fillText(p,right?pp.x+5:pp.x-5,pp.y);
+      ctx.font='9px "Cascadia Code",Consolas';
+      ctx.fillStyle='#a9b4c2';ctx.textAlign=right?'right':'left';
+      ctx.fillText(p,right?pp.x-5:pp.x+5,pp.y);   // 名字画在芯片体内，不被导线压住
     }
     ctx.fillStyle=hot?COLORS.accent:(mode==='wire'?'#58a6ff':'#aab3bf');
     ctx.beginPath();ctx.arc(pp.x,pp.y,3.2,0,7);ctx.fill();
@@ -429,8 +495,8 @@ function drawMcu(c,stroke){
   ctx.beginPath();ctx.roundRect(c.x,c.y,t.w,t.h,8);ctx.fill();ctx.stroke();
   ctx.beginPath();ctx.arc(c.x+t.w/2,c.y,7,Math.PI,0);ctx.strokeStyle='#4a5361';ctx.stroke();
   ctx.strokeStyle='#3d4451';ctx.beginPath();
-  MCU_L.forEach((p,i)=>{const y=c.y+20+i*PSTEP;ctx.moveTo(c.x,y-8);ctx.lineTo(c.x+9,y-8);});
-  MCU_R.forEach((p,i)=>{const y=c.y+20+i*PSTEP;ctx.moveTo(c.x+t.w-9,y-8);ctx.lineTo(c.x+t.w,y-8);});
+  MCU_L.forEach((p,i)=>{const y=c.y+20+i*PSTEP;ctx.moveTo(c.x,y);ctx.lineTo(c.x+9,y);});
+  MCU_R.forEach((p,i)=>{const y=c.y+20+i*PSTEP;ctx.moveTo(c.x+t.w-9,y);ctx.lineTo(c.x+t.w,y);});
   ctx.stroke();
   ctx.textAlign='center';
   ctx.fillStyle=COLORS.accent;ctx.font='bold 13px "Cascadia Code",Consolas';
@@ -537,7 +603,11 @@ cv.addEventListener('mousemove',e=>{
   const p=evtPos(e);mouse=p;mouseW=s2w(p.x,p.y);
   $('stPos').textContent=`x ${mouseW.x|0}, y ${mouseW.y|0}`;
   if(panDrag){view.x=panStart.vx+(p.x-panStart.x);view.y=panStart.vy+(p.y-panStart.y);}
-  if(dragC){dragC.x=Math.round((mouseW.x-dragOff.x)/10)*10;dragC.y=Math.round((mouseW.y-dragOff.y)/10)*10;moved=true;}
+  if(dragC){moved=true;
+    let nx=Math.round((mouseW.x-dragOff.x)/10)*10,ny=Math.round((mouseW.y-dragOff.y)/10)*10;  // 网格吸附
+    [nx,ny,alignGuides]=snapAlign(dragC,nx,ny);                                               // 对齐吸附
+    dragC.x=nx;dragC.y=ny;
+  }
   if(potDrag){
     const c=potDrag,frac=Math.max(0,Math.min(1,(mouseW.x-c.x-22)/56));
     api('comp/'+c.id+'/pot',{volts:+(frac*3.3).toFixed(2)});
@@ -578,6 +648,7 @@ cv.addEventListener('mousedown',e=>{
 });
 addEventListener('mouseup',e=>{
   if(dragC&&moved)pushSchematic();
+  alignGuides=null;
   for(const id of heldBtns)api('comp/'+id+'/release');
   heldBtns.clear();
   dragC=null;potDrag=null;panDrag=null;render();
