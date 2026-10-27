@@ -32,11 +32,16 @@ class Net:
         self.mcu_analog = None       # MCU 模拟输出（DAC）
         self.level = None            # 解析结果缓存
         self.watchers: list = []
+        self.power_gate = None       # Board 引用：mcu_power=False 时 MCU 侧输出高阻
 
     def _resolve(self):
-        for lv in (self.mcu_level, self.af_level, self.device_level):
-            if lv is not None:
-                return lv
+        gate = self.power_gate
+        if gate is None or getattr(gate, "mcu_power", True):
+            for lv in (self.mcu_level, self.af_level, self.device_level):
+                if lv is not None:
+                    return lv
+        elif self.device_level is not None:   # 掉电：只剩外部器件（按键等）还能驱动
+            return self.device_level
         return None
 
     def voltage(self) -> float | None:
@@ -89,6 +94,7 @@ class Board:
     """F103ZET6。events + 可选器件接线。"""
 
     def __init__(self, cpi: float = 2.0):
+        self.mcu_power = True       # 电源门控：原理图 VDD/VSS 都接好才为 True
         self.events = EventBus()
         self.time_model = ConstantTimeModel(cpi)
         self.clock = ClockTree()
@@ -200,6 +206,7 @@ class Board:
         key = (port_idx, pin)
         if key not in self.nets:
             n = Net(f"P{PORTS[port_idx]}{pin}")
+            n.power_gate = self
             w = lambda old, new, k=key: self._net_changed(k, old, new)
             w._board_watch = True                 # reset_bindings 保留的板级 watcher
             n.watchers.append(w)
@@ -214,6 +221,7 @@ class Board:
         """原理图中间结点的合成网络（非 MCU 引脚）。"""
         if net_id not in self.schematic_nets:
             n = Net(net_id)
+            n.power_gate = self
             n.watchers.append(lambda old, new, k=net_id:
                               self.events.publish(self.sysctrl.now_ns, f"net.{k}", new))
             self.schematic_nets[net_id] = n

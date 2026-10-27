@@ -7,7 +7,57 @@ from zetsim.schematic import Schematic
 
 
 def sch(comps, wires):
+    """构造原理图；含 MCU 时自动补电源（VDD→3.3V，VSS→GND）。"""
+    if any(c["type"] == "mcu" for c in comps) and not any(
+            w[1] == "VDD" or w[3] == "VDD" for w in
+            ([w["a"][0], w["a"][1], w["b"][0], w["b"][1]] for w in wires)):
+        comps = comps + [{"id": "PWR1", "type": "vcc", "x": 230, "y": -80, "props": {}},
+                         {"id": "GNDP", "type": "gnd", "x": 230, "y": 930, "props": {}}]
+        wires = wires + [{"a": ["PWR1", "V"], "b": ["MCU", "VDD"]},
+                         {"a": ["MCU", "VSS"], "b": ["GNDP", "G"]}]
     return {"components": comps, "wires": wires}
+
+
+def test_mcu_needs_power():
+    """不给 MCU 供电：CPU 不执行指令、引脚高阻 LED 不亮；接上电源立即恢复。"""
+    from zetsim.schematic import PIN_DEFS
+    board = Board()
+    board.reset()
+    s = Schematic(board)
+    board.devices["schematic"] = s
+    base = [
+        {"id": "MCU", "type": "mcu", "x": 60, "y": 60, "props": {}},
+        {"id": "LED1", "type": "led", "x": 400, "y": 200, "props": {}},
+        {"id": "G1", "type": "gnd", "x": 560, "y": 222, "props": {}},
+    ]
+    wires = [{"a": ["MCU", "PA5"], "b": ["LED1", "A"]},
+             {"a": ["LED1", "K"], "b": ["G1", "G"]}]
+    board.core.load_segments(_blink_fw().build())
+    # 无电源
+    s.apply({"components": base, "wires": wires})
+    sim = Simulation(board)
+    rep = sim.run(until_ms=30, wall_timeout_s=10)
+    assert s.mcu_powered is False
+    assert rep.instructions < 100, "掉电时 CPU 不应执行指令"
+    assert s.led_states()["LED1"]["on"] is False, "掉电时 LED 不亮"
+    # 接上电源 → 恢复运行
+    s.apply(sch(base, wires))
+    assert s.mcu_powered is True
+    sim.run(until_ms=400, wall_timeout_s=10)
+    assert s.led_states()["LED1"]["on"] is True, "供电后应恢复跑灯"
+
+
+def _blink_fw():
+    from zetsim.asm import Firmware, Asm
+    from tests.test_m1_m2 import crlh
+    fw = Firmware(sp=0x20005000, reset=0x08000100)
+    a = Asm(0x08000100)
+    a.mov32(0, 0x40021018); a.ldr(1, 0, 0); a.movs(2, 5); a.orr(1, 2); a.str(1, 0, 0)
+    a.mov32(0, 0x40010800); a.mov32(1, crlh({5: 0x2})); a.str(1, 0, 0)
+    a.mov32(0, 0x4001080C); a.movs(1, 0x20); a.str(1, 0, 0)
+    a.label("loop"); a.bw("loop")
+    fw.add(0x08000100, a.assemble())
+    return fw
 
 
 MCU = {"id": "MCU", "type": "mcu", "x": 0, "y": 0, "props": {}}

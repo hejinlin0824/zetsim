@@ -29,8 +29,12 @@ DEFAULT_SCHEMATIC = {
         {"id": "GND2", "type": "gnd", "x": 560, "y": 470, "props": {}},
         {"id": "GND3", "type": "gnd", "x": 560, "y": 560, "props": {}},
         {"id": "PR1", "type": "probe", "x": 350, "y": 300, "props": {}},
+        {"id": "PWR1", "type": "vcc", "x": 230, "y": -80, "props": {}},
+        {"id": "GNDP", "type": "gnd", "x": 230, "y": 930, "props": {}},
     ],
     "wires": [
+        {"a": ["PWR1", "V"], "b": ["MCU", "VDD"]},
+        {"a": ["MCU", "VSS"], "b": ["GNDP", "G"]},
         {"a": ["MCU", "PA5"], "b": ["LED1", "A"]},
         {"a": ["LED1", "K"], "b": ["GND1", "G"]},
         {"a": ["MCU", "PA0"], "b": ["SW1", "1"]},
@@ -40,6 +44,14 @@ DEFAULT_SCHEMATIC = {
         {"a": ["MCU", "PA5"], "b": ["PR1", "P"]},
     ],
 }
+
+
+def _mcu_power(comps: list, wires: list):
+    """给 MCU 补 VDD→3.3V / VSS→GND 的电源连接。"""
+    comps.append({"id": "PWR1", "type": "vcc", "x": 230, "y": -80, "props": {}})
+    comps.append({"id": "GNDP", "type": "gnd", "x": 230, "y": 930, "props": {}})
+    wires.append({"a": ["PWR1", "V"], "b": ["MCU", "VDD"]})
+    wires.append({"a": ["MCU", "VSS"], "b": ["GNDP", "G"]})
 
 
 def _led8_schematic() -> dict:
@@ -53,6 +65,7 @@ def _led8_schematic() -> dict:
         comps.append({"id": f"GND{i+1}", "type": "gnd", "x": 650, "y": y + 22, "props": {}})  # 与 LED 阴极同高→直线
         wires.append({"a": ["MCU", f"PA{i}"], "b": [f"LED{i+1}", "A"]})
         wires.append({"a": [f"LED{i+1}", "K"], "b": [f"GND{i+1}", "G"]})
+    _mcu_power(comps, wires)
     return {"components": comps, "wires": wires}
 
 
@@ -219,7 +232,8 @@ def build_app(firmware: str | None = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     async def index():
-        return (static_dir / "index.html").read_text(encoding="utf-8")
+        return HTMLResponse((static_dir / "index.html").read_text(encoding="utf-8"),
+                            headers={"Cache-Control": "no-cache"})   # 前端频繁更新，禁用启发式缓存
 
     @app.get("/api/state")
     async def state():

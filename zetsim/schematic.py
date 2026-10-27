@@ -18,7 +18,7 @@ from .spice import CoupledCircuit
 
 # 元件类型定义: 引脚名列表
 PIN_DEFS = {
-    "mcu": [f"P{p}{i}" for p in "ABCDE" for i in range(16)],   # ZET6 全部 80 个 GPIO
+    "mcu": [f"P{p}{i}" for p in "ABCDE" for i in range(16)] + ["VDD", "VSS"],
     "led": ["A", "K"],
     "resistor": ["1", "2"],
     "capacitor": ["1", "2"],
@@ -87,6 +87,8 @@ class Schematic:
         self.leds: dict[str, Led] = {}
         self.buttons: dict[str, Button] = {}
         self._grounded: set = set()      # 接了 GND 符号的网络（LED 回路判定）
+        self._powered_nets: set = set()  # 接了 VCC 符号的网络
+        self.mcu_powered = True          # VDD/VSS 都接好才 True
         self.pots: dict[str, Potentiometer] = {}
         self.probes: dict[str, Probe] = {}
         self.button_states: dict[str, bool] = {}
@@ -175,6 +177,21 @@ class Schematic:
             for c in self.components.values()
             if c["type"] == "gnd" and (c["id"], "G") in self.pin_net
         }
+        # 0.5) 电源网络集合（VCC 符号）与 MCU 供电判定：VDD 接 3.3V 且 VSS 接地
+        self._powered_nets = {
+            self.pin_net[(c["id"], "V")]
+            for c in self.components.values()
+            if c["type"] == "vcc" and (c["id"], "V") in self.pin_net
+        }
+        mcu = next((c for c in self.components.values() if c["type"] == "mcu"), None)
+        if mcu:
+            vdd = self.pin_net.get((mcu["id"], "VDD"))
+            vss = self.pin_net.get((mcu["id"], "VSS"))
+            self.mcu_powered = vdd in self._powered_nets and vss in self._grounded
+            self.board.mcu_power = self.mcu_powered     # 掉电：MCU 引脚全部高阻 + CPU 停跑
+        else:
+            self.mcu_powered = True
+            self.board.mcu_power = True
         # 1) 清掉旧绑定（保留 EXTI 板级 watcher）
         for n in board.nets.values():
             n.reset_bindings()
@@ -296,7 +313,7 @@ class Schematic:
                 on = False
             bright = 1.0 if on else 0.0
             d = self._spice_leds.get(cid)
-            if d is not None and self.spice is not None:
+            if d is not None and self.spice is not None and self.spice.stepped:
                 i = abs(d.i_last)
                 on = i > 1e-3
                 bright = max(0.0, min(1.0, i / 0.015))
@@ -306,6 +323,7 @@ class Schematic:
 
     def snapshot(self) -> dict:
         return {
+            "mcu_powered": self.mcu_powered,
             "leds": self.led_states(),
             "buttons": {cid: b.pressed for cid, b in self.buttons.items()},
             "pots": {cid: p.volts for cid, p in self.pots.items()},

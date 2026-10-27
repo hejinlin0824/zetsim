@@ -202,7 +202,7 @@ input[type=text]:focus{border-color:var(--accent)}
       <span class="mode" id="stMode">就绪</span>
       <span id="stPos">x 0, y 0</span>
       <span style="flex:1"></span>
-      <span>build 1028-A</span>
+      <span>build 1028-B</span>
       <span id="stHint">从元件库选择并放置元件，或直接点引脚连线</span>
     </div>
     <div id="scopePanel">
@@ -288,7 +288,7 @@ const TYPES={
   button:{w:74,h:52}, pot:{w:92,h:40}, gnd:{w:40,h:34}, vcc:{w:40,h:34}, probe:{w:44,h:40},
 };
 const PORT=p=>[...Array(16).keys()].map(i=>p+i);
-const MCU_R=[...PORT('PA'),...PORT('PB'),...PORT('PC')], MCU_L=[...PORT('PD'),...PORT('PE')];
+const MCU_R=[...PORT('PA'),...PORT('PB'),...PORT('PC')], MCU_L=[...PORT('PD'),...PORT('PE'),'VDD','VSS'];
 const PINS={mcu:[...MCU_R,...MCU_L],led:['A','K'],resistor:['1','2'],capacitor:['1','2'],
   button:['1','2'],pot:['W','B'],gnd:['G'],vcc:['V'],probe:['P']};
 const PSTEP=16;
@@ -824,6 +824,7 @@ async function loadLocalOrDefault(){
   if(s){try{sch=JSON.parse(s)}catch(e){sch=JSON.parse(JSON.stringify(await defSch()))}}
   else sch=JSON.parse(JSON.stringify(await defSch()));
   sch.components.forEach(c=>{const n=+((c.id.match(/_(\d+)/)||[])[1]||0);if(n>autoId)autoId=n;});
+                                    // 旧电路自动补 VDD/VSS 电源
   await pushSchematic();fitView();
 }
 $('demoBtn').onclick=async()=>{sch=JSON.parse(JSON.stringify(await defSch()));await pushSchematic();fitView();};
@@ -834,7 +835,7 @@ $('exportBtn').onclick=()=>{
   a.download='circuit.json';a.click();};
 $('importBtn').onclick=()=>$('importFile').click();
 $('importFile').onchange=e=>{const f=e.target.files[0];if(!f)return;
-  f.text().then(t=>{try{sch=JSON.parse(t);pushSchematic();fitView();}catch(err){alert('JSON 解析失败')}})};
+  f.text().then(t=>{try{sch=JSON.parse(t);migratePower();pushSchematic();fitView();}catch(err){alert('JSON 解析失败')}})};
 
 /* ================= 状态渲染 ================= */
 function renderScope(){
@@ -887,6 +888,9 @@ function renderState(s){
   document.querySelectorAll('.fw-item').forEach(d=>
     d.classList.toggle('sel',d.querySelector('span').textContent===fwNow));
   const u=$('uart');if(u.textContent!==s.uart){u.textContent=s.uart;u.scrollTop=u.scrollHeight;}
+  if(s.mcu_powered===false){$('stMode').textContent='⚠ MCU 未供电：VDD→3.3V，VSS→GND';
+    $('stMode').style.color='#d93025';}
+  else{$('stMode').style.color='';}
   $('schCount').textContent=`${sch.components.length} 元件 · ${sch.wires.length} 连线`;
   const pr=cv.parentElement.getBoundingClientRect();          // 布局变化后画布尺寸自愈
   if(Math.abs(cv.width-pr.width*devicePixelRatio)>2)resize();
@@ -1078,6 +1082,17 @@ $('presetSel').onchange=async e=>{
 };
 setMode('idle');
 loadFwList();
+function migratePower(){                 // 旧电路自动补电源（VDD/VSS 接线）
+  const mcu=sch.components.find(c=>c.type==='mcu');
+  if(!mcu)return;
+  const has=w=>w.a[1]==='VDD'||w.b[1]==='VDD';
+  if(sch.wires.some(has))return;
+  sch.components.push({id:'PWR1',type:'vcc',x:mcu.x+170,y:mcu.y-120,props:{}});
+  sch.components.push({id:'GNDP',type:'gnd',x:mcu.x+170,y:mcu.y+TYPES.mcu.h+90,props:{}});
+  sch.wires.push({a:['PWR1','V'],b:[mcu.id,'VDD']},{a:[mcu.id,'VSS'],b:['GNDP','G']});
+  saveLocal();
+}
+migratePower();
 loadLocalOrDefault().then(()=>{poll();});
 resize();
 </script>

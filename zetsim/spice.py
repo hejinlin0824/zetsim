@@ -205,6 +205,7 @@ class CoupledCircuit:
         self.circuit = Circuit()
         self.dt_ns = dt_ns
         self.pin_sources: dict[str, VoltageSource] = {}
+        self.stepped = False                    # 引擎步进过至少一次（否则电流无效）
         self.probes: dict[str, str] = {}        # 探针名 -> 节点名
         self.history: dict[str, list[tuple[int, float]]] = {}
         self.enabled = False
@@ -235,9 +236,13 @@ class CoupledCircuit:
         n_sub = min(n_sub, self.max_substeps)
         for _ in range(n_sub):
             self.circuit.step(self.dt_ns / 1e9)
+        self.stepped = True
         self._last_ns = now_ns
         # 为下一窗口采样当前电平
         for pin, src in self.pin_sources.items():
+            if not (pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE"
+                    and pin[2:].isdigit()):
+                continue                       # VDD/VSS 等电源脚不参与模拟采样
             port_idx = "ABCDE".index(pin[1])
             net = self.board.net(port_idx, int(pin[2:]))
             v = net.voltage()

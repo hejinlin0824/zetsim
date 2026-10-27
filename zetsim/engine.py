@@ -68,6 +68,15 @@ class Simulation:
             if time.time() - t_start > wall_timeout_s:
                 self.report.halt_reason = "wall_timeout"
                 break
+            # --- 掉电：CPU 不执行，外设/器件时间照走（VDD/VSS 接回自动恢复） ---
+            if not getattr(board, "mcu_power", True):
+                self._set_time(self.now + self.max_slice_ns)
+                for p_ in board.all_periphs():
+                    p_.step_to(self.now)
+                self._tick_devices()
+                if self.on_slice:
+                    self.on_slice(self.now)
+                continue
             # --- 决定本片预算 ---
             nxt = None
             for p in board.all_periphs():
