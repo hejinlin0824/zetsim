@@ -86,6 +86,7 @@ class Schematic:
         self.mcu_pin_nets: dict[str, str] = {}             # "PA5" -> net_id
         self.leds: dict[str, Led] = {}
         self.buttons: dict[str, Button] = {}
+        self._grounded: set = set()      # 接了 GND 符号的网络（LED 回路判定）
         self.pots: dict[str, Potentiometer] = {}
         self.probes: dict[str, Probe] = {}
         self.button_states: dict[str, bool] = {}
@@ -168,6 +169,12 @@ class Schematic:
 
     def _bind(self):
         board = self.board
+        # 0) 接地网络集合：所有 GND 符号的 G 引脚所在的网络
+        self._grounded = {
+            self.pin_net[(c["id"], "G")]
+            for c in self.components.values()
+            if c["type"] == "gnd" and (c["id"], "G") in self.pin_net
+        }
         # 1) 清掉旧绑定（保留 EXTI 板级 watcher）
         for n in board.nets.values():
             n.reset_bindings()
@@ -279,10 +286,14 @@ class Schematic:
             p.sample(now_ns)
 
     def led_states(self) -> dict:
-        """LED 运行态: on/brightness（SPICE 电流优先，否则数字电平）。"""
+        """LED 运行态: on/brightness（SPICE 电流优先，否则数字电平+回路检查）。"""
         out = {}
         for cid, led in self.leds.items():
             on = led.on
+            # 数字模式：负极必须接到 GND（有电流回路），否则视为断路不亮
+            k_net = self.pin_net.get((cid, "K"))
+            if k_net is None or k_net not in self._grounded:
+                on = False
             bright = 1.0 if on else 0.0
             d = self._spice_leds.get(cid)
             if d is not None and self.spice is not None:

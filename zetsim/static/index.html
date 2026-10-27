@@ -202,7 +202,7 @@ input[type=text]:focus{border-color:var(--accent)}
       <span class="mode" id="stMode">就绪</span>
       <span id="stPos">x 0, y 0</span>
       <span style="flex:1"></span>
-      <span>build 1027-S</span>
+      <span>build 1028-A</span>
       <span id="stHint">从元件库选择并放置元件，或直接点引脚连线</span>
     </div>
     <div id="scopePanel">
@@ -275,7 +275,7 @@ let sch={components:[],wires:[]};
 let st=null, sel=null, autoId=0;
 let mode='idle', placeType=null, wireFrom=null;
 let mouse={x:0,y:0}, mouseW={x:0,y:0};
-let dragC=null, dragOff={x:0,y:0}, potDrag=null, moved=false;
+let dragC=null, dragOff={x:0,y:0}, potDrag=null, moved=false, selWire=null;
 let panDrag=null, panStart=null;
 const heldBtns=new Set();
 let view={x:0,y:0,z:1};
@@ -309,6 +309,23 @@ function pinPos(c,p){
   return p==='1'||p==='W'?{x:x,y:y+t.h/2}:{x:x+t.w,y:y+t.h/2};
 }
 const compById=id=>sch.components.find(c=>c.id===id);
+function distSeg(p,a,b){
+  const dx=b.x-a.x,dy=b.y-a.y;
+  const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));
+  return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy));
+}
+function wireHit(w){                     // 点选导线（用于删除）
+  computeRoutes();
+  let best=null;
+  for(let i=0;i<wireRoutes.length;i++){
+    const pts=wireRoutes[i];if(!pts)continue;
+    for(let k=0;k<pts.length-1;k++){
+      const d=distSeg(w,pts[k],pts[k+1]);
+      if(d<7/Math.max(view.z,.5)&&(!best||d<best.d))best={w:sch.wires[i],d};
+    }
+  }
+  return best&&best.w;
+}
 function compHit(wx,wy){
   for(const c of sch.components.slice().reverse()){
     const t=TYPES[c.type];
@@ -345,7 +362,7 @@ function render(){
   for(let wi=0;wi<sch.wires.length;wi++){
     if(!wireRoutes[wi])continue;
     const w=sch.wires[wi];
-    drawWirePts(wireRoutes[wi],mode==='wire'&&wireFrom&&(samePin(w.a)||samePin(w.b))?COLORS.wireSel:COLORS.wire,false,hopMap[wi]);
+    drawWirePts(wireRoutes[wi],w===selWire?COLORS.accent:(mode==='wire'&&wireFrom&&(samePin(w.a)||samePin(w.b))?COLORS.wireSel:COLORS.wire),false,hopMap[wi]);
   }
   // 结点：引出 >=2 根导线的引脚画实心结点
   const pinUse={};
@@ -692,11 +709,11 @@ cv.addEventListener('mousedown',e=>{
   const ph=pinHit(w.x,w.y);
   if(ph){setMode('wire');wireFrom=ph;return;}
   const c=compHit(w.x,w.y);
-  if(c){sel=c;
+  if(c){sel=c;selWire=null;
     if(c.type==='button'){api('comp/'+c.id+'/press');heldBtns.add(c.id);}
     else if(c.type==='pot'){potDrag=c;}
     else{dragC=c;dragOff={x:w.x-c.x,y:w.y-c.y};}
-  } else sel=null;
+  } else {sel=null;selWire=wireHit(w);}
   render();
 });
 addEventListener('mouseup',e=>{
@@ -726,12 +743,17 @@ cv.addEventListener('dblclick',e=>{
   else if(c.type==='led'){const v=prompt('颜色 red / green：',c.props.color||'red');if(v){c.props.color=v;pushSchematic();}}
 });
 addEventListener('keydown',e=>{
-  if(e.key==='Escape'){setMode('idle');wireFrom=null;setPalette(null);sel=null;render();}
+  if(e.key==='Escape'){setMode('idle');wireFrom=null;setPalette(null);sel=null;selWire=null;render();}
   if(e.key.toLowerCase()==='w'&&!wireFrom&&document.activeElement.tagName!=='INPUT'){setMode('wire');render();}
-  if((e.key==='Delete'||e.key==='Backspace')&&sel&&document.activeElement.tagName!=='INPUT'){
-    sch.components=sch.components.filter(c=>c!==sel);
-    sch.wires=sch.wires.filter(w=>w.a[0]!==sel.id&&w.b[0]!==sel.id);
-    sel=null;pushSchematic();render();
+  if((e.key==='Delete'||e.key==='Backspace')&&document.activeElement.tagName!=='INPUT'){
+    if(sel){
+      sch.components=sch.components.filter(c=>c!==sel);
+      sch.wires=sch.wires.filter(w=>w.a[0]!==sel.id&&w.b[0]!==sel.id);
+      sel=null;pushSchematic();render();
+    } else if(selWire){                  // 拆线：点选导线后 Delete
+      sch.wires=sch.wires.filter(w=>w!==selWire);
+      selWire=null;pushSchematic();render();
+    }
   }
 });
 function setMode(m){
