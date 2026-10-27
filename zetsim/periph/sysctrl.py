@@ -65,10 +65,10 @@ class SysCtrl(Peripheral):
             return self._ispr[(off - 0x200) // 4]
         if 0x280 <= off < 0x2A0:
             return self._ispr[(off - 0x280) // 4]
-        if off == 0x10:                       # SysTick CTRL（COUNTFLAG 读清）
+        if off == 0x10:                       # SysTick CTRL（COUNTFLAG=bit16 读清）
             cf = 1 if self._st_countflag else 0
             self._st_countflag = False
-            return self.regs.get(0x10, 0) | (cf << 15)
+            return self.regs.get(0x10, 0) | (cf << 16)
         if off == 0x18:                       # SysTick VAL
             return int(self._st_val) & 0xFFFFFF
         if off == 0xD04:                      # ICSR 读

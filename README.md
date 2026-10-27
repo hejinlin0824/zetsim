@@ -40,6 +40,18 @@ zetsim run firmware/hello_echo.hex --time 50ms --uart 1
 zetsim serve                       # 浏览器打开 http://127.0.0.1:8000
 ```
 
+## 写项目（边做边学）
+
+在浏览器里直接写 C、编译、看板子跑——完整学习闭环：
+
+1. 装一次编译器：`winget install Arm.GnuArmEmbeddedToolchain`（Linux 用发行版的 gcc-arm-none-eabi 包）
+2. `zetsim serve` → 工具栏「✎ 项目」→ 选择项目 → 改代码 → **保存并编译运行**
+3. 编译成功固件自动加载开跑；报错会带行号显示在编辑器下方
+
+第一个项目 `projects/led_marquee`（8-LED 跑马灯）含四个带注释的教学文件：
+`main.c`（业务逻辑）、`startup.c`（上电启动）、`stm32f103.h`（寄存器定义）、`link.ld`（内存布局）。
+配套电路在工具栏「电路预设 → 8-LED 跑马灯」一键载入。命令行编译：`zetsim build projects/led_marquee`。
+
 ## 用自己的固件
 
 用 Keil(armcc/armclang) 或 arm-none-eabi-gcc 为 STM32F103ZET6 编译，

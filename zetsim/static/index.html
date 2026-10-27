@@ -96,6 +96,26 @@ input[type=text]:focus{border-color:var(--accent)}
 .pal .item svg{filter:brightness(1.65)}
 #oled{display:block;margin:0 auto;background:#05070a;border-radius:6px}
 .empty{color:var(--muted);font-size:11px;text-align:center;padding:14px 6px}
+
+/* ---------- 项目编辑器 ---------- */
+#projModal{position:fixed;inset:0;background:rgba(4,8,14,.74);z-index:50;display:none;
+  align-items:center;justify-content:center}
+#projModal.open{display:flex}
+.projBox{width:min(880px,94vw);height:min(660px,90vh);background:var(--panel);
+  border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 18px 60px rgba(0,0,0,.5)}
+.projHead{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border)}
+.projHead b{font-size:13px}
+#projSel{background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  border-radius:6px;padding:4px 8px;font:12px var(--mono)}
+#projTabs{display:flex;gap:2px;padding:6px 10px 0;border-bottom:1px solid var(--border)}
+.ptab{padding:5px 14px;font:12px var(--mono);color:var(--muted);cursor:pointer;
+  border-radius:7px 7px 0 0;border:1px solid transparent;border-bottom:none}
+.ptab.sel{color:var(--accent);background:#0d1117;border-color:var(--border)}
+#projCode{flex:1;resize:none;border:0;background:#0d1117;color:#d8e2f0;
+  font:13px/1.6 var(--mono);padding:12px 16px;outline:none;tab-size:2;white-space:pre}
+#projLog{height:120px;overflow:auto;margin:0;padding:8px 14px;font:11px/1.5 var(--mono);
+  color:var(--muted);border-top:1px solid var(--border);white-space:pre-wrap;background:#0a0d13}
 </style>
 </head>
 <body>
@@ -145,6 +165,12 @@ input[type=text]:focus{border-color:var(--accent)}
       <button class="btn icon" id="fitBtn" title="适配视图">⛶</button>
       <div class="sep"></div>
       <button class="btn icon" id="gridBtn" title="网格">▦</button>
+      <div class="sep"></div>
+      <select id="presetSel" class="btn" style="padding:4px 6px;font:12px var(--mono)" title="载入示例电路">
+        <option value="">电路预设…</option>
+        <option value="led8_marquee">8-LED 跑马灯</option>
+      </select>
+      <button class="btn icon" id="projBtn" title="写 C 项目：改代码→编译→板上跑">✎ 项目</button>
       <div class="spacer"></div>
       <span style="font-size:11px;color:var(--muted)" id="schCount"></span>
     </div>
@@ -183,6 +209,21 @@ input[type=text]:focus{border-color:var(--accent)}
     </div>
   </section>
 </main>
+<!-- 项目编辑器弹窗 -->
+<div id="projModal">
+  <div class="projBox">
+    <div class="projHead">
+      <b>✎ 项目 · 给板子写 C 代码</b>
+      <select id="projSel"><option value="">选择项目…</option></select>
+      <span class="spacer"></span>
+      <button class="btn primary" id="projBuildBtn">保存并编译运行 ⏎</button>
+      <button class="btn icon" id="projClose">✕</button>
+    </div>
+    <div id="projTabs"></div>
+    <textarea id="projCode" spellcheck="false" wrap="off"></textarea>
+    <pre id="projLog">选择项目 → 改代码 → 编译运行。固件编译成功后自动加载开跑；编译报错会显示在这里。</pre>
+  </div>
+</div>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -735,6 +776,67 @@ async function loadFwList(){
       box.appendChild(d);});
   }catch(e){}
 }
+/* ================= 项目面板（C 代码编辑 + 编译） ================= */
+const proj={name:null,files:{},cur:null};
+$('projBtn').onclick=async()=>{
+  $('projModal').classList.add('open');
+  const j=await(await fetch('/api/projects')).json();
+  $('projSel').innerHTML='<option value="">选择项目…</option>'+
+    (j.items||[]).map(n=>`<option${n===proj.name?' selected':''}>${n}</option>`).join('');
+};
+$('projClose').onclick=()=>$('projModal').classList.remove('open');
+$('projModal').addEventListener('mousedown',e=>{if(e.target.id==='projModal')$('projModal').classList.remove('open')});
+$('projSel').onchange=e=>loadProj(e.target.value);
+async function loadProj(name){
+  if(!name)return;
+  proj.name=name;
+  const j=await(await fetch('/api/project/'+name)).json();
+  if(!j.ok){$('projLog').textContent='加载失败：'+(j.error||name);return;}
+  proj.files=j.files||{};
+  $('projTabs').innerHTML='';
+  Object.keys(proj.files).forEach(f=>{
+    const d=document.createElement('div');d.className='ptab';d.textContent=f;
+    d.onclick=()=>showProjFile(f);$('projTabs').appendChild(d);});
+  showProjFile('main.c');
+  $('projLog').textContent='已载入 '+name+'。改完代码点「保存并编译运行」。';
+}
+function showProjFile(f){
+  saveProjBuffer();
+  proj.cur=f;
+  document.querySelectorAll('.ptab').forEach(d=>d.classList.toggle('sel',d.textContent===f));
+  $('projCode').value=proj.files[f]||'';
+}
+function saveProjBuffer(){if(proj.cur)proj.files[proj.cur]=$('projCode').value;}
+async function buildProj(){
+  if(!proj.name){$('projLog').textContent='先选择一个项目。';return;}
+  saveProjBuffer();
+  $('projLog').textContent='编译中…';$('projLog').style.color='var(--muted)';
+  await fetch('/api/project/'+proj.name,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({files:proj.files})});           // 先保存到磁盘
+  const r=await fetch('/api/project/'+proj.name+'/build',{method:'POST'});
+  const b=await r.json();
+  $('projLog').textContent=b.log||b.error||'未知错误';
+  $('projLog').style.color=b.ok?'#52c41a':'#ff6b6b';
+  if(b.ok)$('fwpath').value=b.firmware;
+}
+$('projBuildBtn').onclick=buildProj;
+$('projCode').addEventListener('keydown',e=>{
+  if(e.key==='Tab'){e.preventDefault();const t=e.target,s=t.selectionStart;
+    t.value=t.value.slice(0,s)+'  '+t.value.slice(t.selectionEnd);t.selectionStart=t.selectionEnd=s+2;}
+  if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();buildProj();}
+});
+/* 电路预设 */
+$('presetSel').onchange=async e=>{
+  const v=e.target.value;if(!v)return;e.target.value='';
+  try{
+    const j=await(await fetch('/api/schematic/preset/'+v)).json();
+    if(j.ok&&j.schematic){
+      sch=JSON.parse(JSON.stringify(j.schematic));
+      autoId=sch.components.length+20;sel=null;
+      saveLocal();fitView();render();
+    }
+  }catch(err){}
+};
 setMode('idle');
 loadFwList();
 loadLocalOrDefault().then(()=>{poll();});

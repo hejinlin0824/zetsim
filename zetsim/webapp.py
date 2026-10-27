@@ -16,6 +16,7 @@ from .board import Board
 from .engine import Simulation
 from .devices import Ssd1306
 from .schematic import Schematic
+from .build import build_project, PROJECT_FILES
 
 # 首次打开的默认示例电路：MCU + LED(PA5) + 按键(PA0) + 电位器(PA1) + 探针
 DEFAULT_SCHEMATIC = {
@@ -38,6 +39,26 @@ DEFAULT_SCHEMATIC = {
         {"a": ["POT1", "B"], "b": ["GND3", "G"]},
         {"a": ["MCU", "PA5"], "b": ["PR1", "P"]},
     ],
+}
+
+
+def _led8_schematic() -> dict:
+    """8-LED 跑马灯预设电路：PA0..PA7 → LED1..LED8 → GND。"""
+    comps = [{"id": "MCU", "type": "mcu", "x": 60, "y": 60, "props": {}}]
+    wires = []
+    for i in range(8):
+        y = 70 + i * 60
+        comps.append({"id": f"LED{i+1}", "type": "led", "x": 470, "y": y,
+                      "props": {"color": "red" if i % 2 == 0 else "green"}})
+        comps.append({"id": f"GND{i+1}", "type": "gnd", "x": 650, "y": y, "props": {}})
+        wires.append({"a": ["MCU", f"PA{i}"], "b": [f"LED{i+1}", "A"]})
+        wires.append({"a": [f"LED{i+1}", "K"], "b": [f"GND{i+1}", "G"]})
+    return {"components": comps, "wires": wires}
+
+
+PRESET_SCHEMATICS = {
+    "default": DEFAULT_SCHEMATIC,
+    "led8_marquee": _led8_schematic(),
 }
 
 
@@ -207,6 +228,75 @@ def build_app(firmware: str | None = None) -> FastAPI:
     @app.get("/api/schematic/default")
     async def schematic_default():
         return JSONResponse(DEFAULT_SCHEMATIC)
+
+    @app.get("/api/schematic/preset/{name}")
+    async def schematic_preset(name: str):
+        preset = PRESET_SCHEMATICS.get(name)
+        if preset is None:
+            return JSONResponse({"ok": False, "error": f"无此预设 {name}"}, status_code=404)
+        with dash.lock:
+            dash.sch.apply(preset)
+        return JSONResponse({"ok": True, "schematic": preset, "snapshot": dash.sch.snapshot()})
+
+    # ---------- 项目（C 代码编辑 + 编译） ----------
+    import re
+    _PROJ_NAME = re.compile(r"^[A-Za-z0-9_\-]+$")
+
+    def _proj_dir(name: str) -> Path:
+        if not _PROJ_NAME.match(name):
+            raise ValueError("项目名只能字母数字_-")
+        return Path.cwd() / "projects" / name
+
+    @app.get("/api/projects")
+    async def projects():
+        root = Path.cwd() / "projects"
+        items = sorted(d.name for d in root.iterdir()
+                       if d.is_dir() and (d / "main.c").exists()) if root.exists() else []
+        return {"items": items}
+
+    @app.get("/api/project/{name}")
+    async def project_get(name: str):
+        try:
+            pdir = _proj_dir(name)
+        except ValueError as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        files = {}
+        for f in PROJECT_FILES:
+            path = pdir / f
+            if path.exists():
+                files[f] = path.read_text(encoding="utf-8")
+        if not files:
+            return JSONResponse({"ok": False, "error": "项目不存在"}, status_code=404)
+        return {"ok": True, "files": files}
+
+    @app.post("/api/project/{name}")
+    async def project_save(name: str, body: dict):
+        try:
+            pdir = _proj_dir(name)
+        except ValueError as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        files = body.get("files", {})
+        for fname, content in files.items():
+            if fname not in PROJECT_FILES:
+                return JSONResponse({"ok": False, "error": f"不允许写 {fname}"}, status_code=400)
+            (pdir / fname).write_text(str(content), encoding="utf-8")
+        return {"ok": True}
+
+    @app.post("/api/project/{name}/build")
+    async def project_build(name: str):
+        try:
+            pdir = _proj_dir(name)
+        except ValueError as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        ok, log = build_project(pdir)
+        if not ok:
+            return {"ok": False, "log": log}
+        hex_path = pdir / "firmware.hex"
+        try:
+            dash.load(str(hex_path))
+        except Exception as e:
+            return {"ok": False, "log": log + f"\n加载固件失败: {e}"}
+        return {"ok": True, "log": log, "firmware": str(hex_path)}
 
     @app.post("/api/schematic")
     async def schematic_set(body: dict):

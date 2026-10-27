@@ -21,6 +21,9 @@ def build_argparser():
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--firmware", default=None, help="启动即加载的固件")
+
+    build = sub.add_parser("build", help="编译项目（C → firmware.hex）")
+    build.add_argument("project", help="项目目录，如 projects/led_marquee")
     return p
 
 
@@ -76,6 +79,16 @@ def cmd_run(args):
     return 0
 
 
+def cmd_build(args):
+    from pathlib import Path
+    from rich.console import Console
+    from .build import build_project
+    console = Console()
+    ok, log = build_project(Path(args.project))
+    console.print(log, style="green" if ok else "red")
+    return 0 if ok else 1
+
+
 def cmd_serve(args):
     from .webapp import serve
     serve(host=args.host, port=args.port, firmware=args.firmware)
@@ -88,6 +101,8 @@ def main(argv=None):
         return cmd_run(args)
     if args.cmd == "serve":
         return cmd_serve(args)
+    if args.cmd == "build":
+        return cmd_build(args)
 
 
 if __name__ == "__main__":
