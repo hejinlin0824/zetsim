@@ -64,7 +64,7 @@ main{flex:1;display:grid;grid-template-columns:196px 1fr 292px;gap:8px;padding:8
 .tip b{color:var(--text);font-weight:600}
 
 /* 画布区 */
-#canvasWrap{position:relative;flex:1;min-height:0;background:#0b0e14}
+#canvasWrap{position:relative;flex:1;min-height:0;background:#e8e8d2}   /* SimulIDE 式绘图纸 */
 #sch{position:absolute;inset:0;width:100%;height:100%;display:block}
 #statusbar{display:flex;gap:14px;align-items:center;height:28px;padding:0 12px;flex-shrink:0;
   background:var(--panel2);border-top:1px solid var(--border);font:11px var(--mono);color:var(--muted)}
@@ -179,6 +179,7 @@ input[type=text]:focus{border-color:var(--accent)}
       <span class="mode" id="stMode">就绪</span>
       <span id="stPos">x 0, y 0</span>
       <span style="flex:1"></span>
+      <span>build 1027-S</span>
       <span id="stHint">从元件库选择并放置元件，或直接点引脚连线</span>
     </div>
     <div id="scopePanel">
@@ -249,9 +250,9 @@ const MCU_R=[...Array(16).keys()].map(i=>'PA'+i), MCU_L=['PB0','PB1'];
 const PINS={mcu:[...MCU_R,...MCU_L],led:['A','K'],resistor:['1','2'],capacitor:['1','2'],
   button:['1','2'],pot:['W','B'],gnd:['G'],vcc:['V'],probe:['P']};
 const PSTEP=27;
-const COLORS={wire:'#3fb950',wireSel:'#58a6ff',body:'#1c2330',stroke:'#7d8590',text:'#e6edf3',
-  label:'#8b949e',led:{red:[248,81,73],green:[63,185,80]},accent:'#58a6ff'};
-const PROBE_COLORS=['#58a6ff','#f85149','#3fb950','#e3b341'];
+const COLORS={wire:'#1f7a33',wireSel:'#0a66c2',body:'#f9f9f0',stroke:'#26261f',text:'#1a1a14',
+  label:'#5c5c50',led:{red:[224,42,42],green:[27,142,54]},accent:'#0a66c2'};
+const PROBE_COLORS=['#0a66c2','#c62828','#0f8a2e','#b8860b'];
 
 function pinPos(c,p){
   const t=TYPES[c.type],x=c.x,y=c.y;
@@ -313,7 +314,7 @@ function render(){
   }
   // 连线预览 + 十字光标
   if(mode==='wire'&&wireFrom){
-    ctx.strokeStyle='rgba(88,166,255,.35)';ctx.lineWidth=1/view.z;ctx.setLineDash([4,4]);
+    ctx.strokeStyle='rgba(10,102,194,.4)';ctx.lineWidth=1/view.z;ctx.setLineDash([4,4]);
     ctx.beginPath();
     ctx.moveTo(wireFrom.pos.x,-1e4);ctx.lineTo(wireFrom.pos.x,1e4);
     ctx.moveTo(-1e4,mouseW.y);ctx.lineTo(1e4,mouseW.y);
@@ -328,7 +329,7 @@ function render(){
   for(const c of sch.components)drawComp(c);
   // 对齐辅助线（拖动中吸附时显示）
   if(alignGuides){
-    ctx.strokeStyle='#e3b341';ctx.lineWidth=1/view.z;ctx.setLineDash([6,4]);
+    ctx.strokeStyle='#c07800';ctx.lineWidth=1.4/view.z;ctx.setLineDash([6,4]);
     ctx.beginPath();
     for(const x of alignGuides.v){ctx.moveTo(x,-1e4);ctx.lineTo(x,1e4);}
     for(const y of alignGuides.h){ctx.moveTo(-1e4,y);ctx.lineTo(1e4,y);}
@@ -362,14 +363,14 @@ function drawGrid(){
   const gr=cv.getBoundingClientRect();
   const tl=s2w(0,0),br=s2w(gr.width,gr.height);
   if(view.z>.5){                                   // 次网格点（10）：放大时才画，防摩尔纹
-    ctx.fillStyle='#242e3d';
+    ctx.fillStyle='#c9c9ae';
     for(let x=Math.floor(tl.x/10)*10;x<br.x;x+=10)
       for(let y=Math.floor(tl.y/10)*10;y<br.y;y+=10){
         if(x%50===0&&y%50===0)continue;
         ctx.fillRect(x-.6,y-.6,1.2,1.2);
       }
   }
-  ctx.fillStyle='#46586f';                         // 主网格点（50）
+  ctx.fillStyle='#9d9d80';                         // 主网格点（50）
   for(let x=Math.floor(tl.x/50)*50;x<br.x;x+=50)
     for(let y=Math.floor(tl.y/50)*50;y<br.y;y+=50)
       ctx.fillRect(x-1.1,y-1.1,2.2,2.2);
@@ -466,11 +467,11 @@ function drawComp(c,ghost){
     const hot=hoverPin&&hoverPin.c===c&&hoverPin.pin===p;
     if(c.type==='mcu'){
       const right=pp.x>c.x+1;
-      ctx.font='9px "Cascadia Code",Consolas';
-      ctx.fillStyle='#a9b4c2';ctx.textAlign=right?'right':'left';
-      ctx.fillText(p,right?pp.x-5:pp.x+5,pp.y);   // 名字画在芯片体内，不被导线压住
+      ctx.font='bold 10px "Cascadia Code",Consolas';
+      ctx.fillStyle='#1a1a14';ctx.textAlign=right?'right':'left';
+      ctx.fillText(p,right?pp.x-5:pp.x+5,pp.y);   // 黑字浅底（SimulIDE 式），一眼可见
     }
-    ctx.fillStyle=hot?COLORS.accent:(mode==='wire'?'#58a6ff':'#aab3bf');
+    ctx.fillStyle=hot?COLORS.accent:(mode==='wire'?COLORS.accent:'#3d3d33');
     ctx.beginPath();ctx.arc(pp.x,pp.y,3.2,0,7);ctx.fill();
     if(hot){ctx.strokeStyle=COLORS.accent;ctx.beginPath();ctx.arc(pp.x,pp.y,6,0,7);ctx.stroke();}
   }
@@ -485,16 +486,16 @@ function drawComp(c,ghost){
   else if(c.type==='vcc')drawVcc(c);
   else if(c.type==='probe')drawProbe(c);
   if(!ghost&&sel===c){
-    ctx.strokeStyle='rgba(88,166,255,.7)';ctx.setLineDash([5,4]);ctx.lineWidth=1;
+    ctx.strokeStyle='rgba(10,102,194,.8)';ctx.setLineDash([5,4]);ctx.lineWidth=1.2;
     ctx.strokeRect(c.x-7,c.y-7,t.w+14,t.h+14);ctx.setLineDash([]);
   }
 }
 function drawMcu(c,stroke){
   const t=TYPES.mcu;
-  ctx.fillStyle=COLORS.body;ctx.strokeStyle=stroke;
-  ctx.beginPath();ctx.roundRect(c.x,c.y,t.w,t.h,8);ctx.fill();ctx.stroke();
-  ctx.beginPath();ctx.arc(c.x+t.w/2,c.y,7,Math.PI,0);ctx.strokeStyle='#4a5361';ctx.stroke();
-  ctx.strokeStyle='#3d4451';ctx.beginPath();
+  ctx.fillStyle=COLORS.body;ctx.strokeStyle=stroke;ctx.lineWidth=1.4/Math.max(view.z*.85,.6);
+  ctx.beginPath();ctx.roundRect(c.x,c.y,t.w,t.h,6);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.arc(c.x+t.w/2,c.y,7,Math.PI,0);ctx.strokeStyle='#9a9a84';ctx.stroke();
+  ctx.strokeStyle='#7a7a64';ctx.beginPath();      // 引脚插脚短线（SimulIDE 式）
   MCU_L.forEach((p,i)=>{const y=c.y+20+i*PSTEP;ctx.moveTo(c.x,y);ctx.lineTo(c.x+9,y);});
   MCU_R.forEach((p,i)=>{const y=c.y+20+i*PSTEP;ctx.moveTo(c.x+t.w-9,y);ctx.lineTo(c.x+t.w,y);});
   ctx.stroke();
@@ -503,22 +504,22 @@ function drawMcu(c,stroke){
   ctx.fillText('STM32F103',c.x+t.w/2,c.y+t.h+26);
   ctx.fillStyle=COLORS.label;ctx.font='10px "Cascadia Code",Consolas';
   ctx.fillText('ZET6 · LQFP144',c.x+t.w/2,c.y+t.h+40);
-  ctx.fillStyle='#3d4451';ctx.font='9px "Cascadia Code",Consolas';
+  ctx.fillStyle='#b8b89e';ctx.font='9px "Cascadia Code",Consolas';
   ctx.fillText('zetsim',c.x+t.w/2,c.y+t.h-12);
 }
 function drawLed(c,L){
   const cx=c.x+32,cy=c.y+22,on=L&&L.on,br=L?L.brightness:0;
   const col=COLORS.led[c.props.color]||COLORS.led.red;
-  ctx.strokeStyle='#7d8590';
+  ctx.strokeStyle='#26261f';
   ctx.beginPath();ctx.moveTo(c.x,cy);ctx.lineTo(cx-11,cy);ctx.moveTo(cx+11,cy);ctx.lineTo(c.x+64,cy);ctx.stroke();
   if(on){ctx.save();ctx.shadowColor=`rgb(${col})`;ctx.shadowBlur=30*br;
     ctx.fillStyle=`rgba(${col[0]},${col[1]},${col[2]},${.45+.55*br})`;}
-  else ctx.fillStyle='rgba(120,130,145,.13)';
+  else ctx.fillStyle='rgba(60,60,48,.08)';
   ctx.beginPath();ctx.arc(cx,cy,11,0,7);ctx.fill();if(on)ctx.restore();
-  ctx.strokeStyle=on?`rgb(${col})`:'#7d8590';
+  ctx.strokeStyle=on?`rgb(${col})`:'#26261f';
   ctx.beginPath();ctx.arc(cx,cy,11,0,7);ctx.stroke();
   ctx.beginPath();ctx.moveTo(cx-4,cy-5);ctx.lineTo(cx+4,cy);ctx.lineTo(cx-4,cy+5);ctx.closePath();
-  ctx.fillStyle=on?'#fff':'#5b636e';ctx.fill();
+  ctx.fillStyle=on?'#fff':'#3d3d33';ctx.fill();
   ctx.beginPath();ctx.moveTo(cx+4,cy-5);ctx.lineTo(cx+4,cy+5);ctx.stroke();
   ctx.fillStyle=COLORS.label;ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
   ctx.fillText(c.id+(on?` ${(br*100)|0}%`:''),cx,c.y+40);
@@ -542,15 +543,15 @@ function drawCap(c,stroke,label){
 }
 function drawBtn(c,B){
   const x=c.x+9,cy=c.y+18,dn=B||heldBtns.has(c.id);
-  ctx.strokeStyle=dn?COLORS.accent:'#7d8590';
+  ctx.strokeStyle=dn?COLORS.accent:'#26261f';
   ctx.beginPath();
   ctx.moveTo(c.x,cy);ctx.lineTo(x,cy);ctx.arc(x+8,cy,2.5,Math.PI,0,true);
   ctx.moveTo(x+19,cy);ctx.lineTo(c.x+74,cy);ctx.stroke();
   ctx.beginPath();ctx.moveTo(x+4,cy+(dn?1:-5));ctx.lineTo(x+17,cy+(dn?-1:5));ctx.stroke();
-  ctx.fillStyle=dn?COLORS.accent:'#5b636e';
+  ctx.fillStyle=dn?COLORS.accent:'#3d3d33';
   ctx.beginPath();ctx.arc(x+2,cy+7,2,0,7);ctx.arc(x+19,cy+7,2,0,7);ctx.fill();
   ctx.beginPath();ctx.moveTo(x+2,cy+7);ctx.lineTo(c.x+2,cy+7);ctx.moveTo(x+19,cy+7);ctx.lineTo(c.x+72,cy+7);
-  ctx.strokeStyle=dn?COLORS.accent:'#7d8590';ctx.stroke();
+  ctx.strokeStyle=dn?COLORS.accent:'#26261f';ctx.stroke();
   ctx.fillStyle=COLORS.label;ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
   ctx.fillText(c.id+'（按住）',c.x+37,c.y+44);
 }
@@ -561,15 +562,15 @@ function drawPot(c,P,stroke){
   ctx.lineTo(x0+25,cy-8);ctx.lineTo(x0+35,cy+8);ctx.lineTo(x0+45,cy-8);ctx.lineTo(x0+50,cy);
   ctx.lineTo(x1,cy);ctx.lineTo(c.x+92,cy);ctx.stroke();
   const v=P!=null?P:1.65,fx=x0+8+(x1-x0-16)*(v/3.3);
-  ctx.strokeStyle='#e3b341';
+  ctx.strokeStyle='#b8860b';
   ctx.beginPath();ctx.moveTo(fx,cy-14);ctx.lineTo(fx,cy-2);ctx.stroke();
   ctx.beginPath();ctx.moveTo(fx-3,cy-8);ctx.lineTo(fx,cy-3);ctx.lineTo(fx+3,cy-8);ctx.stroke();
-  ctx.fillStyle='#e3b341';ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillStyle='#b8860b';ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
   ctx.fillText(v.toFixed(2)+'V',(x0+x1)/2,cy+13);
 }
 function drawGnd(c){
   const x=c.x+20,y=c.y;
-  ctx.strokeStyle='#7d8590';
+  ctx.strokeStyle='#26261f';
   ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+10);
   ctx.moveTo(x-13,y+10);ctx.lineTo(x+13,y+10);
   ctx.moveTo(x-8,y+16);ctx.lineTo(x+8,y+16);
@@ -577,9 +578,9 @@ function drawGnd(c){
 }
 function drawVcc(c){
   const x=c.x+20,y=c.y+34;
-  ctx.strokeStyle='#3fb950';
+  ctx.strokeStyle='#0f8a2e';
   ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-12);ctx.moveTo(x-13,y-12);ctx.lineTo(x+13,y-12);ctx.stroke();
-  ctx.fillStyle='#3fb950';ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
+  ctx.fillStyle='#0f8a2e';ctx.textAlign='center';ctx.font='10px "Cascadia Code",Consolas';
   ctx.fillText('+3.3V',x,c.y-20+12);
 }
 function drawProbe(c){
