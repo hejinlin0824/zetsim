@@ -239,7 +239,76 @@ input[type=text]:focus{border-color:var(--accent)}
   #caseSearch{order:3;max-width:none;width:100%;margin:0}.caseLayout{grid-template-columns:205px minmax(0,1fr)}
   .caseDetail{padding:18px 14px}.caseDetail h2{font-size:20px}
 }
+
+/* ---------- Monaco-style code + live simulation workbench ---------- */
+#projModal{background:#080d14;z-index:90;align-items:stretch;justify-content:stretch;backdrop-filter:none}
+.projBox{width:100vw;height:100vh;max-width:none;max-height:none;border:0;border-radius:0;box-shadow:none;background:#10161f}
+.projHead{min-height:52px;flex-shrink:0;gap:8px;padding:8px 12px;background:linear-gradient(100deg,#172333,#111820);border-bottom:1px solid #2b394a}
+.projHead b{font-size:14px;white-space:nowrap}
+.projHead .btn{flex-shrink:0}
+.projMain{display:grid;grid-template-columns:174px minmax(350px,.92fr) minmax(440px,1.08fr);gap:0;flex:1;min-height:0;overflow:hidden}
+#projTree{width:auto;min-width:0;border-right:1px solid #283443}
+.editorCol{min-width:0;min-height:0;border-right:1px solid #283443}
+#projPreview{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0c121a}
+.projPreviewHead{height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;border-bottom:1px solid #293544;background:#121a24;color:#d4e0ee;font-size:11px;font-weight:650;letter-spacing:.5px}
+.projPreviewHead .eyebrow{display:flex;gap:8px;align-items:center}
+.liveDot{width:7px;height:7px;border-radius:50%;background:#3fb950;box-shadow:0 0 9px #3fb95088}
+#projRuntimeStatus{color:#8b9caf;font:10px var(--mono);text-align:right;white-space:nowrap}
+#projPreviewGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,270px);gap:8px;padding:8px;flex:1;min-height:0;min-width:0;overflow:hidden}
+#projPreviewGrid>#centerPanel,#projPreviewGrid>#rightPanel{min-width:0;min-height:0;width:auto;height:auto;max-height:none}
+#projPreviewGrid>#centerPanel{flex:1}
+#projPreviewGrid>#rightPanel{flex:1}
+#projPreviewGrid #toolbar{gap:4px;padding:6px;flex-wrap:wrap}
+#projPreviewGrid #toolbar .btn{padding:4px 6px;font-size:10px}
+#projPreviewGrid #projBtn{display:none}
+#projPreviewGrid #canvasWrap{min-height:160px}
+#projPreviewGrid #scopePanel{height:158px;flex-shrink:0}
+#projPreviewGrid #scope{height:84px}
+#projPreviewGrid #rightPanel .body{padding:0 8px 8px;gap:6px}
+#projPreviewGrid #rightPanel h3{padding-left:9px;padding-right:9px}
+#projPreviewGrid #rightPanel #oled{width:min(100%,220px)!important;height:auto}
+#projPreviewGrid #rightPanel #uart{height:clamp(80px,18vh,160px)}
+#projPreviewGrid #rightPanel input[type=text]{min-width:0}
+#projPreviewGrid #rightPanel .empty{padding:7px 2px}
+.projFileOps .hint{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.editorWrap{position:relative;flex:1;min-height:0;overflow:hidden}
+#monacoHost{position:absolute;inset:0;display:none;width:100%;height:100%;background:#0d1117}
+.editorWrap.monaco-ready #monacoHost{display:block}
+.editorWrap.monaco-ready #lineNums,.editorWrap.monaco-ready #hl,.editorWrap.monaco-ready #projCode{display:none!important}
+#projEditorMode{color:#79b8ff;font:10px var(--mono);margin-left:auto}
+#projRunBtn{color:#8be09d;border-color:#2d6740}
+#projPauseBtn{color:#e6c77b}
+#projResetBtn{white-space:nowrap}
+#projLog{height:125px;flex-shrink:0}
+@media(max-width:1180px){
+  .projMain{grid-template-columns:150px minmax(300px,.9fr) minmax(370px,1.1fr)}
+  #projPreviewGrid{grid-template-columns:minmax(0,1fr) 218px;gap:6px;padding:6px}
+  .projHead{gap:5px}
+  .projHead .btn{padding:5px 7px}
+  .projHead b{font-size:12px}
+}
+@media(max-width:980px){
+  .projMain{grid-template-columns:145px minmax(0,1fr);grid-template-rows:minmax(260px,1fr) minmax(300px,.85fr)}
+  #projPreview{grid-column:1/-1;grid-row:2}
+  #projTree{grid-column:1;grid-row:1}
+  .editorCol{grid-column:2;grid-row:1}
+  #projPreviewGrid{grid-template-columns:minmax(0,1fr) 220px}
+  .projHead{flex-wrap:wrap}
+}
+@media(max-width:680px){
+  .projMain{display:flex;flex-direction:column;overflow:auto}
+  #projTree{height:90px;flex:0 0 90px}
+  .editorCol{height:48vh;min-height:290px;flex:0 0 48vh}
+  #projPreview{height:44vh;min-height:300px;flex:0 0 44vh}
+  #projPreviewGrid{grid-template-columns:minmax(0,1fr)}
+  #projPreviewGrid>#rightPanel{display:none}
+  .projHead{gap:4px;padding:6px}
+  .projHead b{display:none}
+  #projSel{max-width:130px}
+}
+
 </style>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js" defer></script>
 </head>
 <body>
 <header>
@@ -383,6 +452,9 @@ input[type=text]:focus{border-color:var(--accent)}
       <button class="btn icon danger" id="projDelBtn" title="删除当前项目">🗑 项目</button>
       <select id="projSel"><option value="">选择项目…</option></select>
       <span class="spacer"></span>
+      <button class="btn" id="projRunBtn" title="继续运行当前固件">▶ 运行</button>
+      <button class="btn" id="projPauseBtn" title="暂停仿真">Ⅱ 暂停</button>
+      <button class="btn" id="projResetBtn" title="复位并重新运行">⟲ 复位</button>
       <button class="btn primary" id="projBuildBtn">保存并编译运行 ⏎</button>
       <button class="btn icon" id="projClose">✕</button>
     </div>
@@ -396,15 +468,23 @@ input[type=text]:focus{border-color:var(--accent)}
         <div class="projFileOps">
           <button class="btn icon" id="fileNewBtn" title="新建 .c / .h 文件（参与编译）">＋ 文件</button>
           <button class="btn icon danger" id="fileDelBtn" title="删除当前打开的文件">🗑 文件</button>
-          <span class="hint">main.c / startup.c / link.ld 为必需文件 · Ctrl+Enter 编译</span>
+          <span class="hint" id="projEditorMode">Monaco Editor · C / C++</span>
         </div>
         <div class="editorWrap">
+          <div id="monacoHost" aria-label="Monaco C code editor"></div>
           <pre id="lineNums" aria-hidden="true">1</pre>
           <pre id="hl" aria-hidden="true"></pre>
           <textarea id="projCode" spellcheck="false" wrap="off"></textarea>
         </div>
         <pre id="projLog">选择项目 → 改代码 → 编译运行。固件编译成功后自动加载开跑；编译报错会显示在这里。</pre>
       </div>
+      <section id="projPreview" aria-label="实时电路排布与运行面板">
+        <div class="projPreviewHead">
+          <div class="eyebrow"><span class="liveDot"></span><span>实时排布 · LIVE SIMULATION</span></div>
+          <span id="projRuntimeStatus">等待加载固件</span>
+        </div>
+        <div id="projPreviewGrid" aria-label="实时原理图与调试面板"></div>
+      </section>
     </div>
   </div>
 </div>
@@ -1139,7 +1219,7 @@ async function loadCaseFirmware(id){
 }
 async function openCaseWorkbench(id){
  const c=LEARNING_CASES.find(x=>x.id===id);if(!c)return;
- $("caseModal").classList.remove("open");$("projModal").classList.add("open");
+ $("caseModal").classList.remove("open");openProjectWorkbench();
  await refreshProjList(proj.name);
  if(c.project){
    if(proj.name!==c.project){await loadProj(c.project);if(proj.name!==c.project)return;}
@@ -1276,6 +1356,11 @@ function renderState(s){
   $('fwname').textContent=s.firmware?'▸ '+s.firmware.split(/[\\/]/).pop():'未加载固件';
   $('runDot').classList.toggle('off',!s.running);
   $('runTxt').textContent=s.running?'运行中':'运行';
+  const runtimeStatus=$('projRuntimeStatus');
+  if(runtimeStatus&&$('projModal').classList.contains('open')){
+    runtimeStatus.textContent=s.running?'RUNNING · '+s.t_ms.toFixed(1)+' ms':
+      s.sim_halted?'HALTED · '+(s.halt_reason||'CPU 已停止'):'PAUSED · '+s.t_ms.toFixed(1)+' ms';
+  }
   const fwNow=(s.firmware||'').split(/[\/]/).pop();
   document.querySelectorAll('.fw-item').forEach(d=>
     d.classList.toggle('sel',d.querySelector('span').textContent===fwNow));
@@ -1344,14 +1429,151 @@ async function loadFwList(){
 }
 /* ================= 项目面板（C 代码编辑 + 编译） ================= */
 const proj={name:null,files:{},saved:{},cur:null};
-$('projBtn').onclick=async()=>{
+const projectCenter=$('centerPanel'),projectRight=$('rightPanel');
+let projectDock=null,projectPanelState=null;
+const monacoBase='https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/';
+let monacoEditor=null,monacoReady=false,monacoLoading=null;
+const monacoModels=new Map();
+function dockProjectPreview(){
+  if(projectDock)return;
+  const centerAnchor=document.createComment('zetsim-center-panel-anchor');
+  const rightAnchor=document.createComment('zetsim-right-panel-anchor');
+  projectCenter.parentNode.insertBefore(centerAnchor,projectCenter);
+  projectRight.parentNode.insertBefore(rightAnchor,projectRight);
+  projectDock={centerAnchor,rightAnchor};
+  projectPanelState={
+    centerHidden:projectCenter.classList.contains('hidden'),
+    rightHidden:projectRight.classList.contains('hidden'),
+    scopeHidden:$('scopePanel').classList.contains('hidden')
+  };
+  $('projPreviewGrid').append(projectCenter,projectRight);
+  projectCenter.classList.remove('hidden');
+  projectRight.classList.remove('hidden');
+  $('scopePanel').classList.remove('hidden');
+}
+function undockProjectPreview(){
+  if(!projectDock)return;
+  const centerAnchor=projectDock.centerAnchor,rightAnchor=projectDock.rightAnchor;
+  if(centerAnchor.parentNode){
+    centerAnchor.parentNode.insertBefore(projectCenter,centerAnchor.nextSibling);
+    centerAnchor.remove();
+  }
+  if(rightAnchor.parentNode){
+    rightAnchor.parentNode.insertBefore(projectRight,rightAnchor.nextSibling);
+    rightAnchor.remove();
+  }
+  if(projectPanelState){
+    projectCenter.classList.toggle('hidden',projectPanelState.centerHidden);
+    projectRight.classList.toggle('hidden',projectPanelState.rightHidden);
+    $('scopePanel').classList.toggle('hidden',projectPanelState.scopeHidden);
+  }
+  projectDock=null;projectPanelState=null;
+}
+function openProjectWorkbench(){
+  dockProjectPreview();
   $('projModal').classList.add('open');
-  const j=await(await fetch('/api/projects')).json();
-  $('projSel').innerHTML='<option value="">选择项目…</option>'+
-    (j.items||[]).map(n=>`<option${n===proj.name?' selected':''}>${n}</option>`).join('');
+  initMonaco();
+  requestAnimationFrame(()=>{
+    resize();fitView();
+    if(monacoEditor)monacoEditor.layout();
+  });
+}
+function closeProjectWorkbench(){
+  if(!$('projModal').classList.contains('open'))return;
+  $('projModal').classList.remove('open');
+  undockProjectPreview();
+  requestAnimationFrame(()=>{
+    resize();renderScope();
+    if(monacoEditor)monacoEditor.layout();
+  });
+}
+function monacoLanguage(file){
+  if(/\.(c|h)$/i.test(file||''))return 'c';
+  if(/\.(s|S|asm)$/i.test(file||''))return 'asm';
+  if(/\.json$/i.test(file||''))return 'json';
+  return 'plaintext';
+}
+function activateMonacoFile(file){
+  if(!monacoReady||!monacoEditor||!window.monaco||!file)return;
+  let model=monacoModels.get(file);
+  if(!model){
+    model=window.monaco.editor.createModel(proj.files[file]||'',monacoLanguage(file));
+    monacoModels.set(file,model);
+  }
+  monacoEditor.setModel(model);
+}
+function clearMonacoModels(){
+  for(const model of monacoModels.values())model.dispose();
+  monacoModels.clear();
+  if(monacoReady&&monacoEditor)monacoEditor.setModel(null);
+}
+function initMonaco(){
+  if(monacoReady){if(monacoEditor)monacoEditor.layout();return Promise.resolve(true);}
+  if(monacoLoading)return monacoLoading;
+  if(!window.require||!window.require.config){
+    $('projEditorMode').textContent='兼容编辑器 · Monaco CDN 不可用';
+    return Promise.resolve(false);
+  }
+  monacoLoading=new Promise(resolve=>{
+    window.MonacoEnvironment={
+      getWorkerUrl:function(){
+        const source="self.MonacoEnvironment = { baseUrl: '"+monacoBase+"' }; importScripts('"+monacoBase+"vs/base/worker/workerMain.js');";
+        return 'data:text/javascript;charset=utf-8,'+encodeURIComponent(source);
+      }
+    };
+    window.require.config({paths:{vs:monacoBase+'vs'}});
+    window.require(['vs/editor/editor.main'],function(){
+      try{
+        const host=$('monacoHost'),wrap=host.parentElement;
+        monacoEditor=window.monaco.editor.create(host,{
+          value:$('projCode').value||'',language:monacoLanguage(proj.cur),
+          theme:'vs-dark',automaticLayout:true,fontSize:13,
+          fontFamily:'Cascadia Code, Consolas, SFMono-Regular, monospace',
+          minimap:{enabled:false},scrollBeyondLastLine:false,
+          lineNumbers:'on',glyphMargin:true,roundedSelection:false,
+          wordWrap:'off',tabSize:2,insertSpaces:true,
+          renderWhitespace:'selection',bracketPairColorization:{enabled:true},
+          guides:{bracketPairs:true,indentation:true},stickyScroll:{enabled:true},
+          padding:{top:12,bottom:12}
+        });
+        monacoReady=true;wrap.classList.add('monaco-ready');
+        monacoEditor.onDidChangeModelContent(function(){
+          $('projCode').value=monacoEditor.getValue();
+          saveProjBuffer();updateProjDirty();
+        });
+        monacoEditor.addCommand(window.monaco.KeyMod.CtrlCmd|window.monaco.KeyCode.KeyS,()=>saveProj());
+        monacoEditor.addCommand(window.monaco.KeyMod.CtrlCmd|window.monaco.KeyCode.Enter,()=>buildProj());
+        if(proj.cur)activateMonacoFile(proj.cur);
+        $('projEditorMode').textContent='MONACO EDITOR · C / ASM';
+        monacoEditor.layout();
+        resolve(true);
+      }catch(err){
+        $('projEditorMode').textContent='兼容编辑器 · Monaco 初始化失败';
+        $('projLog').textContent='Monaco 初始化失败，已保留兼容编辑器：'+err.message;
+        resolve(false);
+      }
+      monacoLoading=null;
+    },function(err){
+      $('projEditorMode').textContent='兼容编辑器 · Monaco CDN 加载失败';
+      $('projLog').textContent='Monaco CDN 加载失败，已保留兼容编辑器。联网后刷新页面可重试。';
+      monacoLoading=null;resolve(false);
+    });
+  });
+  return monacoLoading;
+}
+window.addEventListener('load',function(){
+  if($('projModal').classList.contains('open'))initMonaco();
+});
+$('projBtn').onclick=async()=>{
+  openProjectWorkbench();
+  try{
+    const j=await(await fetch('/api/projects')).json();
+    $('projSel').innerHTML='<option value="">选择项目…</option>'+
+      (j.items||[]).map(n=>'<option'+(n===proj.name?' selected':'')+'>'+n+'</option>').join('');
+  }catch(e){$('projLog').textContent='读取项目列表失败：'+e.message;}
 };
-$('projClose').onclick=()=>$('projModal').classList.remove('open');
-$('projModal').addEventListener('mousedown',e=>{if(e.target.id==='projModal')$('projModal').classList.remove('open')});
+$('projClose').onclick=closeProjectWorkbench;
+$('projModal').addEventListener('mousedown',e=>{if(e.target.id==='projModal')closeProjectWorkbench()});
 $('projSel').onchange=e=>loadProj(e.target.value);
 async function loadProj(name){
   if(!name)return;
@@ -1364,6 +1586,7 @@ async function loadProj(name){
   }
   const j=await(await fetch('/api/project/'+name)).json();
   if(!j.ok){$('projLog').textContent='加载失败：'+(j.error||name);return;}
+  clearMonacoModels();
   proj.name=name;proj.files=j.files||{};proj.saved=Object.assign({},proj.files);proj.cur=null;
   $('projTabs').innerHTML='';
   Object.keys(proj.files).forEach(f=>{
@@ -1431,6 +1654,7 @@ function showProjFile(f){
   document.querySelectorAll('.ptab').forEach(d=>d.classList.toggle('sel',d.textContent===f));
   document.querySelectorAll('.treeRow').forEach(d=>d.classList.toggle('sel',d.textContent.trim().endsWith(f)));
   $('projCode').value=proj.files[f]||'';
+  activateMonacoFile(f);
   syncHl();buildTree();updateProjDirty();
 }
 function saveProjBuffer(){
@@ -1453,6 +1677,7 @@ async function saveProj(){
 async function buildProj(){
   if(!proj.name){$('projLog').textContent='先选择一个项目。';return;}
   saveProjBuffer();$('projLog').textContent='保存并编译中…';$('projLog').style.color='var(--muted)';
+  $('projRuntimeStatus').textContent='BUILDING · 正在编译';
   if(!await saveProj())return;
   $('projLog').textContent='编译中…';
   try{
@@ -1460,8 +1685,26 @@ async function buildProj(){
     if(!r.ok||!b.ok)throw new Error(b.log||b.error||('HTTP '+r.status));
     $('projLog').textContent=b.log||'编译成功。';$('projLog').style.color='#8cdaa0';
     $('fwpath').value=b.firmware;
-  }catch(e){$('projLog').textContent='编译失败：'+e.message;$('projLog').style.color='#ff6b6b';}
+    $('projRuntimeStatus').textContent='RUNNING · 编译成功并加载固件';
+  }catch(e){
+    $('projLog').textContent='编译失败：'+e.message;$('projLog').style.color='#ff6b6b';
+    $('projRuntimeStatus').textContent='BUILD FAILED · 编译失败';
+  }
 }
+async function projectControl(action){
+  try{
+    const r=await fetch('/api/control/'+action,{method:'POST'});
+    const body=await r.json();
+    if(!r.ok||!body.ok)throw new Error(body.error||('HTTP '+r.status));
+    $('projRuntimeStatus').textContent=action==='run'?'RUNNING · 正在运行':action==='pause'?'PAUSED · 已暂停':'RESET · 已请求复位';
+  }catch(err){
+    $('projLog').textContent='仿真控制失败：'+err.message;
+    $('projRuntimeStatus').textContent='CONTROL ERROR';
+  }
+}
+$('projRunBtn').onclick=()=>projectControl('run');
+$('projPauseBtn').onclick=()=>projectControl('pause');
+$('projResetBtn').onclick=()=>projectControl('reset');
 $('projSaveBtn').onclick=saveProj;
 $('projBuildBtn').onclick=buildProj;
 async function refreshProjList(keep){

@@ -85,3 +85,30 @@ def test_component_api_rejects_non_finite_potentiometer_input():
         )
         assert invalid.status_code == 400
         assert "有限数" in invalid.json()["error"]
+
+
+
+def test_monaco_workbench_docks_live_schematic_and_runtime_controls() -> None:
+    """The project workspace keeps the real schematic/debug panels beside code."""
+    html = (Path(__file__).resolve().parents[1] / "zetsim" / "static" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    required = (
+        "monaco-editor@0.52.2/min/vs/loader.js",
+        'id="monacoHost"',
+        'id="projPreviewGrid"',
+        "function openProjectWorkbench()",
+        "function closeProjectWorkbench()",
+        "function activateMonacoFile(file)",
+        "monaco.editor.create(host",
+        'id="projRunBtn"',
+        'id="projPauseBtn"',
+        'id="projResetBtn"',
+        "fetch('/api/project/'+proj.name+'/build'",
+        "function dockProjectPreview()",
+        "function undockProjectPreview()",
+    )
+    missing = [item for item in required if item not in html]
+    assert not missing, f"missing live code/schematic workbench features: {missing}"
+    assert ".editorWrap.monaco-ready #projCode{display:none!important}" in html
+    assert "兼容编辑器 · Monaco CDN 加载失败" in html
