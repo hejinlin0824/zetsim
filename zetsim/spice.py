@@ -124,6 +124,8 @@ class Circuit:
         # only source values and capacitor history terms change between steps.
         self._linear_lu_key: tuple | None = None
         self._linear_lu: tuple[list[list[float]], list[int]] | None = None
+        self._linear_transition_key: tuple | None = None
+        self._linear_transition: tuple[list[list[float]], list[list[float]]] | None = None
 
     def node(self, name: str) -> Node:
         if name not in self.nodes:
@@ -207,6 +209,160 @@ class Circuit:
                 residual -= lu[row][col] * values[col]
             values[row] = residual / lu[row][row]
         return values
+
+    @staticmethod
+    def _matrix_multiply(a: list[list[float]], b: list[list[float]]) -> list[list[float]]:
+        rows, inner, cols = len(a), len(b), len(b[0]) if b else 0
+        out = [[0.0] * cols for _ in range(rows)]
+        for row in range(rows):
+            for k in range(inner):
+                value = a[row][k]
+                if value:
+                    for col in range(cols):
+                        out[row][col] += value * b[k][col]
+        return out
+
+    @staticmethod
+    def _matrix_vector_multiply(matrix: list[list[float]], vector: list[float]) -> list[float]:
+        return [sum(value * vector[col] for col, value in enumerate(row))
+                for row in matrix]
+
+    @classmethod
+    def _matrix_power_apply(cls, matrix: list[list[float]], exponent: int,
+                            vector: list[float]) -> list[float]:
+        """Apply matrix**exponent to vector via repeated squaring."""
+        result = vector[:]
+        power = matrix
+        remaining = int(exponent)
+        while remaining:
+            if remaining & 1:
+                result = cls._matrix_vector_multiply(power, result)
+            remaining >>= 1
+            if remaining:
+                power = cls._matrix_multiply(power, power)
+        return result
+
+    @staticmethod
+    def _cap_voltage(capacitor: Capacitor, solution: list[float]) -> float:
+        va = solution[capacitor.n1.index] if capacitor.n1.index else 0.0
+        vb = solution[capacitor.n2.index] if capacitor.n2.index else 0.0
+        return va - vb
+
+    def _ensure_linear_factorization(self, dt: float) -> tuple | None:
+        """Build/reuse LU for a linear network; return its matrix key."""
+        matrix_key = self._linear_matrix_key(dt)
+        if matrix_key is None:
+            return None
+        n = len(self.nodes)
+        size = n + len(self.sources)
+        for i, source in enumerate(self.sources):
+            source.branch = n + i
+        # Recompute the key after branch numbers have been assigned.
+        matrix_key = self._linear_matrix_key(dt)
+        if matrix_key is None:
+            return None
+        if matrix_key != self._linear_lu_key:
+            g = [[0.0] * size for _ in range(size)]
+            b = [0.0] * size
+            for comp in self.comps:
+                comp.stamp(g, b, dt, self.sources)
+            reduced = [row[1:] for row in g[1:]]
+            self._linear_lu = self._factor_matrix(reduced)
+            self._linear_lu_key = matrix_key
+            self._linear_transition_key = None
+            self._linear_transition = None
+        return matrix_key if self._linear_lu is not None else None
+
+    def _get_linear_transition(self, dt: float) -> tuple[list[list[float]], list[list[float]]] | None:
+        """Map previous capacitor voltages and source levels to next capacitor voltages."""
+        matrix_key = self._ensure_linear_factorization(dt)
+        if matrix_key is None or self._linear_lu is None:
+            return None
+        if matrix_key == self._linear_transition_key and self._linear_transition is not None:
+            return self._linear_transition
+
+        capacitors = [comp for comp in self.comps if isinstance(comp, Capacitor)]
+        q = len(capacitors)
+        if not q:
+            return None
+        size = len(self.nodes) + len(self.sources)
+        factorization = self._linear_lu
+        response_to_caps = [[0.0] * q for _ in range(q)]
+        response_to_sources = [[0.0] * len(self.sources) for _ in range(q)]
+
+        # Each capacitor's history voltage contributes a fixed column to the RHS.
+        for col, capacitor in enumerate(capacitors):
+            rhs = [0.0] * size
+            equivalent_g = capacitor.c / dt
+            if capacitor.n1.index:
+                rhs[capacitor.n1.index] += equivalent_g
+            if capacitor.n2.index:
+                rhs[capacitor.n2.index] -= equivalent_g
+            solved = [0.0] + self._solve_factored(factorization, rhs[1:])
+            for row, measured in enumerate(capacitors):
+                response_to_caps[row][col] = self._cap_voltage(measured, solved)
+
+        # Each independent source contributes one column to the RHS.
+        for col, source in enumerate(self.sources):
+            rhs = [0.0] * size
+            rhs[source.branch] = 1.0
+            solved = [0.0] + self._solve_factored(factorization, rhs[1:])
+            for row, measured in enumerate(capacitors):
+                response_to_sources[row][col] = self._cap_voltage(measured, solved)
+
+        self._linear_transition = (response_to_caps, response_to_sources)
+        self._linear_transition_key = matrix_key
+        return self._linear_transition
+
+    def step_repeated(self, dt: float, repeats: int) -> bool:
+        """Advance a linear RC network by N identical fixed steps without a Python step loop.
+
+        This is algebraically equivalent to repeatedly calling step(dt): the same
+        backward-Euler transition is exponentiated while input sources stay constant.
+        Nonlinear or singular networks return False so the caller can use the normal solver.
+        """
+        repeats = int(repeats)
+        if repeats < 1:
+            return True
+        transition = self._get_linear_transition(dt)
+        if transition is None:
+            return False
+        capacitors = [comp for comp in self.comps if isinstance(comp, Capacitor)]
+        a_matrix, b_matrix = transition
+        q = len(capacitors)
+
+        # Affine state recurrence v[n+1] = A*v[n] + B*source_volts.
+        drive = [
+            sum(b_matrix[row][col] * source.volts
+                for col, source in enumerate(self.sources))
+            for row in range(q)
+        ]
+        augmented = [
+            a_matrix[row][:] + [drive[row]]
+            for row in range(q)
+        ]
+        augmented.append([0.0] * q + [1.0])
+        state = [capacitor.vprev for capacitor in capacitors] + [1.0]
+        before_last = self._matrix_power_apply(augmented, repeats - 1, state)
+
+        # Solve the final step once so Circuit._last, diode-free component state,
+        # and capacitor commits have the same meaning as the ordinary repeated path.
+        size = len(self.nodes) + len(self.sources)
+        rhs = [0.0] * size
+        for capacitor, old_voltage in zip(capacitors, before_last[:q]):
+            equivalent_g = capacitor.c / dt
+            if capacitor.n1.index:
+                rhs[capacitor.n1.index] += equivalent_g * old_voltage
+            if capacitor.n2.index:
+                rhs[capacitor.n2.index] -= equivalent_g * old_voltage
+        for source in self.sources:
+            rhs[source.branch] = source.volts
+        solution = [0.0] + self._solve_factored(self._linear_lu, rhs[1:])
+        self._last = solution
+        for comp in self.comps:
+            if hasattr(comp, "commit"):
+                comp.commit(solution)
+        return True
 
     def _build_and_solve(self, dt):
         n = len(self.nodes)                 # 节点索引 0..n-1（0=GND）
@@ -449,8 +605,14 @@ class CoupledCircuit:
         # 不超过时间片实际经过的固定步数；不足 dt 的尾数保留到下一次调用，
         # 避免短片/高频事件导致模拟时间被人为加速。
         n_sub = min(int(n_sub), self.max_substeps)
-        for _ in range(n_sub):
-            self.circuit.step(self.dt_ns / 1e9)
+        batched = False
+        if n_sub > 1:
+            advance_many = getattr(self.circuit, "step_repeated", None)
+            if advance_many is not None:
+                batched = bool(advance_many(self.dt_ns / 1e9, n_sub))
+        if not batched:
+            for _ in range(n_sub):
+                self.circuit.step(self.dt_ns / 1e9)
         self._remainder_ns -= n_sub * self.dt_ns
         self.stepped = True
         # 解完上一状态之后，采集当前 GPIO 驱动，供下一个仿真时间区间使用。
