@@ -420,15 +420,17 @@ class Schematic:
             cc.attach_pin(pin, node)
             attached_nodes.add(node)
             mcu_nodes.add(node)
+        powered_nodes = set()
         for cid, comp in self.components.items():
             if comp["type"] == "vcc":
                 root = self.pin_net[(cid, "V")]
                 if root not in spice_roots:
                     continue
                 node = self._node_of_net.get(root)
-                if node and node != "GND":
+                if node and node != "GND" and node not in powered_nodes:
                     src = cc.circuit.add_source(node, "GND")
                     src.volts = 3.3
+                    powered_nodes.add(node)
         # R / C / LED / 按键和电位器
         for cid, comp in self.components.items():
             props = comp.get("props", {})
@@ -463,6 +465,10 @@ class Schematic:
                 src = cc.circuit.add_source(node, "GND")
                 src.volts = self.pot_values.get(cid, 1.65)
                 self._spice_pots[cid] = src
+
+        # 模拟网络可以只由 VCC/电路元件驱动、不含 MCU GPIO（例如纯 RC 电路）。
+        # 只要已构建模拟元件就应步进，不能把 enabled 错误地绑定为“是否有 MCU 引脚源”。
+        cc.enabled = bool(cc.circuit.comps)
 
     def _two_nodes(self, cid):
         comp = self.components[cid]
