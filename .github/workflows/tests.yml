@@ -60,3 +60,27 @@ jobs:
           assert "cv.width!==Math.round(pr.width*dpr)||cv.height!==Math.round(pr.height*dpr)" in html, "polling must repair both canvas backing-store dimensions after DPR changes"
           print("Frontend circuit-sync, responsive-layout, and DPR invariants verified.")
           PY
+      - name: Validate learning tools and frontend JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          html = Path("zetsim/static/index.html").read_text(encoding="utf-8")
+          required = {
+              'case library button': 'id="casesBtn"',
+              'six learning cases': 'id:"rc-filter"',
+              'wiring checker': 'function auditWiring()',
+              'MCU power check': 'MCU_VDD',
+              'wire duplicate check': 'WIRE_DUP',
+              'editor line numbers': 'id="lineNums"',
+              'unsaved edit state': 'function isProjDirty()',
+              'dedicated save action': 'id="projSaveBtn"',
+              'save before build': 'if(!await saveProj())return;',
+              'case project CTA': '打开 C 项目实战',
+          }
+          missing = [label for label, token in required.items() if token not in html]
+          assert not missing, f"missing learning/editor features: {missing}"
+          script = html.split("<script>", 1)[1].split("</script>", 1)[0]
+          Path("/tmp/zetsim-frontend.js").write_text(script, encoding="utf-8")
+          print("Learning case library, wiring audit, and editor invariants verified.")
+          PY
+          node --check /tmp/zetsim-frontend.js
