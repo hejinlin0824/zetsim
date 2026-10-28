@@ -16,7 +16,10 @@ zetsim serve                                    # 打开浏览器仪表盘
 - **混合仿真**：内置 mini-SPICE（MNA+后向欧拉），PWM→RC滤波、LED 压降/限流可算
 - **原理图画布（M8）**：像 Proteus 一样摆元件、连线、仿真——MCU 引脚、LED、电阻、电容、
  按键、电位器、GND/+3.3V、示波器探针；串阻 LED 的电流和 RC 结点电压由 SPICE 实时求解
-- **验证**：pytest 回归覆盖指令/外设、DMA 与通信、原理图网表、GPIO 上下拉/开漏、ADC—SPICE 电压耦合、按键消抖与 RC 时间响应；GitHub Actions 在 Python 3.11/3.12 双版本运行
+- **学习案例库**：6 个循序案例（GPIO、跑马灯、EXTI、USART、ADC→PWM、RC 滤波），每个案例提供接线表、代码阅读点、实操任务与验收标准；完成进度保存在当前浏览器
+- **布线检查**：检查 MCU 供电、无效/重复导线、悬空端子和常见 LED 限流问题；属于教学性基础检查，不替代完整 ERC/DRC
+- **C 项目工作台**：6 个独立可编辑项目，带行号、未保存状态、Ctrl+S 保存、Ctrl+Enter 保存并编译，编译失败会保留错误日志
+- **验证**：pytest 回归覆盖指令/外设、DMA 与通信、原理图网表、GPIO 上下拉/开漏、ADC—SPICE 耦合、按键消抖、RC 响应及学习项目结构；GitHub Actions 在 Python 3.11/3.12 双版本运行
 
 详细文档：[使用手册](使用手册.md) · [案例学习路线](docs/learning-path.md) · [精度看板](docs/accuracy.md) · [架构](ARCHITECTURE.md) · [寄存器速查](docs/registers.md)
 
