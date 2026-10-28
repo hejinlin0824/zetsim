@@ -217,14 +217,19 @@ class CoupledCircuit:
         self.max_substeps = 2000
 
     def attach_pin(self, pin: str, node_a: str):
-        """MCU 引脚 -> 电路节点；先用当前网络电压初始化，避免重建后首片错误拉到 0V。"""
-        src = self.circuit.add_source(node_a, "GND")
+        """MCU 引脚通过有限输出电阻驱动电路，避免与理想电源并联造成奇异矩阵。"""
         net = None
         if pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE" and pin[2:].isdigit():
             net = self.board.resolved_net("ABCDE".index(pin[1]), int(pin[2:]))
         voltage = net.voltage() if net is not None else None
         initial = voltage if voltage is not None else 0.0
+
+        # GPIO 不是理想电压源。用 25Ω 输出阻抗近似推挽输出级，避免 GPIO 误接 VCC
+        # 时出现两个理想电压源直接并联（MNA 矩阵奇异），也更接近真实负载压降。
+        drive_node = f"__gpio_drive_{pin}"
+        src = self.circuit.add_source(drive_node, "GND")
         src.volts = initial
+        self.circuit.add_r(drive_node, node_a, 25.0)
         self._prev_volts[pin] = initial
         self.pin_sources[pin] = src
         self.enabled = True
