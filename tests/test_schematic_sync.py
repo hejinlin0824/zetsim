@@ -254,3 +254,19 @@ def test_vcc_only_spice_circuit_runs_and_duplicate_rails_are_deduplicated():
     assert schematic.spice.stepped is True
     assert schematic.spice.circuit.voltage(node) == pytest.approx(3.3)
 
+def test_zero_debounce_repeated_press_retriggers_edge_after_missing_release():
+    board = Board()
+    schematic = Schematic(board)
+    schematic.apply({
+        "components": [
+            {"id": "SW1", "type": "button", "x": 0, "y": 0, "props": {}},
+        ],
+        "wires": [],
+    })
+
+    assert schematic.press("SW1", True)
+    assert schematic.press("SW1", True)  # a lost mouse/key release should not suppress a new press edge
+    events = [event.data for event in board.events.query("button.SW1")]
+    assert events == [True, False, True]
+    assert schematic.snapshot()["buttons"]["SW1"] is True
+
