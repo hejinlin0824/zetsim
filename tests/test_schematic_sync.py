@@ -166,6 +166,35 @@ def test_spice_fixed_step_accumulates_elapsed_time_without_speeding_up():
     assert coupled._remainder_ns == 0
 
 
+
+def test_linear_rc_circuit_reuses_matrix_factorization_and_tracks_pwm_edges():
+    from zetsim.spice import Circuit, Resistor
+
+    circuit = Circuit()
+    pwm = circuit.add_source("PWM", "GND")
+    pwm.volts = 3.3
+    circuit.add_r("PWM", "OUT", 1_000)
+    circuit.add_c("OUT", "GND", 100e-9)
+
+    circuit.step(5e-6)
+    first_voltage = circuit.voltage("OUT")
+    factorization = circuit._linear_lu
+    assert factorization is not None
+    assert first_voltage == pytest.approx(3.3 * 5e-6 / (1_000 * 100e-9 + 5e-6))
+
+    # Source PWM edges update the RHS and capacitor history, not the matrix.
+    pwm.volts = 0.0
+    for _ in range(20):
+        circuit.step(5e-6)
+    assert circuit._linear_lu is factorization
+    assert 0.0 < circuit.voltage("OUT") < first_voltage
+
+    # A component value change must invalidate and rebuild the matrix factorization.
+    resistor = next(component for component in circuit.comps if isinstance(component, Resistor))
+    resistor.r = 2_000
+    circuit.step(5e-6)
+    assert circuit._linear_lu is not factorization
+
 def test_gpio_spice_source_has_finite_output_impedance():
     from zetsim.spice import CoupledCircuit, Resistor, VoltageSource
 
