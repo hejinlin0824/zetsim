@@ -410,7 +410,14 @@ class Circuit:
             b = [0.0] * size
             for comp in self.comps:
                 comp.stamp(g, b, dt, self.sources)
-            x = _solve_linear(g, b)
+            # Newton changes the diode conductance each iteration, so its matrix
+            # cannot share a cached factorization. Still use LU rather than full
+            # Gauss-Jordan elimination to reduce work for each nonlinear substep.
+            factorization = self._factor_matrix([row[1:] for row in g[1:]])
+            if factorization is None:
+                x = _solve_linear(g, b)
+            else:
+                x = [0.0] + self._solve_factored(factorization, b[1:])
             dv = 0.0
             for comp in self.comps:
                 if isinstance(comp, Diode):
