@@ -79,6 +79,12 @@ jobs:
               'dedicated save action': 'id="projSaveBtn"',
               'save before build': 'if(!await saveProj())return;',
               'case project CTA': '打开 C 项目实战',
+              'GPIO project': 'project:"gpio_blink"',
+              'marquee project': 'project:"led_marquee"',
+              'EXTI project': 'project:"exti_button"',
+              'USART project': 'project:"uart_echo"',
+              'ADC/PWM project': 'project:"pwm_adc_control"',
+              'RC project': 'project:"pwm_rc_filter"',
           }
           missing = [label for label, token in required.items() if token not in html]
           assert not missing, f"missing learning/editor features: {missing}"
