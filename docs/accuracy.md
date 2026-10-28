@@ -31,6 +31,12 @@
 | 画布串阻 LED | PA5—220Ω—LED—GND | SPICE 电流 2-20mA、拉低熄灭 | test_m8.py |
 | 画布按键中断 | 原理图按键→EXTI→固件 | 4ms 注入 4-5ms 翻转 | test_m8.py |
 | 画布 RC 探针 | PWM—1k—100n + 探针 | 平均 0.99V±0.15V | test_m8.py |
+| GPIO 浮空/内部上下拉 | 复位浮空、ODR 选择上拉/下拉、切回浮空 | 数字电平按确定性规则解析 | test_electrical_baseline.py |
+| GPIO 开漏/推挽 | 开漏低电平吸电流、高电平释放；推挽主动驱动 | 外部上拉、驱动争用与共享引脚分别验证 | test_electrical_baseline.py |
+| GPIO—SPICE 阻抗 | 输入高阻、推挽输出约 25Ω、内部上下拉名义约 40kΩ | 输入分压不再被默认 0V 源短路 | test_electrical_baseline.py |
+| ADC—SPICE 耦合 | 电阻分压节点→PA1→ADC DR | 读取求解后的节点电压；结果钳位至 0..4095 | test_electrical_baseline.py |
+| 按键消抖（可选） | debounce_ms=5，1ms 短脉冲与稳定按下 | 短脉冲拒绝，稳定窗口后切换 | test_electrical_baseline.py |
+| RC 时间常数 | 1kΩ + 100nF，时间常数 100µs | 100µs 时刻与后向欧拉解析结果比较 | test_electrical_baseline.py |
 
 ## 2. 时间精度分层
 
@@ -42,6 +48,10 @@
 
 ## 3. 已知简化（教学场景无感）
 
+- GPIO 数字抽象：内部上下拉按名义 40kΩ 处理；同网强驱动相反时数字电平记为未定义，未计算真实争用电流与芯片损伤；
+  浮空输入在数字 IDR 侧确定性回读 0；模拟输入中间阈值区按低处理，真实器件在 0.3..0.7 VDD 区间不保证逻辑值；
+- 按键：默认是理想开关；原理图元件可用 props.debounce_ms 启用稳定窗口消抖，尚未模拟机械触点随机弹跳波形；
+- SPICE：GPIO 输出阻抗按 25Ω、内部上下拉按 40kΩ 近似，电位器 wiper 输出阻抗按 10kΩ 近似；不是晶体管级 MCU I/O 模型；
 - TIM：ARPE/CCR 预装载、重复计数器 RCR、输入捕获、中央对齐/向下计数未建模；
   PWM 输出仅默认 AF 引脚映射（无 remap）
 - ADC：注入组、看门狗、采样时间选择（固定按 1.5+12.5 周期）、双 ADC 同步
@@ -56,5 +66,5 @@
 
 ```bash
 cd zetsim
-python -m pytest tests/ -v        # 30 项
+python -m pytest tests/ -v        # 运行完整自动化回归套件
 ```
