@@ -235,12 +235,31 @@ class CoupledCircuit:
         self.enabled = True
         return src
 
+    def rebase_time(self, now_ns: int | None = None):
+        """CPU/仿真复位后重置时间基准，但保留电容电压等外部电路状态。"""
+        now = int(self.board.sysctrl.now_ns if now_ns is None else now_ns)
+        self._last_ns = now
+        self._remainder_ns = 0
+        for pin, src in self.pin_sources.items():
+            if pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE" and pin[2:].isdigit():
+                net = self.board.resolved_net("ABCDE".index(pin[1]), int(pin[2:]))
+                voltage = net.voltage()
+            else:
+                voltage = src.volts
+            value = voltage if voltage is not None else 0.0
+            src.volts = value
+            self._prev_volts[pin] = value
+
     def probe(self, name: str, node: str):
         self.probes[name] = node
         self.history.setdefault(name, [])
 
     def step(self, now_ns: int):
         if not self.enabled:
+            return
+        if int(now_ns) < self._last_ns:
+            # 防御调用方复位时间源却忘了同步本耦合器的情况。
+            self.rebase_time(now_ns)
             return
         # 用上一窗口采样的电平推进本窗口（电平翻转发生在外设 step_to，
         # 即本窗口末尾——分段常数源语义）
