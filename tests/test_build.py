@@ -38,3 +38,4 @@ def test_build_resolves_post_link_tools_using_native_paths(tmp_path: Path, monke
     assert ok, log
     assert calls[1][0] == expected_objcopy
     assert calls[2][0] == expected_size
+    assert "-lgcc" in calls[0], "freestanding projects need GCC's arithmetic/runtime helper library"
