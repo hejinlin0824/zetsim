@@ -15,7 +15,7 @@
 - **学习案例库**：6 个循序案例（GPIO、跑马灯、EXTI、USART、ADC→PWM、RC 滤波），每个案例提供接线表、代码阅读点、实操任务与验收标准
 - **布线检查**：检查 MCU 供电、无效/重复导线、悬空端子和常见 LED 限流问题；属于教学性基础检查，不替代完整 ERC/DRC
 - **C 项目工作台**：6 个寄存器级课程项目 + 1 个 HAL 入门项目，支持保存、编译、未保存提醒和编译日志
-- **官方 CMSIS + STM32 HAL**：原有课程使用 ST 官方 STM32F103xE 设备定义；新增 `hal_gpio_blink` 使用 ST 官方 STM32F1 HAL 函数。上游版本和许可证见 [third_party 说明](third_party/README.md)
+- **官方 CMSIS + STM32 HAL**：原有课程使用 ST 官方 STM32F103xE 设备定义；新增 `hal_gpio_blink` 使用 ST 官方 STM32F1 HAL 函数。上游版本和许可证见 [third_party 说明](third_party/README.md)\n- **ESP32-S3 独立后端**：新增 ESP-IDF GPIO 例程，通过 Espressif QEMU 启动真实 Xtensa LX7 固件。它与 STM32/Cortex-M3 路径分开运行，详见 [ESP32-S3 支持说明](docs/esp32s3.md)
 
 ## 学习与测试文档
 
@@ -59,7 +59,7 @@ CLI 示例：
 | exti_button | EXTI、NVIC、中断向量与 pending 清除 |
 | uart_echo | USART1、TXE/RXNE、数据寄存器 |
 | pwm_adc_control | ADC 采样值控制 TIM2 PWM 占空比 |
-| pwm_rc_filter | 10kHz PWM、RC 时间常数、平均电压和纹波 |
+| pwm_rc_filter | 10kHz PWM、RC 时间常数、平均电压和纹波 |\n| hal_gpio_blink | ST 官方 STM32 HAL 库函数入门 |
 
 每个工程都有 main.c、startup.c、stm32f103.h 与 link.ld。main.c 讲业务逻辑；startup.c 处理复位和向量表；stm32f103.h 描述寄存器地址；link.ld 决定 Flash 与 RAM 布局。
 

@@ -155,3 +155,19 @@ jobs:
           assert len(edges) >= 2, f"HAL GPIO toggle was not observed; events={len(edges)}"
           print(f"HAL GPIO runtime verified: {len(edges)} PA5 transitions; {report.exceptions} exceptions.")
           PY
+
+  esp32s3-qemu:
+    name: ESP32-S3 / ESP-IDF build + QEMU smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and boot ESP32-S3 firmware in Espressif QEMU
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v6.1
+          target: esp32s3
+          path: .
+          command: bash .github/scripts/esp32s3-qemu-smoke.sh

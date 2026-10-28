@@ -22,8 +22,19 @@ def build_argparser():
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--firmware", default=None, help="启动即加载的固件")
 
-    build = sub.add_parser("build", help="编译项目（C → firmware.hex）")
+    build = sub.add_parser("build", help="编译 STM32 项目（C → firmware.hex）")
     build.add_argument("project", help="项目目录，如 projects/led_marquee")
+
+    esp32 = sub.add_parser("esp32", help="ESP32-S3：使用官方 ESP-IDF + Espressif QEMU")
+    esp32_sub = esp32.add_subparsers(dest="esp32_cmd", required=True)
+    esp_build = esp32_sub.add_parser("build", help="编译 ESP32-S3 固件")
+    esp_build.add_argument("project", nargs="?", default="projects/esp32s3_blink",
+                           help="ESP-IDF 项目目录（默认 projects/esp32s3_blink）")
+    esp_run = esp32_sub.add_parser("run", help="在 Espressif QEMU 中运行固件并打开 UART monitor")
+    esp_run.add_argument("project", nargs="?", default="projects/esp32s3_blink",
+                         help="ESP-IDF 项目目录（默认 projects/esp32s3_blink）")
+    esp_run.add_argument("--graphics", action="store_true",
+                         help="启用 QEMU 虚拟 framebuffer（应用需自行配置）")
     return p
 
 
@@ -103,6 +114,17 @@ def main(argv=None):
         return cmd_serve(args)
     if args.cmd == "build":
         return cmd_build(args)
+    if args.cmd == "esp32":
+        from .esp32 import build_esp32_project, run_esp32_project
+        from rich.console import Console
+
+        console = Console()
+        if args.esp32_cmd == "build":
+            ok, log = build_esp32_project(args.project)
+            console.print(log, style="green" if ok else "red")
+            return 0 if ok else 1
+        if args.esp32_cmd == "run":
+            return run_esp32_project(args.project, graphics=args.graphics)
 
 
 if __name__ == "__main__":
