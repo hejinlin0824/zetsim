@@ -126,3 +126,61 @@ def test_invalid_runtime_component_actions_are_not_silently_accepted():
     assert schematic.set_pot("DOES_NOT_EXIST", 1.2) is False
     with pytest.raises(ValueError, match="有限数"):
         schematic.set_pot("POT1", float("nan"))
+
+def test_spice_fixed_step_accumulates_elapsed_time_without_speeding_up():
+    from zetsim.spice import CoupledCircuit
+
+    board = Board()
+    coupled = CoupledCircuit(board, dt_ns=5_000)
+
+    class CountingCircuit:
+        def __init__(self):
+            self.steps = 0
+
+        def step(self, _dt):
+            self.steps += 1
+
+        def voltage(self, _name):
+            return 0.0
+
+    counter = CountingCircuit()
+    coupled.circuit = counter
+    coupled.enabled = True
+
+    coupled.step(3_000)
+    assert counter.steps == 0
+    assert coupled._remainder_ns == 3_000
+
+    coupled.step(5_000)
+    assert counter.steps == 1
+    assert coupled._remainder_ns == 0
+
+    coupled.step(7_000)
+    assert counter.steps == 1
+    assert coupled._remainder_ns == 2_000
+
+    coupled.step(10_000)
+    assert counter.steps == 2
+    assert coupled._remainder_ns == 0
+
+
+def test_gpio_spice_source_has_finite_output_impedance():
+    from zetsim.spice import CoupledCircuit, Resistor, VoltageSource
+
+    board = Board()
+    coupled = CoupledCircuit(board)
+    rail = coupled.circuit.add_source("VCC_TEST", "GND")
+    rail.volts = 3.3
+    source = coupled.attach_pin("PA5", "VCC_TEST")
+
+    assert source.n1.name == "__gpio_drive_PA5"
+    assert any(
+        isinstance(comp, Resistor)
+        and {comp.n1.name, comp.n2.name} == {"__gpio_drive_PA5", "VCC_TEST"}
+        and comp.r == pytest.approx(25.0)
+        for comp in coupled.circuit.comps
+    )
+    coupled.circuit.step(5e-6)
+    assert all(abs(value) < float("inf") for value in coupled.circuit._last)
+    assert coupled.circuit.voltage("VCC_TEST") == pytest.approx(3.3)
+
