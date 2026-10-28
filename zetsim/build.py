@@ -128,6 +128,7 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     required_headers = (
         device_include / "stm32f1xx.h",
         device_include / "stm32f103xe.h",
+        device_include / "system_stm32f1xx.h",
         core_include / "core_cm3.h",
         core_include / "cmsis_compiler.h",
         core_include / "cmsis_gcc.h",
@@ -137,9 +138,9 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     missing_headers = [str(path) for path in required_headers if not path.is_file()]
     if missing_headers:
         return False, (
-            "STM32 官方 CMSIS 头文件缺失，无法构建教学项目：\\n  "
-            + "\\n  ".join(missing_headers)
-            + "\\n请确认 third_party/ 目录完整，或重新拉取 DEV。"
+            "STM32 官方 CMSIS 头文件缺失，无法构建教学项目：\n  "
+            + "\n  ".join(missing_headers)
+            + "\n请确认 third_party/ 目录完整，或重新拉取 DEV。"
         )
 
     cmd = [gcc, *_CFLAGS,
