@@ -43,7 +43,7 @@ use direct CMSIS register access.
 - Driver version: 1.1.10
 - Source files: `third_party/stm32f1xx-hal-driver/Inc` and `third_party/stm32f1xx-hal-driver/Src`
 - License: BSD 3-Clause; the original upstream `LICENSE.md` is retained.
-- HAL headers and C sources were copied from the pinned upstream commit without edits. LL drivers and legacy CAN compatibility files are not included in this initial HAL-only integration.
+- HAL headers and C sources were copied from the pinned upstream commit without edits. The official Legacy headers are retained because the public HAL headers include `Legacy/stm32_hal_legacy.h`; LL driver sources and the legacy CAN implementation are not used by the first example.
 - The first HAL project links only `stm32f1xx_hal.c`, `stm32f1xx_hal_cortex.c`, and `stm32f1xx_hal_gpio.c`, together with ST's CMSIS device system source. Additional modules can be linked as later lessons migrate to ADC, timers, and UART.
 
 This is ST's real driver implementation, not a hand-written API imitation. The build helper opts into HAL when a project-local `stm32f1xx_hal_conf.h` is present; the six original register-level projects keep their previous build path.

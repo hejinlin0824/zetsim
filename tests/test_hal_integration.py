@@ -12,12 +12,14 @@ def test_official_st_hal_sources_and_license_are_present() -> None:
     upstream = (HAL_ROOT / "UPSTREAM.md").read_text(encoding="utf-8")
     license_text = (HAL_ROOT / "LICENSE.md").read_text(encoding="utf-8")
     header = (HAL_ROOT / "Inc" / "stm32f1xx_hal_gpio.h").read_text(encoding="utf-8")
+    legacy_header = (HAL_ROOT / "Inc" / "Legacy" / "stm32_hal_legacy.h").read_text(encoding="utf-8")
     source = (HAL_ROOT / "Src" / "stm32f1xx_hal_gpio.c").read_text(encoding="utf-8")
 
     assert "bd368aa335c529641d2e567574885e02deacc64a" in upstream
     assert "1.1.10" in upstream
     assert "Redistribution and use in source and binary forms" in license_text
     assert "STMicroelectronics" in header
+    assert "STM32 HAL legacy" in legacy_header or "Legacy" in legacy_header or "Copyright" in legacy_header
     assert "HAL_GPIO_Init" in source
     assert "HAL_GPIO_TogglePin" in source
 
@@ -49,6 +51,7 @@ def test_builder_opts_into_official_hal_for_hal_projects_only() -> None:
         "system_stm32f1xx.c",
         "-DUSE_HAL_DRIVER",
         "str(hal_include)",
+        'hal_include / "Legacy" / "stm32_hal_legacy.h"',
     ):
         assert token in source, f"HAL build integration missing: {token}"
 

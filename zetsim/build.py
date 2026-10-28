@@ -151,6 +151,7 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     if hal_project:
         required_files += (
             hal_include / "stm32f1xx_hal.h",
+            hal_include / "Legacy" / "stm32_hal_legacy.h",
             hal_include / "stm32f1xx_hal_def.h",
             hal_include / "stm32f1xx_hal_gpio.h",
             hal_include / "stm32f1xx_hal_gpio_ex.h",
