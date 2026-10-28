@@ -230,8 +230,9 @@ def test_spice_gpio_open_drain_uses_external_pullup_when_released():
     assert coupled.circuit.voltage("PIN") == pytest.approx(3.3, abs=0.01)
 
     gpio.write(0x0C, 4, 0)  # sink low
-    coupled.step(10_000)
+    coupled.step(10_000)  # captures the new output mode after integrating the previous interval
     assert coupled.pin_resistors["PA0"].r == pytest.approx(25.0)
+    coupled.step(15_000)
     assert coupled.circuit.voltage("PIN") < 0.02
 
 
@@ -249,8 +250,9 @@ def test_spice_models_internal_pullup_as_weak_resistance():
     gpio = board.gpios[0]
     gpio.write(0x00, 4, (0x44444444 & ~0xF) | 0x8)  # input pull-up/down
     gpio.write(0x0C, 4, 1)  # ODR=1 selects pull-up
+    coupled.step(5_000)  # capture the mode for the following simulation interval
     assert coupled.pin_resistors["PA0"].r == pytest.approx(40_000.0)
-    coupled.step(5_000)
+    coupled.step(10_000)
 
     # Nominal 40k pull-up into a 100k pull-down: V = 3.3 * 100k / 140k.
     assert coupled.circuit.voltage("PIN") == pytest.approx(3.3 * 100_000 / 140_000, abs=0.03)
