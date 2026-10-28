@@ -148,13 +148,15 @@ class Dashboard:
                 time.sleep(0.05)
 
     def start(self):
-        self.running = True
-        if self._sim_thread is None or not self._sim_thread.is_alive():
-            self._gen += 1
-            self._anchor = True
-            self._sim_thread = threading.Thread(
-                target=self._run_loop, args=(None, None, self._gen), daemon=True)
-            self._sim_thread.start()
+        # 与 load/pause 串行修改运行标志和线程代数，避免快速操作时创建重复仿真线程。
+        with self.lock:
+            self.running = True
+            if self._sim_thread is None or not self._sim_thread.is_alive():
+                self._gen += 1
+                self._anchor = True
+                self._sim_thread = threading.Thread(
+                    target=self._run_loop, args=(None, None, self._gen), daemon=True)
+                self._sim_thread.start()
 
     def ensure_thread(self):
         """交互（按键/电位器）到达时若线程已死则复活——用户没主动暂停就应有反应。"""
@@ -162,7 +164,8 @@ class Dashboard:
             self.start()
 
     def pause(self):
-        self.running = False
+        with self.lock:
+            self.running = False
 
     def reset(self):
         self.pause()
@@ -206,24 +209,26 @@ class Dashboard:
         self.broadcast(self.state())
 
     def state(self) -> dict:
-        b = self.board
-        oled = b.devices.get("oled1")
-        oled_b64 = None
-        if oled:
-            oled_b64 = base64.b64encode(bytes(oled.fb)).decode()
-        st = {
-            "type": "state",
-            "boot_id": self.boot_id,
-            "t_ms": round(self.sim.now / 1e6, 3),
-            "running": self.running,
-            "sim_halted": self.sim.halted,
-            "halt_reason": self.sim.halt_reason,
-            "firmware": self.firmware_path,
-            "uart": self.uart_text.decode("utf-8", "replace")[-4000:],
-            "oled": oled_b64,
-        }
-        st.update(self.sch.snapshot())
-        return st
+        # 一个状态包必须对应同一个仿真时刻；否则前端可能混合新 LED 状态与旧探针/时间。
+        with self.lock:
+            b = self.board
+            oled = b.devices.get("oled1")
+            oled_b64 = None
+            if oled:
+                oled_b64 = base64.b64encode(bytes(oled.fb)).decode()
+            st = {
+                "type": "state",
+                "boot_id": self.boot_id,
+                "t_ms": round(self.sim.now / 1e6, 3),
+                "running": self.running,
+                "sim_halted": self.sim.halted,
+                "halt_reason": self.sim.halt_reason,
+                "firmware": self.firmware_path,
+                "uart": self.uart_text.decode("utf-8", "replace")[-4000:],
+                "oled": oled_b64,
+            }
+            st.update(self.sch.snapshot())
+            return st
 
 
 def build_app(firmware: str | None = None) -> FastAPI:
@@ -253,7 +258,8 @@ def build_app(firmware: str | None = None) -> FastAPI:
             return JSONResponse({"ok": False, "error": f"无此预设 {name}"}, status_code=404)
         with dash.lock:
             dash.sch.apply(preset)
-        return JSONResponse({"ok": True, "schematic": preset, "snapshot": dash.sch.snapshot()})
+            snapshot = dash.sch.snapshot()
+        return JSONResponse({"ok": True, "schematic": preset, "snapshot": snapshot})
 
     # ---------- 项目（C 代码编辑 + 编译） ----------
     import re
@@ -389,8 +395,9 @@ def build_app(firmware: str | None = None) -> FastAPI:
         try:
             with dash.lock:
                 dash.sch.apply(body)
-            return {"ok": True, "snapshot": dash.sch.snapshot()}
-        except Exception as e:
+                snapshot = dash.sch.snapshot()
+            return {"ok": True, "snapshot": snapshot}
+        except (TypeError, ValueError, KeyError) as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
 
     @app.post("/api/load")
@@ -417,14 +424,21 @@ def build_app(firmware: str | None = None) -> FastAPI:
     @app.post("/api/comp/{cid}/{action}")
     async def comp(cid: str, action: str, body: dict | None = None):
         body = body or {}
-        if action == "press":
-            dash.sch.press(cid, True)
-        elif action == "release":
-            dash.sch.press(cid, False)
-        elif action == "pot":
-            dash.sch.set_pot(cid, float(body.get("volts", 1.65)))
-        else:
-            return JSONResponse({"ok": False}, status_code=404)
+        if action not in ("press", "release", "pot"):
+            return JSONResponse({"ok": False, "error": "不支持的元件操作"}, status_code=404)
+        try:
+            # 交互必须和 sim.run / schematic.apply 共用同一把锁，避免边步进边重建网表。
+            with dash.lock:
+                if action == "press":
+                    ok = dash.sch.press(cid, True)
+                elif action == "release":
+                    ok = dash.sch.press(cid, False)
+                else:
+                    ok = dash.sch.set_pot(cid, body.get("volts", 1.65))
+                if not ok:
+                    return JSONResponse({"ok": False, "error": "元件不存在或类型不匹配"}, status_code=404)
+        except (TypeError, ValueError) as e:
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
         dash.ensure_thread()
         return {"ok": True}
 
@@ -449,14 +463,29 @@ def build_app(firmware: str | None = None) -> FastAPI:
         try:
             while True:
                 msg = await ws.receive_text()
-                data = json.loads(msg)
-                kind = data.get("type")
-                if kind == "comp":
-                    if data["action"] == "pot":
-                        dash.sch.set_pot(data["cid"], float(data["value"]))
-                    else:
-                        dash.sch.press(data["cid"], data["action"] == "press")
-                    dash.ensure_thread()
+                try:
+                    data = json.loads(msg)
+                except json.JSONDecodeError:
+                    await ws.send_text(json.dumps({"type": "error", "error": "invalid JSON"}))
+                    continue
+                if not isinstance(data, dict) or data.get("type") != "comp":
+                    continue
+                cid, action = data.get("cid"), data.get("action")
+                try:
+                    with dash.lock:
+                        if action == "pot":
+                            ok = dash.sch.set_pot(cid, data.get("value", 1.65))
+                        elif action in ("press", "release"):
+                            ok = dash.sch.press(cid, action == "press")
+                        else:
+                            ok = False
+                except (TypeError, ValueError) as e:
+                    await ws.send_text(json.dumps({"type": "error", "error": str(e)}))
+                    continue
+                if not ok:
+                    await ws.send_text(json.dumps({"type": "error", "error": "元件不存在或类型不匹配"}))
+                    continue
+                dash.ensure_thread()
         except WebSocketDisconnect:
             dash.unregister(ws)
 
