@@ -215,6 +215,9 @@ class CoupledCircuit:
         self._last_ns = board.sysctrl.now_ns
         self._remainder_ns = 0
         self._prev_volts: dict[str, float] = {}
+        # For memoryless networks, only the DC operating point is needed when
+        # a source or resistor value changes; there is no reason to solve every 5 us.
+        self._last_static_signature: tuple | None = None
         self.max_substeps = 2000
 
     def attach_pin(self, pin: str, node_a: str):
@@ -282,6 +285,8 @@ class CoupledCircuit:
             src.volts = value
             self._prev_volts[pin] = value
         self._sync_pin_drivers()
+        # A reset may keep the same pin voltages while resetting other circuit state.
+        self._last_static_signature = None
 
     def _sample_pin_voltages(self):
         """采样本片末的 MCU 网络电平，短于 SPICE 步长的时间片也不能跳过采样。"""
@@ -297,17 +302,47 @@ class CoupledCircuit:
         self.probes[name] = node
         self.history.setdefault(name, [])
 
+    def _static_input_signature(self) -> tuple:
+        """Values that determine a memoryless DC operating point.
+
+        Diode internal Newton state is intentionally excluded: once the operating
+        point has converged, it does not need to be solved again until an external
+        source or resistance changes.
+        """
+        source_values = tuple(source.volts for source in self.circuit.sources)
+        resistor_values = tuple(
+            comp.r for comp in self.circuit.comps if isinstance(comp, Resistor)
+        )
+        return source_values, resistor_values
+
     def step(self, now_ns: int):
         if not self.enabled:
             return
-        if int(now_ns) < self._last_ns:
+        now = int(now_ns)
+        if now < self._last_ns:
             # 防御调用方复位时间源却忘了同步本耦合器的情况。
-            self.rebase_time(now_ns)
+            self.rebase_time(now)
             return
-        # 本次积分必须使用上一片末缓存的 GPIO 状态。CPU/定时器在当前片末产生的边沿
-        # 只能影响下一片，不能把片末的新电平追溯应用到整个已逝去的时间区间。
-        elapsed = max(0, int(now_ns) - self._last_ns)
-        self._last_ns = int(now_ns)
+        # 本次积分必须使用上一片末缓存的 GPIO 状态。对于含电容的瞬态网络，
+        # CPU/定时器在当前片末产生的边沿只能影响下一片，不能追溯应用到已逝去的区间。
+        elapsed = max(0, now - self._last_ns)
+        self._last_ns = now
+
+        # 电阻/二极管/独立电压源组成的网络没有储能状态，解只取决于当前输入。
+        # GPIO 不变时重复对同一组 MNA 矩阵做上千次求解既不提高精度，也拖慢 MCU；
+        # 输入/电阻变化时重算一次即可。含电容电路仍保留原有固定步长瞬态积分。
+        if not any(isinstance(comp, Capacitor) for comp in self.circuit.comps):
+            self._sync_pin_drivers()
+            signature = self._static_input_signature()
+            if not self.stepped or signature != self._last_static_signature:
+                self.circuit.step(self.dt_ns / 1e9)
+                self.stepped = True
+                self._last_static_signature = signature
+            self._sample_pin_voltages()
+            for name, node in self.probes.items():
+                self.history[name].append((now, self.circuit.voltage(node)))
+            return
+
         self._remainder_ns += elapsed
         n_sub = self._remainder_ns // self.dt_ns
         if n_sub <= 0:
