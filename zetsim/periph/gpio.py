@@ -73,11 +73,23 @@ class Gpio(Peripheral):
             mode, cnf = self.pin_cfg(pin)
             if self.board is None:
                 continue
-            if mode != 0 and cnf != 0b10:            # 通用输出（AF 由 TIM 驱动）
-                odr_bit = (self._odr() >> pin) & 1
-                if cnf == 0b01:                      # 开漏：输出 0 拉低，1 悬空
-                    self.board.set_mcu_output(self.port_idx, pin, 0 if odr_bit == 0 else None)
-                else:                                # 推挽
-                    self.board.set_mcu_output(self.port_idx, pin, odr_bit)
-            else:
+
+            odr_bit = (self._odr() >> pin) & 1
+            if mode == 0:                            # 输入模式
+                # STM32F1: CNF=10 时 ODR 选择上拉(1)或下拉(0)。
+                # 浮空输入/模拟输入不保留旧的内部上下拉。
+                pull = odr_bit if cnf == 0b10 else None
+                self.board.set_mcu_pull(self.port_idx, pin, pull)
                 self.board.set_mcu_output(self.port_idx, pin, None)
+                self.board.set_af_output(self.port_idx, pin, None)  # 清理之前的 AF 驱动
+            elif cnf in (0b10, 0b11):                # 复用功能输出，交由 TIM 等外设驱动
+                self.board.set_mcu_pull(self.port_idx, pin, None)
+                self.board.set_mcu_output(self.port_idx, pin, None)
+                # 不清除当前 AF level：写 ODR/CRL 不应覆盖正在运行的外设输出。
+            else:                                    # 通用推挽/开漏输出
+                self.board.set_mcu_pull(self.port_idx, pin, None)
+                self.board.set_af_output(self.port_idx, pin, None)
+                if cnf == 0b01:                      # 开漏：输出 0 拉低，输出 1 释放线路
+                    self.board.set_mcu_output(self.port_idx, pin, 0 if odr_bit == 0 else None)
+                else:                                # 推挽：主动驱动高/低
+                    self.board.set_mcu_output(self.port_idx, pin, odr_bit)
