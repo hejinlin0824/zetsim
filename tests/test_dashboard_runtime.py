@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from zetsim.webapp import Dashboard
+from zetsim.webapp import Dashboard, DEFAULT_SCHEMATIC
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -43,6 +43,69 @@ def test_systick_poll_fast_forward_respects_short_run_deadlines() -> None:
             f"5ms slice advanced {elapsed / 1e6:.3f}ms; event fast-forward "
             "must respect until_ms so coupled devices keep advancing per slice"
         )
+
+
+def test_memoryless_spice_network_solves_only_when_inputs_change() -> None:
+    """A resistor/LED DC network should not run 1000 MNA solves per 5ms slice."""
+    from zetsim.spice import Capacitor, Resistor
+
+    dashboard = Dashboard()
+    spice = dashboard.sch.spice
+    assert spice is not None
+    assert not any(isinstance(component, Capacitor) for component in spice.circuit.comps)
+
+    solve_count = 0
+    original_step = spice.circuit.step
+
+    def counted_step(dt: float):
+        nonlocal solve_count
+        solve_count += 1
+        return original_step(dt)
+
+    spice.circuit.step = counted_step
+    start_ns = spice._last_ns
+
+    # Advance 5ms in 100 bounded 50us slices while inputs remain unchanged.
+    for index in range(1, 101):
+        spice.step(start_ns + index * 50_000)
+    assert solve_count == 1, (
+        f"memoryless network solved {solve_count} times without an input change"
+    )
+
+    # Changing a component value changes the DC operating point and must trigger
+    # exactly one new solve, while subsequent unchanged slices remain cached.
+    load_resistor = next(
+        component for component in spice.circuit.comps
+        if isinstance(component, Resistor) and component.r == 330
+    )
+    load_resistor.r = 220
+    spice.step(start_ns + 101 * 50_000)
+    assert solve_count == 2
+    for index in range(102, 122):
+        spice.step(start_ns + index * 50_000)
+    assert solve_count == 2
+
+
+def test_schematic_without_resistors_or_capacitors_disables_spice() -> None:
+    """Removing all R/C parts must fully detach the SPICE device from the board."""
+    from copy import deepcopy
+
+    dashboard = Dashboard()
+    schematic = deepcopy(DEFAULT_SCHEMATIC)
+    schematic["components"] = [
+        component for component in schematic["components"]
+        if component["type"] not in {"resistor", "capacitor"}
+    ]
+    schematic["wires"] = [
+        wire for wire in schematic["wires"]
+        if all(pin[0] != "R_LED1" for pin in (wire["a"], wire["b"]))
+    ]
+    schematic["wires"].append({"a": ["MCU", "PA5"], "b": ["LED1", "A"]})
+
+    dashboard.sch.apply(schematic)
+
+    assert dashboard.sch.spice is None
+    assert "spice" not in dashboard.board.devices
 
 def test_dashboard_thread_keeps_blink_firmware_edges_live() -> None:
     """Repeated short dashboard slices must not starve SysTick-driven LED updates."""
