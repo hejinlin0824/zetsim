@@ -17,6 +17,8 @@ from .engine import Simulation
 from .devices import Ssd1306
 from .schematic import Schematic
 from .build import build_project, PROJECT_FILES
+from .component_registry import component_catalog
+from .targets import TARGETS
 
 # 首次打开的默认示例电路：MCU + LED(PA5) + 按键(PA0) + 电位器(PA1) + 探针
 DEFAULT_SCHEMATIC = {
@@ -251,6 +253,14 @@ def build_app(firmware: str | None = None) -> FastAPI:
     async def index():
         return HTMLResponse((static_dir / "index.html").read_text(encoding="utf-8"),
                             headers={"Cache-Control": "no-cache"})   # 前端频繁更新，禁用启发式缓存
+
+    @app.get("/api/components")
+    async def components():
+        return JSONResponse({"items": component_catalog()})
+
+    @app.get("/api/targets")
+    async def targets():
+        return JSONResponse({"items": [{"id": key, **value} for key, value in TARGETS.items()]})
 
     @app.get("/api/state")
     async def state():

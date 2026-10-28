@@ -113,3 +113,13 @@ def test_monaco_workbench_docks_live_schematic_and_runtime_controls() -> None:
     assert not missing, f"missing live code/schematic workbench features: {missing}"
     assert ".editorWrap.monaco-ready #projCode{display:none!important}" in html
     assert "兼容编辑器 · Monaco CDN 加载失败" in html
+
+
+def test_component_and_target_catalog_apis_are_explicit_and_scoped():
+    with TestClient(build_app()) as client:
+        components = client.get("/api/components")
+        assert components.status_code == 200
+        ids = {item["type"] for item in components.json()["items"]}
+        assert {"mcu", "led", "resistor", "capacitor", "button", "pot", "gnd", "vcc", "probe"} <= ids
+        targets = client.get("/api/targets")
+        assert {item["id"] for item in targets.json()["items"]} == {"stm32f103zet6", "esp32s3"}
