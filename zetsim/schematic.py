@@ -80,6 +80,7 @@ class Schematic:
 
     def __init__(self, board: Board):
         self.board = board
+        self.board.devices["schematic"] = self
         self.data: dict = {"components": [], "wires": []}
         self.components: dict[str, dict] = {}
         self.nets: dict[str, list[tuple[str, str]]] = {}   # net_id -> [pin refs]
@@ -93,6 +94,7 @@ class Schematic:
         self.pots: dict[str, Potentiometer] = {}
         self.probes: dict[str, Probe] = {}
         self.button_states: dict[str, bool] = {}
+        self.button_pending: dict[str, tuple[bool, int]] = {}  # (期望状态, 开始稳定的仿真时刻)
         self.pot_values: dict[str, float] = {}
         self.spice: CoupledCircuit | None = None
         self._spice_leds: dict[str, object] = {}           # led id -> Diode
@@ -150,6 +152,14 @@ class Schematic:
                     if not math.isfinite(value) or value <= 0:
                         raise ValueError(f"元件 {cid} 的{label}值必须是有限正数")
                     comp["props"][prop] = value
+            if kind == "button":
+                try:
+                    debounce_ms = float(comp["props"].get("debounce_ms", 0.0))
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(f"元件 {cid} 的消抖时间无效") from exc
+                if not math.isfinite(debounce_ms) or not 0.0 <= debounce_ms <= 1000.0:
+                    raise ValueError(f"元件 {cid} 的消抖时间必须在 0 到 1000 ms 之间")
+                comp["props"]["debounce_ms"] = debounce_ms
             components.append(comp)
             by_id[cid] = comp
 
@@ -181,6 +191,11 @@ class Schematic:
         candidate = self._validated_data(data)
         previous = self.data
         self.data = candidate
+        active_buttons = {item["id"] for item in candidate["components"] if item["type"] == "button"}
+        active_pots = {item["id"] for item in candidate["components"] if item["type"] == "pot"}
+        self.button_states = {k: v for k, v in self.button_states.items() if k in active_buttons}
+        self.button_pending = {k: v for k, v in self.button_pending.items() if k in active_buttons}
+        self.pot_values = {k: v for k, v in self.pot_values.items() if k in active_pots}
         try:
             self._extract()
             self._bind()
@@ -193,29 +208,58 @@ class Schematic:
 
     def net_voltage(self, net_id: str) -> float:
         nid = self._node_of_net.get(net_id)
-        if self.spice and nid and nid in self.spice.circuit.nodes:
+        if self.spice and self.spice.stepped and nid and nid in self.spice.circuit.nodes:
             return self.spice.circuit.voltage(nid)
-        # 孤立探针/没有进入 SPICE 网表的节点回退到数字 Net，不应让仿真线程抛 KeyError。
+        # 孤立探针/尚未步进的模拟节点回退到数字 Net，不能因缺失节点杀死仿真线程。
         net = self._net_of(net_id)
         if net is None:
             return 0.0
         v = net.voltage()
         return v if v is not None else (3.3 if net.level == 1 else 0.0)
 
+    def mcu_pin_voltage(self, pin: str) -> float | None:
+        """返回 MCU 引脚已求解的模拟电压（优先 SPICE 结点，否则取数字/器件网络电压）。"""
+        root = self.mcu_pin_nets.get(pin)
+        node = self._node_of_net.get(root) if root is not None else None
+        if (self.spice is not None and self.spice.stepped and node
+                and node in self.spice.circuit.nodes):
+            return self.spice.circuit.voltage(node)
+        if root is not None:
+            net = self._net_of(root)
+            if net is not None:
+                return net.voltage()
+        return None
+
     # ---------------- 器件交互 ----------------
-    def press(self, comp_id: str, down: bool) -> bool:
+    def _apply_button_state(self, comp_id: str, down: bool, *, force_retrigger: bool = False) -> bool:
         btn = self.buttons.get(comp_id)
         if btn is None:
             return False
-        if down and btn.pressed:
-            btn.release()          # 上一轮 release 丢失（页面失焦等）：先复位再按，保证有上升沿
-        self.button_states[comp_id] = bool(down)
+        down = bool(down)
+        if down == btn.pressed:
+            self.button_states[comp_id] = down
+            return True
+        if force_retrigger and down and btn.pressed:
+            btn.release()          # 零消抖模式下，修复丢失 release 后的重复按下
         (btn.press if down else btn.release)()
-        # 只更新当前电路里的开关电阻，不重建 SPICE；保留电容/二极管的动态状态。
+        self.button_states[comp_id] = down
+        # 开关电阻随稳定后的接点状态改变；保留 RC/二极管动态历史。
         resistor = self._spice_buttons.get(comp_id)
         if resistor is not None:
             resistor.r = 10.0 if down else 10e6
         return True
+
+    def press(self, comp_id: str, down: bool) -> bool:
+        btn = self.buttons.get(comp_id)
+        if btn is None:
+            return False
+        down = bool(down)
+        delay_ms = float(self.components.get(comp_id, {}).get("props", {}).get("debounce_ms", 0.0))
+        if delay_ms > 0.0:
+            self.button_pending[comp_id] = (down, int(self.board.sysctrl.now_ns))
+            return True
+        self.button_pending.pop(comp_id, None)
+        return self._apply_button_state(comp_id, down, force_retrigger=down and btn.pressed)
 
     def set_pot(self, comp_id: str, volts: float) -> bool:
         pot = self.pots.get(comp_id)
@@ -233,14 +277,7 @@ class Schematic:
         source = self._spice_pots.get(comp_id)
         if source is not None:
             source.volts = value
-        # 电位器接到 MCU 引脚时，当前 SPICE 源也应在本时间片立即看到新值，
-        # 否则下一次步进仍会先使用上一片缓存的电压。
-        root = self.pin_net.get((comp_id, "W"))
-        if root is not None and self.spice is not None:
-            for pin, pin_root in self.mcu_pin_nets.items():
-                if pin_root == root and pin in self.spice.pin_sources:
-                    self.spice.pin_sources[pin].volts = value
-                    self.spice._prev_volts[pin] = value
+        # 电位器源通过有限输出阻抗接入 SPICE；不要覆盖共享引脚上的 MCU GPIO 驱动。
         # 不重建求解器，避免 RC 状态归零。
         return True
 
@@ -406,20 +443,17 @@ class Schematic:
                 ground_roots.add(self.pin_net[(cid, "G")])
         for root in self.nets:
             self._node_of_net[root] = "GND" if root in ground_roots else f"n{root[:12]}"
-        # MCU GPIO / VCC -> 电压源。一个共享网络只装一个 GPIO 源，避免同节点重复理想源导致奇异矩阵。
-        mcu_nodes = set()
-        attached_nodes = set()
+        # 每个相连 GPIO 各自通过有限输出阻抗接入网络。
+        # 输入引脚会呈高阻；多个输出误接时也不会把理想电源直接并联成奇异矩阵。
         for pin, root in self.mcu_pin_nets.items():
             if not (pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE" and pin[2:].isdigit()):
                 continue
             if root not in spice_roots:
                 continue
             node = self._node_of_net.get(root)
-            if node in (None, "GND") or node in attached_nodes:
+            if node in (None, "GND"):
                 continue
             cc.attach_pin(pin, node)
-            attached_nodes.add(node)
-            mcu_nodes.add(node)
         powered_nodes = set()
         for cid, comp in self.components.items():
             if comp["type"] == "vcc":
@@ -454,16 +488,18 @@ class Schematic:
                 if na and nb:
                     self._spice_buttons[cid] = cc.circuit.add_r(
                         na, nb, 10.0 if self.button_states.get(cid) else 10e6)
-        # 没有直连 MCU GPIO 的电位器 wiper 以可调 0..3.3V 源进入模拟网表；
-        # 直连 MCU 的情况则由该 GPIO 的共享 Net 采样，避免并联两个理想源。
+        # 电位器 wiper 经 10kΩ 等效输出阻抗接入模拟网络。
+        # 这样输入 GPIO 能读取实际节点电压，输出 GPIO 也不会被理想电源强制钳位。
         for cid, comp in self.components.items():
             if comp["type"] != "pot":
                 continue
             root = self.pin_net.get((cid, "W"))
             node = self._node_of_net.get(root)
-            if root in spice_roots and node and node != "GND" and node not in mcu_nodes:
-                src = cc.circuit.add_source(node, "GND")
+            if root in spice_roots and node and node != "GND":
+                drive_node = f"__pot_drive_{cid}"
+                src = cc.circuit.add_source(drive_node, "GND")
                 src.volts = self.pot_values.get(cid, 1.65)
+                cc.circuit.add_r(drive_node, node, 10_000.0)
                 self._spice_pots[cid] = src
 
         # 模拟网络可以只由 VCC/电路元件驱动、不含 MCU GPIO（例如纯 RC 电路）。
@@ -484,6 +520,13 @@ class Schematic:
             self.spice.rebase_time(self.board.sysctrl.now_ns)
 
     def sample(self, now_ns: int):
+        # 只有输入在整个 debounce_ms 窗口内保持稳定，才真正改变按键接点。
+        for cid, (down, since_ns) in list(self.button_pending.items()):
+            props = self.components.get(cid, {}).get("props", {})
+            delay_ns = int(float(props.get("debounce_ms", 0.0)) * 1e6)
+            if int(now_ns) - since_ns >= delay_ns:
+                self.button_pending.pop(cid, None)
+                self._apply_button_state(cid, down)
         for p in self.probes.values():
             p.sample(now_ns)
 
