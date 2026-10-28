@@ -157,6 +157,21 @@ def test_gpio_idr_uses_solved_voltage_even_when_internal_pull_disagrees():
     assert board.gpios[0].read(0x08, 4) & (1 << 1) == 0
 
 
+def test_board_reset_clears_mcu_analog_output_but_preserves_external_pot():
+    from zetsim.devices import Potentiometer
+
+    board = Board()
+    pot = Potentiometer(board, "POT1", "PA1", volts=2.0)
+    board.devices["POT1"] = pot
+    board.set_pin_analog(0, 4, 1.65)  # DAC1-like MCU analog output on PA4
+    assert board.net(0, 4).voltage() == pytest.approx(1.65)
+    assert board.net(0, 1).voltage() == pytest.approx(2.0)
+
+    board.reset()
+    assert board.net(0, 4).mcu_analog is None
+    assert board.net(0, 1).voltage() == pytest.approx(2.0)
+
+
 def test_adc_clamps_out_of_range_and_non_finite_voltages():
     board = Board()
     adc = board.adcs[1]
