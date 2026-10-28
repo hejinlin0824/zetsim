@@ -14,8 +14,8 @@
 - **原理图画布**：像 Proteus 一样摆元件、连线、仿真；探针记录网络电压
 - **学习案例库**：6 个循序案例（GPIO、跑马灯、EXTI、USART、ADC→PWM、RC 滤波），每个案例提供接线表、代码阅读点、实操任务与验收标准
 - **布线检查**：检查 MCU 供电、无效/重复导线、悬空端子和常见 LED 限流问题；属于教学性基础检查，不替代完整 ERC/DRC
-- **C 项目工作台**：6 个独立可编辑项目，支持保存、编译、未保存提醒和编译日志
-- **官方 CMSIS 设备头文件**：六个教学工程通过薄包装引用 ST 官方 STM32F103xE 设备定义与 ARM Cortex-M3 CMSIS core 头文件；来源、版本和许可见 [third_party 说明](third_party/README.md)
+- **C 项目工作台**：6 个寄存器级课程项目 + 1 个 HAL 入门项目，支持保存、编译、未保存提醒和编译日志
+- **官方 CMSIS + STM32 HAL**：原有课程使用 ST 官方 STM32F103xE 设备定义；新增 `hal_gpio_blink` 使用 ST 官方 STM32F1 HAL 函数。上游版本和许可证见 [third_party 说明](third_party/README.md)
 
 ## 学习与测试文档
 
@@ -48,9 +48,9 @@ CLI 示例：
 
 ## 跟着项目学 C 与 MCU
 
-推荐第一次从 projects/gpio_blink/main.c 开始，不要从整个仓库开始通读。先读 main.c，再在 stm32f103.h 中寻找 RCC、GPIOA 和 SysTick 的寄存器定义。按照教程只改一个参数，保存、编译、运行，随后记录 LED 与 PA5 探针的变化。
+初学者建议先从 `projects/hal_gpio_blink/main.c` 开始：它使用 ST 官方 HAL 的 `HAL_GPIO_Init`、`HAL_GPIO_TogglePin` 和 `HAL_Delay`。熟悉后再读 `projects/gpio_blink/main.c` 中的寄存器级写法，理解库函数背后的实现。
 
-六个可编辑 C 项目位于 projects/：
+七个可编辑 C 项目位于 projects/（`hal_gpio_blink` 为库函数入门示例）：
 
 | 工程 | 学习重点 |
 |---|---|

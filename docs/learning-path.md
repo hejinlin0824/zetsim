@@ -2,7 +2,7 @@
 
 这份教程不是 API 目录，而是一条可以照着完成的实操路线：先运行现成固件，再打开对应的 C 项目阅读，随后只改一个小地方、重新编译、运行并观察结果。每节都包含“看哪个文件、先看哪几行、为什么这样写、动手改什么、什么现象算成功、失败时查哪里”。
 
-建议每次只完成一节。不要一开始就通读整个仓库；每次围绕一个可观察的问题学习，效果会好得多。
+建议每次只完成一节。不要一开始就通读整个仓库；每次围绕一个可观察的问题学习，效果会好得多。\n\n**零基础优先走库函数路线：** 先打开 `projects/hal_gpio_blink/main.c`，学习 `HAL_Init()`、`HAL_GPIO_Init()`、`HAL_GPIO_TogglePin()` 和 `HAL_Delay()`。它调用 ST 官方 STM32F1 HAL，而不是自己写的同名封装。原有 GPIO、跑马灯等案例仍保留为寄存器进阶课。详见 `projects/hal_gpio_blink/README.md`。
 
 ---
 
@@ -104,7 +104,7 @@ zetsim 不是把 LED 动画画在网页上。它加载固件并模拟 STM32F103Z
 
 | 路径 | 学什么 | 什么时候打开 |
 |---|---|---|
-| projects/gpio_blink/main.c | 第一个 C 程序、时钟、GPIO 和延时 | 第一次学习 |
+| projects/hal_gpio_blink/main.c | HAL 库函数版点灯，适合入门 | 第一次学库函数时 |\n| projects/gpio_blink/main.c | 第一个 C 程序、时钟、GPIO 和延时 | 第一次学习 |
 | projects/*/stm32f103.h | 寄存器地址映射、volatile、结构体 | 看不懂 RCC 或 GPIO 定义时 |
 | projects/*/startup.c | 向量表、启动入口、初始化 | 中断函数为什么能被找到时 |
 | projects/*/link.ld | Flash/RAM 地址与链接布局 | 编译链接或内存布局问题 |

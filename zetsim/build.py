@@ -125,7 +125,20 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
 
     device_include = _REPO / "third_party" / "cmsis-device-f1" / "Include"
     core_include = _REPO / "third_party" / "CMSIS_5" / "CMSIS" / "Core" / "Include"
-    required_headers = (
+    hal_root = _REPO / "third_party" / "stm32f1xx-hal-driver"
+    hal_include = hal_root / "Inc"
+    hal_source_dir = hal_root / "Src"
+    hal_project = (project_dir / "stm32f1xx_hal_conf.h").is_file()
+    # Only HAL-enabled projects link the official driver code; register lessons
+    # remain on their previous, smaller build path.
+    hal_source_names = (
+        "stm32f1xx_hal.c",
+        "stm32f1xx_hal_cortex.c",
+        "stm32f1xx_hal_gpio.c",
+    )
+    hal_sources = [hal_source_dir / name for name in hal_source_names]
+    system_source = _REPO / "third_party" / "cmsis-device-f1" / "Source" / "Templates" / "system_stm32f1xx.c"
+    required_files = (
         device_include / "stm32f1xx.h",
         device_include / "stm32f103xe.h",
         device_include / "system_stm32f1xx.h",
@@ -135,21 +148,42 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
         core_include / "cmsis_version.h",
         core_include / "mpu_armv7.h",
     )
-    missing_headers = [str(path) for path in required_headers if not path.is_file()]
-    if missing_headers:
+    if hal_project:
+        required_files += (
+            hal_include / "stm32f1xx_hal.h",
+            hal_include / "stm32f1xx_hal_def.h",
+            hal_include / "stm32f1xx_hal_gpio.h",
+            hal_include / "stm32f1xx_hal_gpio_ex.h",
+            hal_include / "stm32f1xx_hal_cortex.h",
+            hal_include / "stm32f1xx_hal_flash.h",
+            hal_include / "stm32f1xx_hal_rcc.h",
+            hal_include / "stm32f1xx_hal_rcc_ex.h",
+            system_source,
+            *hal_sources,
+        )
+    missing_files = [str(path) for path in required_files if not path.is_file()]
+    if missing_files:
         return False, (
-            "STM32 官方 CMSIS 头文件缺失，无法构建教学项目：\n  "
-            + "\n  ".join(missing_headers)
+            "STM32 官方 CMSIS/HAL 文件缺失，无法构建教学项目：\n  "
+            + "\n  ".join(missing_files)
             + "\n请确认 third_party/ 目录完整，或重新拉取 DEV。"
         )
 
-    cmd = [gcc, *_CFLAGS,
-           "-I", str(project_dir),
-           "-I", str(device_include),
-           "-I", str(core_include),
-           *srcs, libgcc,
-           "-T", str(project_dir / "link.ld"),
-           "-Wl,--gc-sections", "-o", str(elf)]
+    if hal_project:
+        srcs.extend(str(path) for path in (system_source, *hal_sources))
+
+    cmd = [gcc, *_CFLAGS]
+    if hal_project:
+        cmd += ["-DSTM32F103xE", "-DUSE_HAL_DRIVER",
+                "-ffunction-sections", "-fdata-sections"]
+    cmd += ["-I", str(project_dir),
+            "-I", str(device_include),
+            "-I", str(core_include)]
+    if hal_project:
+        cmd += ["-I", str(hal_include)]
+    cmd += [*srcs, libgcc,
+            "-T", str(project_dir / "link.ld"),
+            "-Wl,--gc-sections", "-o", str(elf)]
     r = subprocess.run(cmd, capture_output=True, text=True, errors="replace", cwd=project_dir)
     log = "$ arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb ...\n" + (r.stdout + r.stderr).strip()
     if r.returncode != 0:

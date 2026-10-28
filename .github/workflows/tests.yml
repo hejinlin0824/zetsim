@@ -124,6 +124,7 @@ jobs:
               "uart_echo",
               "pwm_adc_control",
               "pwm_rc_filter",
+              "hal_gpio_blink",
           )
           for name in projects:
               ok, log = build_project(f"projects/{name}")
@@ -131,5 +132,25 @@ jobs:
               print(log)
               if not ok:
                   raise SystemExit(f"ARM build failed for {name}")
-          print("All six ARM C learning projects compiled and linked.")
+          print("All six register-level projects and the HAL GPIO project compiled and linked.")
+          PY
+
+      - name: Run official HAL firmware in zetsim
+        run: |
+          python - <<'PY'
+          from zetsim.board import Board
+          from zetsim.devices import Led
+          from zetsim.engine import Simulation
+
+          board = Board()
+          board.reset()
+          led = Led(board, "hal_led", "PA5")
+          board.devices["hal_led"] = led
+          board.core.load_file("projects/hal_gpio_blink/firmware.hex")
+          report = Simulation(board).run(until_ms=520, wall_timeout_s=180)
+          edges = board.events.query("gpio.PA5")
+          assert report.error is None, f"HAL firmware reported {report.error!r}"
+          assert report.halt_reason == "timeout", f"unexpected stop: {report.halt_reason}"
+          assert len(edges) >= 2, f"HAL GPIO toggle was not observed; events={len(edges)}"
+          print(f"HAL GPIO runtime verified: {len(edges)} PA5 transitions; {report.exceptions} exceptions.")
           PY
