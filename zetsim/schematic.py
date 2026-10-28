@@ -472,6 +472,11 @@ class Schematic:
         return na, nb
 
     # ---------------- 运行期（引擎经 board.devices 每片调用）----------------
+    def rebase_time(self):
+        """固件重载/CPU 复位时同步 SPICE 时钟基准，不清除外部电路的电容状态。"""
+        if self.spice is not None:
+            self.spice.rebase_time(self.board.sysctrl.now_ns)
+
     def sample(self, now_ns: int):
         for p in self.probes.values():
             p.sample(now_ns)
