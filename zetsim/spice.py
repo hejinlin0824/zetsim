@@ -404,7 +404,7 @@ class Circuit:
                 return x
 
         # Nonlinear circuits and singular linear networks retain the established
-        # Newton/Gauss-Jordan solver as a correctness fallback.
+        # Newton iteration with the original direct solver as a correctness fallback.
         for _ in range(30):                       # 二极管 Newton 外层迭代
             g = [[0.0] * size for _ in range(size)]
             b = [0.0] * size
