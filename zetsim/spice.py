@@ -250,6 +250,16 @@ class CoupledCircuit:
             src.volts = value
             self._prev_volts[pin] = value
 
+    def _sample_pin_voltages(self):
+        """采样本片末的 MCU 网络电平，短于 SPICE 步长的时间片也不能跳过采样。"""
+        for pin in self.pin_sources:
+            if not (pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE"
+                    and pin[2:].isdigit()):
+                continue
+            net = self.board.resolved_net("ABCDE".index(pin[1]), int(pin[2:]))
+            voltage = net.voltage()
+            self._prev_volts[pin] = voltage if voltage is not None else 0.0
+
     def probe(self, name: str, node: str):
         self.probes[name] = node
         self.history.setdefault(name, [])
@@ -270,6 +280,7 @@ class CoupledCircuit:
         self._remainder_ns += elapsed
         n_sub = self._remainder_ns // self.dt_ns
         if n_sub <= 0:
+            self._sample_pin_voltages()
             return
         # 不超过时间片实际经过的固定步数；不足 dt 的尾数保留到下一次调用，
         # 避免短片/高频事件导致模拟时间被人为加速。
@@ -278,14 +289,6 @@ class CoupledCircuit:
             self.circuit.step(self.dt_ns / 1e9)
         self._remainder_ns -= n_sub * self.dt_ns
         self.stepped = True
-        # 为下一窗口采样当前电平
-        for pin, src in self.pin_sources.items():
-            if not (pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE"
-                    and pin[2:].isdigit()):
-                continue                       # VDD/VSS 等电源脚不参与模拟采样
-            port_idx = "ABCDE".index(pin[1])
-            net = self.board.resolved_net(port_idx, int(pin[2:]))
-            v = net.voltage()
-            self._prev_volts[pin] = v if v is not None else 0.0
+        self._sample_pin_voltages()
         for name, node in self.probes.items():
             self.history[name].append((now_ns, self.circuit.voltage(node)))
