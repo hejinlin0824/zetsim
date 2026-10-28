@@ -95,7 +95,7 @@ class Adc(Peripheral):
     def _sample(self, ch: int) -> int:
         if ch < len(_CH_PINS):
             port, pin = _CH_PINS[ch]
-            net = self.board.net(port, pin)
+            net = self.board.resolved_net(port, pin)
             v = net.voltage()
             if v is None:
                 v = 3.3 if net.level == 1 else 0.0
