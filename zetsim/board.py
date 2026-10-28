@@ -331,7 +331,8 @@ class Board:
         if mode != 0 and cnf in (0b10, 0b11):
             net.set_af(None if cnf == 0b11 and level == 1 else level, (port_idx, pin))
         else:
-            net.set_af(None)
+            # 清除这一根物理引脚的 AF 驱动，不能误删同网其他引脚或只清 legacy 状态。
+            net.set_af(None, (port_idx, pin))
 
     def set_pin_analog(self, port_idx, pin, volts):
         self.resolved_net(port_idx, pin).mcu_analog = volts
