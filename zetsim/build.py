@@ -54,7 +54,10 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
                        "  python setup_env.py        （推荐：项目级，不动系统）\n"
                        "  winget install Arm.GnuArmEmbeddedToolchain\n"
                        "装完重试编译即可。")
-    tool_prefix = str(Path(gcc).parent) + "\\"         # .../bin/
+    tool_dir = Path(gcc).resolve().parent
+    exe_suffix = ".exe" if os.name == "nt" else ""
+    objcopy = tool_dir / ("arm-none-eabi-objcopy" + exe_suffix)
+    size_tool = tool_dir / ("arm-none-eabi-size" + exe_suffix)
     srcs = sorted((str(p) for p in project_dir.glob("*.c")),
                   key=lambda p: (Path(p).name != "startup.c", p))   # startup 排最前
     elf = project_dir / "firmware.elf"
@@ -70,13 +73,12 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     if r.returncode != 0:
         return False, log
 
-    r2 = subprocess.run([tool_prefix + "arm-none-eabi-objcopy", "-O", "ihex",
-                         str(elf), str(hexf)],
+    r2 = subprocess.run([str(objcopy), "-O", "ihex", str(elf), str(hexf)],
                         capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r2.returncode != 0:
         return False, log + "\n" + r2.stderr
 
-    r3 = subprocess.run([tool_prefix + "arm-none-eabi-size", str(elf)],
+    r3 = subprocess.run([str(size_tool), str(elf)],
                         capture_output=True, text=True, encoding="utf-8", errors="replace")
     size_line = [ln for ln in r3.stdout.splitlines() if ln.strip()][1] if r3.stdout else ""
     log += f"\n\n   text    data     bss\n{size_line}\n✓ 已生成 firmware.hex（可直接 zetsim serve 加载）"
