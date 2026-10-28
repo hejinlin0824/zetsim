@@ -50,7 +50,10 @@ def test_build_uses_gcc_selected_libgcc_archive_and_native_post_link_paths(
     assert ok, log
     assert "-print-libgcc-file-name" in calls[0]
     assert str(libgcc.resolve()) in calls[1], "link must use GCC's selected runtime archive path"
-    assert "-lgcc" not in calls[1], "avoid an implicit -L search for the runtime archive"
+    assert "-L" in calls[1], "link must explicitly search the selected runtime folder"
+    search_index = calls[1].index("-L")
+    assert calls[1][search_index + 1] == str(libgcc.parent)
+    assert "-lgcc" not in calls[1], "avoid relying only on implicit -L search for the runtime archive"
     assert calls[2][0] == expected_objcopy
     assert calls[3][0] == expected_size
 

@@ -49,16 +49,23 @@ def _query_libgcc(gcc: str) -> tuple[str | None, str]:
 
 
 def find_gcc() -> str | None:
-    """找到 arm-none-eabi-gcc：PATH → 项目级 .toolchain/ → winget 安装目录。"""
+    """Find the project-managed / user-local compiler before system fallbacks."""
     candidates: list[str] = []
+    roots: list[Path] = []
+    configured = os.environ.get("ZETSIM_TOOLCHAIN_DIR")
+    if configured:
+        roots.append(Path(configured).expanduser())
+    if os.name == "nt" and os.environ.get("LOCALAPPDATA"):
+        roots.append(Path(os.environ["LOCALAPPDATA"]) / "zetsim" / "toolchain")
+    roots.append(_REPO / ".toolchain")
+    for local in dict.fromkeys(roots):
+        if local.exists():
+            for pat in ("**/bin/arm-none-eabi-gcc.exe", "**/bin/arm-none-eabi-gcc"):
+                candidates.extend(str(path) for path in sorted(local.glob(pat)))
+
     system = shutil.which("arm-none-eabi-gcc")
     if system:
         candidates.append(system)
-
-    local = _REPO / ".toolchain"
-    if local.exists():
-        for pat in ("**/bin/arm-none-eabi-gcc.exe", "**/bin/arm-none-eabi-gcc"):
-            candidates.extend(str(path) for path in sorted(local.glob(pat)))
 
     for base in (r"C:\Program Files (x86)", r"C:\Program Files"):
         root = Path(base)
@@ -173,7 +180,11 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     if hal_project:
         srcs.extend(str(path) for path in (system_source, *hal_sources))
 
-    cmd = [gcc, *_CFLAGS]
+    # Add the selected multilib folder explicitly as a search directory as well as
+    # passing libgcc.a by absolute path. This also resolves any -lgcc reference from
+    # GCC specs or a downstream linker script on Windows installations with unusual
+    # prefix/search-path handling.
+    cmd = [gcc, *_CFLAGS, "-L", str(Path(libgcc).parent)]
     if hal_project:
         cmd += ["-DSTM32F103xE", "-DUSE_HAL_DRIVER",
                 "-ffunction-sections", "-fdata-sections"]
@@ -186,8 +197,22 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
             "-T", str(project_dir / "link.ld"),
             "-Wl,--gc-sections", "-o", str(elf)]
     r = subprocess.run(cmd, capture_output=True, text=True, errors="replace", cwd=project_dir)
-    log = "$ arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb ...\n" + (r.stdout + r.stderr).strip()
+    log = (
+        f"工具链：{gcc}\n"
+        f"libgcc：{libgcc}\n"
+        "$ arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb ...\n"
+        + (r.stdout + r.stderr).strip()
+    )
     if r.returncode != 0:
+        if "cannot find -lgcc" in log.lower():
+            log += (
+                "\n\n诊断：链接器仍未解析到 -lgcc。当前构建已显式加入 "
+                f"-L {Path(libgcc).parent} 并传入 libgcc.a。\n"
+                "请重新运行 python setup_env.py 做真实链接探测；若探测在中文路径下失败，"
+                "请将工具链安装到 %LOCALAPPDATA%\\zetsim\\toolchain，或设置 "
+                "ZETSIM_TOOLCHAIN_DIR 指向纯英文路径。\n"
+                "若网页中的日志没有出现上面的“工具链 / libgcc”两行，重启 zetsim 服务并确认代码已更新。"
+            )
         return False, log
 
     r2 = subprocess.run([str(objcopy), "-O", "ihex", str(elf), str(hexf)],

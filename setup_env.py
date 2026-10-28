@@ -19,15 +19,39 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import zipfile
 from pathlib import Path
 import platform as _pl
 import urllib.request
 
 ROOT = Path(__file__).resolve().parent
-TOOLCHAIN_DIR = ROOT / ".toolchain"
+PROJECT_TOOLCHAIN_DIR = ROOT / ".toolchain"
 XPACK_REPO = "xpack-dev-tools/arm-none-eabi-gcc-xpack"
 TARGET_FLAGS = ("-mcpu=cortex-m3", "-mthumb")
+TOOLCHAIN_FAILURES: list[str] = []
+
+
+def preferred_toolchain_dir(root: Path | None = None) -> Path:
+    """Keep the Windows toolchain outside a non-ASCII checkout path.
+
+    Some Windows GNU binutils builds mishandle non-ASCII prefixes while searching
+    their bundled runtime libraries. ZETSIM_TOOLCHAIN_DIR remains an explicit override.
+    """
+    override = os.environ.get("ZETSIM_TOOLCHAIN_DIR")
+    if override:
+        return Path(override).expanduser()
+    project_root = root or ROOT
+    if sys.platform == "win32" and not str(project_root).isascii():
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            candidate = Path(local_app_data) / "zetsim" / "toolchain"
+            if str(candidate).isascii():
+                return candidate
+    return project_root / ".toolchain"
+
+
+TOOLCHAIN_DIR = preferred_toolchain_dir()
 
 
 def _libgcc_path(gcc: Path) -> Path | None:
@@ -65,12 +89,14 @@ def _gcc_candidates():
         if candidate:
             yield candidate
 
-    if TOOLCHAIN_DIR.exists():
-        for pat in ("**/bin/arm-none-eabi-gcc.exe", "**/bin/arm-none-eabi-gcc"):
-            for path in sorted(TOOLCHAIN_DIR.glob(pat)):
-                candidate = add(path)
-                if candidate:
-                    yield candidate
+    roots = [TOOLCHAIN_DIR, PROJECT_TOOLCHAIN_DIR]
+    for root in dict.fromkeys(roots):
+        if root.exists():
+            for pat in ("**/bin/arm-none-eabi-gcc.exe", "**/bin/arm-none-eabi-gcc"):
+                for path in sorted(root.glob(pat)):
+                    candidate = add(path)
+                    if candidate:
+                        yield candidate
 
     if sys.platform == "win32":
         for base in (r"C:\Program Files (x86)", r"C:\Program Files"):
@@ -84,11 +110,52 @@ def _gcc_candidates():
                         yield candidate
 
 
+def _link_smoke_test(gcc: Path) -> tuple[bool, str]:
+    """Actually link a tiny Cortex-M3 image; a visible libgcc.a alone is not enough."""
+    libgcc = _libgcc_path(gcc)
+    if not libgcc:
+        return False, "GCC 没有返回存在的 libgcc.a"
+    try:
+        with tempfile.TemporaryDirectory(prefix="zetsim-arm-link-check-") as tmp:
+            work = Path(tmp)
+            source = work / "probe.c"
+            script = work / "probe.ld"
+            output = work / "probe.elf"
+            source.write_text("void Reset_Handler(void) { for (;;) {} }\n", encoding="ascii")
+            script.write_text(
+                "ENTRY(Reset_Handler)\n"
+                "SECTIONS { . = 0x08000000; .text : { *(.text*) *(.rodata*) } "
+                ".data : { *(.data*) } .bss : { *(.bss*) *(COMMON) } }\n",
+                encoding="ascii",
+            )
+            command = [
+                str(gcc), *TARGET_FLAGS, "-nostdlib", "-ffreestanding", "-O0",
+                "-L", str(libgcc.parent), str(source), str(libgcc),
+                "-Wl,-T," + str(script), "-o", str(output),
+            ]
+            result = subprocess.run(
+                command, cwd=work, capture_output=True, text=True,
+                errors="replace", timeout=30,
+            )
+            detail = (result.stderr or result.stdout).strip()
+            if result.returncode != 0 or not output.is_file():
+                return False, detail or f"链接探测退出码 {result.returncode}"
+            return True, "链接探测成功"
+    except (OSError, subprocess.SubprocessError) as exc:
+        return False, str(exc)
+
+
 def find_gcc() -> Path | None:
-    """Find the first compiler whose selected libgcc runtime archive is present."""
+    """Find a compiler that has libgcc and can actually link a Cortex-M3 probe."""
+    TOOLCHAIN_FAILURES.clear()
     for gcc in _gcc_candidates():
-        if _libgcc_path(gcc):
+        libgcc = _libgcc_path(gcc)
+        if not libgcc:
+            continue
+        ok, detail = _link_smoke_test(gcc)
+        if ok:
             return gcc
+        TOOLCHAIN_FAILURES.append(f"{gcc}\n  libgcc: {libgcc}\n  链接探测失败: {detail}")
     return None
 
 
@@ -164,16 +231,22 @@ def main() -> int:
         libgcc = _libgcc_path(gcc)
         print(f"✓ arm-none-eabi-gcc：{gcc}")
         print(f"✓ libgcc runtime：{libgcc}")
+        print("✓ Cortex-M3 实际链接探测：通过")
         print("\n全部就绪。启动：python -m zetsim serve")
         return 0
 
-    print("→ 未找到可完整链接的 arm-none-eabi-gcc（编译器缺失，或对应的 libgcc.a 不存在/不完整）。")
-    print("→ 开始项目级安装（.toolchain/，不动系统）…")
+    print("→ 未找到通过真实链接探测的 arm-none-eabi-gcc（仅有 gcc.exe / libgcc.a 还不够）。")
+    if TOOLCHAIN_FAILURES:
+        print("→ 已找到工具链，但链接探测失败：")
+        for failure in TOOLCHAIN_FAILURES[-3:]:
+            print("  " + failure.replace("\n", "\n  "))
+    print(f"→ 开始项目级安装（{TOOLCHAIN_DIR}，不动系统）…")
     gcc = download_toolchain()
     if gcc:
         libgcc = _libgcc_path(gcc)
         print(f"✓ arm-none-eabi-gcc：{gcc}")
         print(f"✓ libgcc runtime：{libgcc}")
+        print("✓ Cortex-M3 实际链接探测：通过")
         print("\n全部就绪。启动：python -m zetsim serve")
         return 0
     print("\n✗ 编译工具链未能通过完整性检查。")
