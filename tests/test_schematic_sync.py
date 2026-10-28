@@ -69,6 +69,8 @@ def test_removed_probe_is_removed_and_isolated_probe_falls_back_from_spice():
     schematic.apply(data)
     assert set(schematic.probes) == {"PR1", "PR2"}
     assert schematic.spice is not None
+    # Only GPIOs connected to analog/interactive circuit elements should enter the MNA solver.
+    assert set(schematic.spice.pin_sources) == {"PA0", "PA5"}
 
     isolated_net_id = schematic.probes["PR2"].net_id
     # PR2 is not connected to any SPICE element; sampling it must not raise KeyError.
@@ -183,4 +185,38 @@ def test_gpio_spice_source_has_finite_output_impedance():
     coupled.circuit.step(5e-6)
     assert all(abs(value) < float("inf") for value in coupled.circuit._last)
     assert coupled.circuit.voltage("VCC_TEST") == pytest.approx(3.3)
+
+def test_spice_rebases_after_simulation_clock_is_reset():
+    from zetsim.spice import CoupledCircuit
+
+    board = Board()
+    coupled = CoupledCircuit(board, dt_ns=5_000)
+
+    class CountingCircuit:
+        def __init__(self):
+            self.steps = 0
+
+        def step(self, _dt):
+            self.steps += 1
+
+        def voltage(self, _name):
+            return 0.0
+
+    counter = CountingCircuit()
+    coupled.circuit = counter
+    coupled.enabled = True
+
+    coupled.step(5_000)
+    coupled.step(8_000)
+    assert counter.steps == 1
+    assert coupled._remainder_ns == 3_000
+
+    # Firmware load resets SysTick/engine time to zero; the solver must not carry a negative-time gap.
+    coupled.step(0)
+    assert coupled._last_ns == 0
+    assert coupled._remainder_ns == 0
+    assert counter.steps == 1
+
+    coupled.step(5_000)
+    assert counter.steps == 2
 
