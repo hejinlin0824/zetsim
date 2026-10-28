@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "httpx>=0.25"]
 
 [project.scripts]
 zetsim = "zetsim.cli:main"
