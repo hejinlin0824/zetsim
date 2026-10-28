@@ -138,6 +138,25 @@ def test_adc_reads_solved_resistor_divider_voltage_instead_of_gpio_default_zero(
     assert board.read_input(0, 1) == 1  # the solved voltage is above the approximate VIH threshold
 
 
+def test_gpio_idr_uses_solved_voltage_even_when_internal_pull_disagrees():
+    board = Board()
+    schematic = Schematic(board)
+    # With 1kΩ/1kΩ divider, PA1 is approximately 1.65V; a weak internal pull-up
+    # must not override the analog node's voltage in the digital input register.
+    schematic.apply(_mcu_pin_schematic(top_ohms=1000.0, bottom_ohms=1000.0))
+    gpio = board.gpios[0]
+    gpio.write(0x00, 4, (0x44444444 & ~(0xF << 4)) | (0x8 << 4))  # PA1 input pull-up/down
+    gpio.write(0x0C, 4, 1 << 1)  # ODR=1 selects internal pull-up
+    assert board.resolved_net(0, 1).level == 1
+
+    assert schematic.spice is not None
+    schematic.spice.step(5_000)   # capture current input pull configuration
+    schematic.spice.step(10_000)  # solve with the 40kΩ internal pull-up
+    voltage = schematic.mcu_pin_voltage("PA1")
+    assert voltage == pytest.approx(1.67, abs=0.04)
+    assert board.gpios[0].read(0x08, 4) & (1 << 1) == 0
+
+
 def test_adc_clamps_out_of_range_and_non_finite_voltages():
     board = Board()
     adc = board.adcs[1]
