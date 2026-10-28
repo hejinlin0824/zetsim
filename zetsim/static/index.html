@@ -805,17 +805,28 @@ function setPalette(t){
 }
 
 /* ================= 服务器同步 ================= */
+// 画布编辑可能在短时间内连续产生多个快照。串行发送，确保服务器最终状态与最后一次编辑一致。
+let schematicPushQueue=Promise.resolve();
 async function pushSchematic(){
   saveLocal();render();
-  try{const r=await fetch('/api/schematic',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(sch)});
+  const payload=JSON.stringify(sch);
+  const job=schematicPushQueue.catch(()=>{}).then(async()=>{
+    const r=await fetch('/api/schematic',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
     const j=await r.json();
-    if(j.ok&&j.snapshot){st=Object.assign(st||{},j.snapshot);render();renderScope();}
-  }catch(e){}
+    if(!r.ok||!j.ok)throw new Error(j.error||('原理图同步失败：HTTP '+r.status));
+    if(j.snapshot){st=Object.assign(st||{},j.snapshot);render();renderScope();}
+    return true;
+  });
+  schematicPushQueue=job;
+  try{return await job;}catch(e){console.error('[zetsim] 原理图同步失败',e);return false;}
 }
 async function api(p,body){                          // p = /api/ 之后的路径，如 comp/SW1/press
-  try{const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(body||{})});return await r.json();}catch(e){}
+  try{
+    if(p.startsWith('comp/'))await schematicPushQueue.catch(()=>{});
+    const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body||{})});
+    return await r.json();
+  }catch(e){console.error('[zetsim] API 请求失败',p,e);return {ok:false,error:String(e)};}
 }
 function saveLocal(){try{localStorage.setItem('zetsim.sch',JSON.stringify(sch))}catch(e){}}
 async function defSch(){const r=await fetch('/api/schematic/default');return await r.json();}
@@ -902,14 +913,24 @@ let lastBoot=null;
 async function poll(){
   try{
     const r=await fetch('/api/state');const s=await r.json();
-    if(s.boot_id&&s.boot_id!==lastBoot){          // 服务器换代（重启）→ 自动重同步电路和固件
-      const first=lastBoot===null;lastBoot=s.boot_id;
-      if(!first){pushSchematic();
-        if($('fwpath').value)fetch('/api/load',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({path:$('fwpath').value})});}
+    if(s.boot_id&&s.boot_id!==lastBoot){          // 服务器换代（重启）→ 先恢复电路，再恢复固件
+      const first=lastBoot===null;
+      if(first){
+        lastBoot=s.boot_id;
+      }else{
+        const synced=await pushSchematic();
+        if(!synced)throw new Error('服务器重启后，原理图尚未同步成功；将自动重试');
+        if($('fwpath').value){
+          const lr=await fetch('/api/load',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({path:$('fwpath').value})});
+          const lj=await lr.json();
+          if(!lr.ok||!lj.ok)throw new Error(lj.error||'服务器重启后固件恢复失败');
+        }
+        lastBoot=s.boot_id;
+      }
     }
     renderState(s);
-  }catch(e){}
+  }catch(e){console.error('[zetsim] 状态轮询/恢复失败',e);}
   setTimeout(poll,150);
 }
 async function loadFw(path){
