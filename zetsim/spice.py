@@ -126,8 +126,10 @@ class Circuit:
             self.nodes[name] = Node(name, len(self.nodes))
         return self.nodes[name]
 
-    def add_r(self, a, b_, ohms):
-        self.comps.append(Resistor(self.node(a), self.node(b_), ohms))
+    def add_r(self, a, b_, ohms) -> Resistor:
+        resistor = Resistor(self.node(a), self.node(b_), ohms)
+        self.comps.append(resistor)
+        return resistor
 
     def add_c(self, a, b_, farads):
         c = Capacitor(self.node(a), self.node(b_), farads)
@@ -214,8 +216,15 @@ class CoupledCircuit:
         self.max_substeps = 2000
 
     def attach_pin(self, pin: str, node_a: str):
-        """MCU 引脚 -> 电路节点（对 GND 的 0/3.3V 源）"""
+        """MCU 引脚 -> 电路节点；先用当前网络电压初始化，避免重建后首片错误拉到 0V。"""
         src = self.circuit.add_source(node_a, "GND")
+        net = None
+        if pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE" and pin[2:].isdigit():
+            net = self.board.resolved_net("ABCDE".index(pin[1]), int(pin[2:]))
+        voltage = net.voltage() if net is not None else None
+        initial = voltage if voltage is not None else 0.0
+        src.volts = initial
+        self._prev_volts[pin] = initial
         self.pin_sources[pin] = src
         self.enabled = True
         return src
@@ -244,7 +253,7 @@ class CoupledCircuit:
                     and pin[2:].isdigit()):
                 continue                       # VDD/VSS 等电源脚不参与模拟采样
             port_idx = "ABCDE".index(pin[1])
-            net = self.board.net(port_idx, int(pin[2:]))
+            net = self.board.resolved_net(port_idx, int(pin[2:]))
             v = net.voltage()
             self._prev_volts[pin] = v if v is not None else 0.0
         for name, node in self.probes.items():
