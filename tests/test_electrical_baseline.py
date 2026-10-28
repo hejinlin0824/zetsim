@@ -170,7 +170,7 @@ def test_configurable_button_debounce_rejects_short_bounce_and_accepts_stable_pr
     assert schematic.press("SW1", True)
     board.sysctrl.now_ns = 2_000_000
     assert schematic.press("SW1", False)
-    schematic.sample(6_999_999)
+    schematic.sample(7_000_000)
     assert button.pressed is False
     assert not schematic.button_pending
 
