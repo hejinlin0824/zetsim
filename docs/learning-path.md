@@ -66,6 +66,16 @@ zetsim 不是把 LED 动画画在网页上。它加载固件并模拟 STM32F103Z
 
 如果暂时没有编译器，仍可以加载仓库中已生成的 HEX 固件学习仪表盘和外设行为；但要完成“改 C 源码再编译”的实战，就必须准备编译器。
 
+**Windows 链接错误：** 如果编译日志显示 `ld.exe: cannot find -lgcc`，这是链接器找不到 GCC 运行库，并不一定是 main.c 有错误。更新到最新 DEV 后，构建器会查询 GCC 为 Cortex-M3/Thumb 选择的 `libgcc.a`，并把该库的完整路径传给链接器；若文件不存在，会在链接前报告运行库路径。可以在 PowerShell 执行：
+
+    arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -print-libgcc-file-name
+
+将命令输出的路径代入下面的检查：
+
+    Test-Path "上一步输出的完整路径"
+
+结果应为 `True`。如果是 `False`，工具链安装可能不完整，请先运行 `python setup_env.py`；仍不通过时，重新安装完整的 Arm GNU Toolchain。若仓库路径含中文或特殊字符，可将项目另复制到纯英文路径（例如 `E:\\codebase\\zetsim`）后重试。不要手动从其他版本复制单个 `libgcc.a`，不同 GCC 版本/目标配置的运行库不应混用。
+
 ### 1.3 运行最小自动测试
 
     python -m pytest tests/ -q
@@ -480,6 +490,7 @@ main.c 中关键配置包括：
 |---|---|---|
 | 构建命令找不到 | Python 虚拟环境是否激活；是否在仓库根目录 | 运行 python -m zetsim --help，确认安装路径 |
 | ARM 编译器不存在 | arm-none-eabi-gcc --version | 按 setup_env.py 输出安装或修复工具链 |
+| 链接时报 cannot find -lgcc | 用 -print-libgcc-file-name 查询库路径，并用 PowerShell Test-Path 检查文件存在 | 运行最新版 setup_env.py 校验/重装工具链；检查项目路径是否含中文或特殊字符 |
 | 编译成功但 LED 不动 | 固件是否加载运行；LED 回路与 GND 是否接通 | RCC、GPIO 模式、ODR/BSRR/BRR 写入 |
 | 跑马灯顺序异常 | PA0–PA7 连接顺序和各路电阻 | ODR 掩码、i 的边界条件 |
 | 按键触发不了 | 输入引脚与按键连线 | AFIO、EXTI、NVIC、向量表、pending 清除 |
