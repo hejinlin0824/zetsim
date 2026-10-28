@@ -207,6 +207,7 @@ class CoupledCircuit:
         self.circuit = Circuit()
         self.dt_ns = dt_ns
         self.pin_sources: dict[str, VoltageSource] = {}
+        self.pin_resistors: dict[str, Resistor] = {}  # GPIO 输出级的有限驱动阻抗
         self.stepped = False                    # 引擎步进过至少一次（否则电流无效）
         self.probes: dict[str, str] = {}        # 探针名 -> 节点名
         self.history: dict[str, list[tuple[int, float]]] = {}
@@ -217,23 +218,41 @@ class CoupledCircuit:
         self.max_substeps = 2000
 
     def attach_pin(self, pin: str, node_a: str):
-        """MCU 引脚通过有限输出电阻驱动电路，避免与理想电源并联造成奇异矩阵。"""
-        net = None
-        if pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE" and pin[2:].isdigit():
-            net = self.board.resolved_net("ABCDE".index(pin[1]), int(pin[2:]))
-        voltage = net.voltage() if net is not None else None
-        initial = voltage if voltage is not None else 0.0
-
-        # GPIO 不是理想电压源。用 25Ω 输出阻抗近似推挽输出级，避免 GPIO 误接 VCC
-        # 时出现两个理想电压源直接并联（MNA 矩阵奇异），也更接近真实负载压降。
+        """GPIO 经有限输出阻抗接入模拟网；输入模式或开漏释放时应呈高阻，而不是强拉 0V。"""
+        if not (pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE"
+                and pin[2:].isdigit()):
+            raise ValueError(f"不是有效的 GPIO 引脚名：{pin}")
         drive_node = f"__gpio_drive_{pin}"
         src = self.circuit.add_source(drive_node, "GND")
-        src.volts = initial
-        self.circuit.add_r(drive_node, node_a, 25.0)
-        self._prev_volts[pin] = initial
+        resistor = self.circuit.add_r(drive_node, node_a, 1e12)
         self.pin_sources[pin] = src
+        self.pin_resistors[pin] = resistor
+        self._prev_volts[pin] = 0.0
         self.enabled = True
+        self._sync_pin_drivers()
         return src
+
+    def _sync_pin_drivers(self):
+        """按当前 GPIO 配置更新源值与输出阻抗；模拟输入不能被 MCU 的虚拟 0V 源短路。"""
+        for pin, source in self.pin_sources.items():
+            port_idx = "ABCDE".index(pin[1])
+            pin_idx = int(pin[2:])
+            net = self.board.resolved_net(port_idx, pin_idx)
+            mode, cnf = self.board.gpios[port_idx].pin_cfg(pin_idx)
+            resistor = self.pin_resistors[pin]
+
+            if not getattr(self.board, "mcu_power", True) or mode == 0:
+                resistor.r = 1e12
+                continue
+
+            # AF 输出由 TIM 等外设驱动；通用输出由 GPIO ODR 驱动。
+            level = net.af_level if cnf in (0b10, 0b11) else net.mcu_level
+            if level is None:
+                # 开漏输出写 1 是释放引脚，必须由外部上拉决定电平。
+                resistor.r = 1e12
+            else:
+                source.volts = 3.3 if level else 0.0
+                resistor.r = 25.0
 
     def rebase_time(self, now_ns: int | None = None):
         """CPU/仿真复位后重置时间基准，但保留电容电压等外部电路状态。"""
@@ -271,10 +290,8 @@ class CoupledCircuit:
             # 防御调用方复位时间源却忘了同步本耦合器的情况。
             self.rebase_time(now_ns)
             return
-        # 用上一窗口采样的电平推进本窗口（电平翻转发生在外设 step_to，
-        # 即本窗口末尾——分段常数源语义）
-        for pin, src in self.pin_sources.items():
-            src.volts = self._prev_volts.get(pin, 0.0)
+        # 在求解前读取本片最新 GPIO 配置和驱动状态；输入/开漏释放均为高阻。
+        self._sync_pin_drivers()
         elapsed = max(0, int(now_ns) - self._last_ns)
         self._last_ns = int(now_ns)
         self._remainder_ns += elapsed
