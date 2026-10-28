@@ -71,6 +71,7 @@ jobs:
               'wiring checker': 'function auditWiring()',
               'MCU power check': 'MCU_VDD',
               'wire duplicate check': 'WIRE_DUP',
+              'malformed wire check': 'WIRE_FORMAT',
               'editor line numbers': 'id="lineNums"',
               'unsaved edit state': 'function isProjDirty()',
               'dedicated save action': 'id="projSaveBtn"',
