@@ -119,11 +119,19 @@ class Simulation:
                     wake = ext
                 if wake is None or wake <= self.now:
                     wake = self.now + 1_000
+                # Respect the caller's time slice. The Web dashboard repeatedly runs
+                # short realtime slices; jumping all the way to a 100ms SysTick here
+                # would leave coupled SPICE devices integrating only one capped batch
+                # per edge, so their electrical state can lag behind GPIO by many cycles.
+                if until_ns is not None:
+                    wake = min(wake, until_ns)
                 self._set_time(wake)
                 for p_ in board.all_periphs():
                     p_.step_to(self.now)
                 self._run_due_ext()
                 self._tick_devices()
+                if self.on_slice:
+                    self.on_slice(self.now)
             elif reason == "exc_return":
                 if not core.exception_return():
                     self._halt("corrupt_exc_return", "EXC_RETURN 出栈失败")
@@ -135,6 +143,7 @@ class Simulation:
             elif reason == "wfi":
                 self.sleeping = True
                 if not self._sleep_until_event(until_ns, t_start, wall_timeout_s):
+                    self.sleeping = False
                     break
                 self.sleeping = False
             elif reason == "bkpt":
@@ -185,9 +194,15 @@ class Simulation:
                     self._halt("idle", "WFI 且无未来事件")
                 return False
             if until_ns is not None and nxt > until_ns:
+                # CPU remains in WFI, but peripherals and analog devices must still
+                # advance to the end of this bounded simulation slice.
                 self._set_time(until_ns)
                 for p in board.all_periphs():
                     p.step_to(self.now)
+                self._run_due_ext()
+                self._tick_devices()
+                if self.on_slice:
+                    self.on_slice(self.now)
                 self.report.halt_reason = "timeout"
                 return False
             self._set_time(nxt)
