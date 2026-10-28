@@ -11,12 +11,12 @@ zetsim serve                                    # 打开浏览器仪表盘
 - **CPU**：Unicorn（QEMU TCG）Cortex-M3 指令级仿真，运行真实 Keil/GCC 编译的 `.hex/.elf`
 - **异常引擎**：自研 ARMv7-M 异常入口/出口（压栈、EXC_RETURN、抢占、尾链、PendSV/SVC），
   通过了"FreeRTOS 式双任务上下文切换"期末考试
-- **外设**：RCC/GPIO/EXTI/USART/TIM(8个)/ADC(3个)/DMA/SPI/I2C/DAC —— 行为按 RM0008 建模
+- **外设**：RCC/GPIO/EXTI/USART/TIM(8个)/ADC(3个)/DMA/SPI/I2C/DAC —— 按 RM0008 的可验证子集建模，精度边界见 [精度看板](docs/accuracy.md)
 - **器件**：LED/按键/电位器/示波器/SSD1306 OLED，事件驱动
 - **混合仿真**：内置 mini-SPICE（MNA+后向欧拉），PWM→RC滤波、LED 压降/限流可算
 - **原理图画布（M8）**：像 Proteus 一样摆元件、连线、仿真——MCU 引脚、LED、电阻、电容、
  按键、电位器、GND/+3.3V、示波器探针；串阻 LED 的电流和 RC 结点电压由 SPICE 实时求解
-- **验证**：35 项 pytest（汇编器执行预言 + 固件功能断言 + SVD 寄存器地图交叉验证）
+- **验证**：pytest 回归覆盖指令/外设、DMA 与通信、原理图网表、GPIO 上下拉/开漏、ADC—SPICE 电压耦合、按键消抖与 RC 时间响应；GitHub Actions 在 Python 3.11/3.12 双版本运行
 
 详细文档：[使用手册](使用手册.md) · [精度看板](docs/accuracy.md) · [架构](ARCHITECTURE.md) · [寄存器速查](docs/registers.md)
 
