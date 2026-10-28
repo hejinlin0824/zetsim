@@ -236,7 +236,7 @@ class Schematic:
         if btn is None:
             return False
         down = bool(down)
-        if down == btn.pressed:
+        if down == btn.pressed and not (force_retrigger and down):
             self.button_states[comp_id] = down
             return True
         if force_retrigger and down and btn.pressed:
