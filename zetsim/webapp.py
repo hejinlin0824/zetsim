@@ -23,6 +23,7 @@ DEFAULT_SCHEMATIC = {
     "components": [
         {"id": "MCU", "type": "mcu", "x": 60, "y": 60, "props": {}},
         {"id": "LED1", "type": "led", "x": 400, "y": 200, "props": {"color": "red"}},
+        {"id": "R_LED1", "type": "resistor", "x": 300, "y": 205, "props": {"ohms": 330}},
         {"id": "SW1", "type": "button", "x": 400, "y": 420, "props": {}},
         {"id": "POT1", "type": "pot", "x": 400, "y": 520, "props": {}},
         {"id": "GND1", "type": "gnd", "x": 560, "y": 260, "props": {}},
@@ -35,7 +36,8 @@ DEFAULT_SCHEMATIC = {
     "wires": [
         {"a": ["PWR1", "V"], "b": ["MCU", "VDD"]},
         {"a": ["MCU", "VSS"], "b": ["GNDP", "G"]},
-        {"a": ["MCU", "PA5"], "b": ["LED1", "A"]},
+        {"a": ["MCU", "PA5"], "b": ["R_LED1", "1"]},
+        {"a": ["R_LED1", "2"], "b": ["LED1", "A"]},
         {"a": ["LED1", "K"], "b": ["GND1", "G"]},
         {"a": ["MCU", "PA0"], "b": ["SW1", "1"]},
         {"a": ["SW1", "2"], "b": ["GND2", "G"]},
@@ -60,10 +62,13 @@ def _led8_schematic() -> dict:
     wires = []
     for i in range(8):
         y = 70 + i * 60
+        comps.append({"id": f"R{i+1}", "type": "resistor", "x": 350, "y": y + 5,
+                      "props": {"ohms": 330}})
         comps.append({"id": f"LED{i+1}", "type": "led", "x": 470, "y": y,
                       "props": {"color": "red" if i % 2 == 0 else "green"}})
         comps.append({"id": f"GND{i+1}", "type": "gnd", "x": 650, "y": y + 22, "props": {}})  # 与 LED 阴极同高→直线
-        wires.append({"a": ["MCU", f"PA{i}"], "b": [f"LED{i+1}", "A"]})
+        wires.append({"a": ["MCU", f"PA{i}"], "b": [f"R{i+1}", "1"]})
+        wires.append({"a": [f"R{i+1}", "2"], "b": [f"LED{i+1}", "A"]})
         wires.append({"a": [f"LED{i+1}", "K"], "b": [f"GND{i+1}", "G"]})
     _mcu_power(comps, wires)
     return {"components": comps, "wires": wires}
