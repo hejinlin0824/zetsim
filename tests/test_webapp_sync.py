@@ -1,0 +1,87 @@
+from __future__ import annotations
+
+from copy import deepcopy
+
+from fastapi.testclient import TestClient
+
+from zetsim.webapp import build_app
+
+
+def _valid_circuit() -> dict:
+    return {
+        "components": [
+            {"id": "MCU", "type": "mcu", "x": 20, "y": 20, "props": {}},
+            {"id": "VCC1", "type": "vcc", "x": 0, "y": 0, "props": {}},
+            {"id": "GND1", "type": "gnd", "x": 0, "y": 100, "props": {}},
+            {"id": "LED1", "type": "led", "x": 100, "y": 20, "props": {}},
+            {"id": "SW1", "type": "button", "x": 100, "y": 100, "props": {}},
+            {"id": "POT1", "type": "pot", "x": 100, "y": 180, "props": {}},
+        ],
+        "wires": [
+            {"a": ["MCU", "VDD"], "b": ["VCC1", "V"]},
+            {"a": ["MCU", "VSS"], "b": ["GND1", "G"]},
+            {"a": ["MCU", "PA5"], "b": ["LED1", "A"]},
+            {"a": ["LED1", "K"], "b": ["GND1", "G"]},
+            {"a": ["MCU", "PA0"], "b": ["SW1", "1"]},
+            {"a": ["SW1", "2"], "b": ["GND1", "G"]},
+            {"a": ["MCU", "PA1"], "b": ["POT1", "W"]},
+            {"a": ["POT1", "B"], "b": ["GND1", "G"]},
+        ],
+    }
+
+
+def test_schematic_api_rejects_invalid_circuit_without_corrupting_active_state():
+    with TestClient(build_app()) as client:
+        valid = _valid_circuit()
+        response = client.post("/api/schematic", json=valid)
+        assert response.status_code == 200
+        assert response.json()["ok"] is True
+        assert response.json()["snapshot"]["mcu_powered"] is True
+        assert "LED1" in response.json()["snapshot"]["leds"]
+
+        invalid = deepcopy(valid)
+        invalid["wires"].append(
+            {"a": ["MCU", "PA99"], "b": ["LED1", "A"]}
+        )
+        rejected = client.post("/api/schematic", json=invalid)
+        assert rejected.status_code == 400
+        assert "PA99" in rejected.json()["error"]
+
+        state = client.get("/api/state").json()
+        assert state["mcu_powered"] is True
+        assert "LED1" in state["leds"]
+        assert state["buttons"]["SW1"] is False
+
+
+def test_component_api_serializes_valid_controls_and_rejects_missing_components():
+    with TestClient(build_app()) as client:
+        valid = _valid_circuit()
+        response = client.post("/api/schematic", json=valid)
+        assert response.status_code == 200
+
+        pressed = client.post("/api/comp/SW1/press", json={})
+        assert pressed.status_code == 200
+        assert pressed.json()["ok"] is True
+        assert client.get("/api/state").json()["buttons"]["SW1"] is True
+
+        released = client.post("/api/comp/SW1/release", json={})
+        assert released.status_code == 200
+        assert client.get("/api/state").json()["buttons"]["SW1"] is False
+
+        missing = client.post("/api/comp/DOES_NOT_EXIST/press", json={})
+        assert missing.status_code == 404
+        assert missing.json()["ok"] is False
+
+
+def test_component_api_rejects_non_finite_potentiometer_input():
+    with TestClient(build_app()) as client:
+        response = client.post("/api/schematic", json=_valid_circuit())
+        assert response.status_code == 200
+
+        invalid = client.post(
+            "/api/comp/POT1/pot",
+            content='{"volts": NaN}',
+            headers={"Content-Type": "application/json"},
+        )
+        assert invalid.status_code == 400
+        assert "有限数" in invalid.json()["error"]
