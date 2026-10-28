@@ -25,8 +25,10 @@ class Net:
 
     def __init__(self, name: str):
         self.name = name
-        self.mcu_level = None        # 推挽/开漏输出（None=不驱动）
-        self.af_level = None         # 复用功能（TIM PWM 等）
+        self.mcu_level = None        # 兼容旧接口的单一 MCU 驱动
+        self.af_level = None         # 兼容旧接口的单一 AF 驱动
+        self.mcu_outputs: dict[tuple[int, int], int] = {}  # 同网多 MCU 引脚各自的驱动
+        self.af_outputs: dict[tuple[int, int], int] = {}   # 同网多 AF 引脚各自的驱动
         self.device_level = None     # 器件强驱动（按键）
         self.device_analog = None    # 模拟驱动（电位器）
         self.mcu_analog = None       # MCU 模拟输出（DAC）
@@ -39,14 +41,24 @@ class Net:
         gate = self.power_gate
         mcu_powered = gate is None or getattr(gate, "mcu_power", True)
         if mcu_powered:
-            # 强驱动优先于内部弱上拉/下拉；顺序也用于确定当前简化数字模型的争用优先级。
-            for lv in (self.mcu_level, self.af_level, self.device_level):
-                if lv is not None:
-                    return lv
+            mcu_drivers = set(self.mcu_outputs.values())
+            af_drivers = set(self.af_outputs.values())
+            if self.mcu_level is not None:
+                mcu_drivers.add(self.mcu_level)
+            if self.af_level is not None:
+                af_drivers.add(self.af_level)
+            strong_drivers = mcu_drivers | af_drivers
+            if len(strong_drivers) > 1:
+                # 直接相连的强驱动相互冲突：电平在数字抽象里未定义，不能伪造确定的 0/1。
+                return None
+            if strong_drivers:
+                return next(iter(strong_drivers))
+            if self.device_level is not None:
+                return self.device_level
             pulls = set(self.mcu_pulls.values())
             if len(pulls) == 1:
                 return pulls.pop()
-            # 相反方向的内部弱拉在本模型中视为不确定/浮空，而非武断地选高或低。
+            # 没有拉电阻或相反方向弱拉冲突时，视为浮空/不确定。
             return None
         # 掉电后，MCU 输出和内部上下拉都失效；外部器件仍然可以驱动线路。
         return self.device_level
@@ -62,14 +74,32 @@ class Net:
             return 0.0
         return None
 
-    def set_mcu(self, lv):
-        if self.mcu_level != lv:
+    def set_mcu(self, lv, key: tuple[int, int] | None = None):
+        if key is None:
+            changed = self.mcu_level != lv
             self.mcu_level = lv
+        else:
+            old = self.mcu_outputs.get(key)
+            changed = old != lv
+            if lv is None:
+                self.mcu_outputs.pop(key, None)
+            else:
+                self.mcu_outputs[key] = int(lv)
+        if changed:
             self._commit()
 
-    def set_af(self, lv):
-        if self.af_level != lv:
+    def set_af(self, lv, key: tuple[int, int] | None = None):
+        if key is None:
+            changed = self.af_level != lv
             self.af_level = lv
+        else:
+            old = self.af_outputs.get(key)
+            changed = old != lv
+            if lv is None:
+                self.af_outputs.pop(key, None)
+            else:
+                self.af_outputs[key] = int(lv)
+        if changed:
             self._commit()
 
     def set_device(self, lv):
@@ -91,6 +121,8 @@ class Net:
         """原理图重建：清掉所有驱动与器件 watcher（保留板级 EXTI watcher）。"""
         self.mcu_level = None
         self.af_level = None
+        self.mcu_outputs.clear()
+        self.af_outputs.clear()
         self.device_level = None
         self.device_analog = None
         self.mcu_analog = None
@@ -285,7 +317,7 @@ class Board:
 
     # GPIO 模型 -> MCU 驱动
     def set_mcu_output(self, port_idx, pin, level):
-        self.resolved_net(port_idx, pin).set_mcu(level)
+        self.resolved_net(port_idx, pin).set_mcu(level, (port_idx, pin))
 
     def set_mcu_pull(self, port_idx, pin, level):
         """设置 GPIO 内部上拉/下拉电阻的数字等效状态。"""
@@ -297,7 +329,7 @@ class Board:
         mode, cnf = self.gpios[port_idx].pin_cfg(pin)
         net = self.resolved_net(port_idx, pin)
         if mode != 0 and cnf in (0b10, 0b11):
-            net.set_af(None if cnf == 0b11 and level == 1 else level)
+            net.set_af(None if cnf == 0b11 and level == 1 else level, (port_idx, pin))
         else:
             net.set_af(None)
 
@@ -330,6 +362,8 @@ class Board:
             seen.add(id(n))
             n.mcu_level = None
             n.af_level = None
+            n.mcu_outputs.clear()
+            n.af_outputs.clear()
             n.mcu_pulls.clear()
             n._commit()
 
