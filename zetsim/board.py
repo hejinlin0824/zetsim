@@ -155,6 +155,9 @@ class Board:
         # 引脚网络
         self.nets: dict[tuple[int, int], Net] = {}
         self.schematic_nets: dict[str, Net] = {}
+        # 原理图中的多个 MCU 引脚可以共享同一个电气网络；物理引脚 Net 本身仍单独保存，
+        # 通过 resolved_net() 在运行期解析到共享网络，避免只在网表层 union、CPU 侧却脱节。
+        self.schematic_pin_nets: dict[tuple[int, int], Net] = {}
         # 器件
         self.devices: dict[str, object] = {}
 
@@ -227,6 +230,36 @@ class Board:
             self.schematic_nets[net_id] = n
         return self.schematic_nets[net_id]
 
+    def resolved_net(self, port_idx: int, pin: int) -> Net:
+        """返回原理图解析后的电气网络；未绑定时退回物理引脚自己的 Net。"""
+        key = (port_idx, pin)
+        return self.schematic_pin_nets.get(key) or self.net(port_idx, pin)
+
+    def bind_schematic_pin(self, port_idx: int, pin: int, target: Net):
+        """把 MCU 引脚接入原理图的共享网络，并为该引脚保留 GPIO/EXTI 观察器。"""
+        key = (port_idx, pin)
+        physical = self.net(port_idx, pin)
+        self.schematic_pin_nets[key] = target
+        if target is physical:
+            return
+        if any(getattr(w, "_schematic_alias_key", None) == key for w in target.watchers):
+            return
+        watcher = lambda old, new, k=key: self._net_changed(k, old, new)
+        watcher._board_watch = True
+        watcher._schematic_alias = True
+        watcher._schematic_alias_key = key
+        target.watchers.append(watcher)
+
+    def clear_schematic_bindings(self):
+        """移除上次网表安装的引脚别名观察器，恢复每个物理引脚独立状态。"""
+        seen = set()
+        for net in list(self.nets.values()) + list(self.schematic_nets.values()):
+            if id(net) in seen:
+                continue
+            seen.add(id(net))
+            net.watchers = [w for w in net.watchers if not getattr(w, "_schematic_alias", False)]
+        self.schematic_pin_nets.clear()
+
     def _net_changed(self, key, old, new):
         n = self.nets[key]
         self.events.publish(self.sysctrl.now_ns, f"gpio.{n.name}", new)
@@ -234,24 +267,24 @@ class Board:
 
     # GPIO 模型 -> MCU 驱动
     def set_mcu_output(self, port_idx, pin, level):
-        self.net(port_idx, pin).set_mcu(level)
+        self.resolved_net(port_idx, pin).set_mcu(level)
 
     # TIM AF -> 引脚（仅当 GPIO 配置为 AF 输出时驱动网络）
     def set_af_output(self, port_idx, pin, level):
         mode, cnf = self.gpios[port_idx].pin_cfg(pin)
         if mode != 0 and cnf == 0b10:
-            self.net(port_idx, pin).set_af(level)
+            self.resolved_net(port_idx, pin).set_af(level)
         else:
-            self.net(port_idx, pin).set_af(None)
+            self.resolved_net(port_idx, pin).set_af(None)
 
     def set_pin_analog(self, port_idx, pin, volts):
-        self.net(port_idx, pin).mcu_analog = volts
+        self.resolved_net(port_idx, pin).mcu_analog = volts
 
     def mcu_pin_level(self, port_idx, pin):
-        return self.net(port_idx, pin).level or 0
+        return self.resolved_net(port_idx, pin).level or 0
 
     def read_input(self, port_idx, pin):
-        return self.net(port_idx, pin).level or 0
+        return self.resolved_net(port_idx, pin).level or 0
 
     # ---------------- 复位 ----------------
     def reset(self):
