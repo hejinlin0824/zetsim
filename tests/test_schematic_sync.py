@@ -195,6 +195,40 @@ def test_linear_rc_circuit_reuses_matrix_factorization_and_tracks_pwm_edges():
     circuit.step(5e-6)
     assert circuit._linear_lu is not factorization
 
+
+def test_linear_rc_repeated_steps_match_fixed_step_reference():
+    from zetsim.spice import Circuit
+
+    dt = 5e-6
+
+    def make_circuit():
+        circuit = Circuit()
+        pwm = circuit.add_source("PWM", "GND")
+        circuit.add_r("PWM", "OUT", 1_000)
+        capacitor = circuit.add_c("OUT", "GND", 100e-9)
+        return circuit, pwm, capacitor
+
+    reference, reference_pwm, reference_cap = make_circuit()
+    batched, batched_pwm, batched_cap = make_circuit()
+
+    # Include both PWM edges and multi-slice constant levels. The batch path must
+    # produce the same discrete backward-Euler result as every individual 5us step.
+    for level, repeats in ((3.3, 10), (0.0, 10), (3.3, 7), (0.0, 13), (3.3, 20)):
+        reference_pwm.volts = level
+        batched_pwm.volts = level
+        for _ in range(repeats):
+            reference.step(dt)
+        assert batched.step_repeated(dt, repeats) is True
+        assert batched_cap.vprev == pytest.approx(reference_cap.vprev, abs=1e-11)
+        assert batched.voltage("OUT") == pytest.approx(reference.voltage("OUT"), abs=1e-11)
+
+    # The source toggles only change the right-hand side; the factorization is reused.
+    assert batched._linear_lu is not None
+    factorization = batched._linear_lu
+    batched_pwm.volts = 0.0
+    assert batched.step_repeated(dt, 10) is True
+    assert batched._linear_lu is factorization
+
 def test_gpio_spice_source_has_finite_output_impedance():
     from zetsim.spice import CoupledCircuit, Resistor, VoltageSource
 
