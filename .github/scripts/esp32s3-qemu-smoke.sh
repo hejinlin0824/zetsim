@@ -12,8 +12,13 @@ python "$IDF_PATH/tools/idf_tools.py" --non-interactive install qemu-xtensa
 idf.py build
 
 log_file="$(mktemp)"
+if ! command -v script >/dev/null 2>&1; then
+    echo "The QEMU smoke test requires the util-linux script command for a pseudo-terminal." >&2
+    exit 2
+fi
 set +e
-timeout --kill-after=5s 12s idf.py qemu >"$log_file" 2>&1
+# QEMU's stdio serial backend needs a TTY; script provides a PTY while recording UART output.
+script -q -e -c "timeout --kill-after=5s 12s idf.py qemu" "$log_file"
 qemu_status=$?
 set -e
 cat "$log_file"
