@@ -241,12 +241,21 @@ class CoupledCircuit:
             mode, cnf = self.board.gpios[port_idx].pin_cfg(pin_idx)
             resistor = self.pin_resistors[pin]
 
-            if not getattr(self.board, "mcu_power", True) or mode == 0:
+            if not getattr(self.board, "mcu_power", True):
                 resistor.r = 1e12
                 continue
 
-            # 同一电气网可能包含多个 MCU 引脚；每个 SPICE 驱动必须读取自己的输出级状态。
             key = (port_idx, pin_idx)
+            if mode == 0:
+                if cnf == 0b10:  # 输入上拉/下拉：典型值近似 40kΩ，ODR 选择方向
+                    odr_bit = (self.board.gpios[port_idx]._odr() >> pin_idx) & 1
+                    source.volts = 3.3 if odr_bit else 0.0
+                    resistor.r = 40_000.0
+                else:
+                    resistor.r = 1e12
+                continue
+
+            # 同一电气网可能包含多个 MCU 引脚；每个 SPICE 驱动读取自己的输出级状态。
             if cnf in (0b10, 0b11):
                 level = net.af_outputs.get(key, net.af_level)
             else:
