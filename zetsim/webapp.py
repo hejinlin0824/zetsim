@@ -19,6 +19,7 @@ from .schematic import Schematic
 from .build import build_project, PROJECT_FILES
 from .component_registry import component_catalog
 from .targets import TARGETS
+from .project import from_legacy_circuit, validate_project, to_legacy_circuit
 
 # 首次打开的默认示例电路：MCU + LED(PA5) + 按键(PA0) + 电位器(PA1) + 探针
 DEFAULT_SCHEMATIC = {
@@ -326,6 +327,28 @@ def build_app(firmware: str | None = None) -> FastAPI:
             return JSONResponse({"ok": False, "error": "项目不存在"}, status_code=404)
         shutil.rmtree(pdir)
         return {"ok": True}
+
+    @app.get("/api/project/snapshot")
+    async def project_snapshot():
+        with dash.lock:
+            project = from_legacy_circuit(dash.sch.data, name="Current circuit")
+        return JSONResponse(project)
+
+    @app.post("/api/project/snapshot")
+    async def project_snapshot_load(body: dict):
+        try:
+            project = validate_project(body)
+        except ValueError as exc:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+        if project["target"] != "stm32f103zet6":
+            return JSONResponse({"ok": False, "error": "当前原理图画布仅支持 STM32F103ZET6；ESP32-S3 使用独立 ESP-IDF/QEMU 项目流程"}, status_code=400)
+        with dash.lock:
+            try:
+                dash.sch.apply(to_legacy_circuit(project))
+            except ValueError as exc:
+                return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+            snapshot = dash.sch.snapshot()
+        return JSONResponse({"ok": True, "project": project, "snapshot": snapshot})
 
     @app.get("/api/project/{name}")
     async def project_get(name: str):

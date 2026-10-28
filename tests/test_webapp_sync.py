@@ -123,3 +123,31 @@ def test_component_and_target_catalog_apis_are_explicit_and_scoped():
         assert {"mcu", "led", "resistor", "capacitor", "button", "pot", "gnd", "vcc", "probe"} <= ids
         targets = client.get("/api/targets")
         assert {item["id"] for item in targets.json()["items"]} == {"stm32f103zet6", "esp32s3"}
+
+
+def test_versioned_project_snapshot_export_import_and_rejection_are_safe():
+    with TestClient(build_app()) as client:
+        exported = client.get("/api/project/snapshot")
+        assert exported.status_code == 200
+        project = exported.json()
+        assert project["schema_version"] == 1
+        assert project["target"] == "stm32f103zet6"
+        assert "components" in project["circuit"]
+
+        imported = client.post("/api/project/snapshot", json=project)
+        assert imported.status_code == 200
+        assert imported.json()["ok"] is True
+
+        before = client.get("/api/state").json()
+        invalid = dict(project)
+        invalid["target"] = "avr-uno"
+        rejected = client.post("/api/project/snapshot", json=invalid)
+        assert rejected.status_code == 400
+        after = client.get("/api/state").json()
+        assert before["mcu_powered"] == after["mcu_powered"]
+        assert set(before["leds"]) == set(after["leds"])
+
+        unsupported = dict(project)
+        unsupported["target"] = "esp32s3"
+        response = client.post("/api/project/snapshot", json=unsupported)
+        assert response.status_code == 400

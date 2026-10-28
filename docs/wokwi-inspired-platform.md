@@ -23,3 +23,10 @@ The existing EventBus already timestamps events in simulation nanoseconds and su
 
 ## Open-source reuse policy
 Evaluate assets by their actual license and integration fit. Private/internal use is not a blanket exemption from license conditions, especially for GPL-family code and redistribution. This change reuses architectural ideas and does not vendor Wokwi code or introduce an unreviewed dependency. Reconsider @wokwi/elements only after confirming its exact license/version and whether its Lit/Web Component renderers fit the existing static workbench.
+
+
+## Snapshot API integration
+
+- GET `/api/project/snapshot` exports the current STM32 circuit in the versioned project envelope.
+- POST `/api/project/snapshot` validates and restores a versioned project. Invalid snapshots are rejected before replacing the active circuit.
+- ESP32-S3 target metadata is registered, but its firmware continues through the dedicated ESP-IDF/QEMU workflow; it is not falsely routed into the STM32 schematic runtime.
