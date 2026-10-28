@@ -6,16 +6,15 @@
 
 做什么：
   1. 检查 Python ≥ 3.10，安装 Python 依赖（pip install -e .）
-  2. 检查 arm-none-eabi-gcc（C 编译器），查找顺序：
-       系统 PATH → 本项目 .toolchain/ → winget 默认安装目录
-  3. 都没有就从 xPack GitHub 下载 GNU Arm Embedded GCC，
-     解压到本项目 .toolchain/（约 500MB，已加入 .gitignore）
+  2. 检查可完成裸机链接的 arm-none-eabi-gcc（不仅检查 gcc.exe，还要确认 libgcc.a 存在）
+  3. 都没有就从 xPack GitHub 下载 GNU Arm Embedded GCC，解压到项目内 .toolchain/
      —— zetsim build / 网页"保存并编译运行"会自动使用它
 
-无网络时：按提示用 winget install Arm.GnuArmEmbeddedToolchain 装系统版即可。
+无网络时：按提示用 winget install Arm.GnuArmEmbeddedToolchain（Windows）装系统版即可。
 """
 from __future__ import annotations
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -28,28 +27,68 @@ import urllib.request
 ROOT = Path(__file__).resolve().parent
 TOOLCHAIN_DIR = ROOT / ".toolchain"
 XPACK_REPO = "xpack-dev-tools/arm-none-eabi-gcc-xpack"
+TARGET_FLAGS = ("-mcpu=cortex-m3", "-mthumb")
+
+
+def _libgcc_path(gcc: Path) -> Path | None:
+    """Return the compiler-selected Cortex-M3 libgcc archive only when it exists."""
+    try:
+        result = subprocess.run(
+            [str(gcc), *TARGET_FLAGS, "-print-libgcc-file-name"],
+            capture_output=True, text=True, errors="replace", timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    reported = result.stdout.strip().strip('"')
+    if result.returncode != 0 or not reported:
+        return None
+    archive = Path(reported)
+    if not archive.is_absolute():
+        archive = gcc.resolve().parent / archive
+    return archive.resolve() if archive.is_file() else None
+
+
+def _gcc_candidates():
+    """Yield installed compiler candidates in preferred search order."""
+    seen: set[str] = set()
+
+    def add(candidate: Path):
+        key = os.path.normcase(os.path.abspath(str(candidate)))
+        if key not in seen and candidate.is_file():
+            seen.add(key)
+            return candidate
+        return None
+
+    from_path = shutil.which("arm-none-eabi-gcc")
+    if from_path:
+        candidate = add(Path(from_path))
+        if candidate:
+            yield candidate
+
+    if TOOLCHAIN_DIR.exists():
+        for pat in ("**/bin/arm-none-eabi-gcc.exe", "**/bin/arm-none-eabi-gcc"):
+            for path in sorted(TOOLCHAIN_DIR.glob(pat)):
+                candidate = add(path)
+                if candidate:
+                    yield candidate
+
+    if sys.platform == "win32":
+        for base in (r"C:\Program Files (x86)", r"C:\Program Files"):
+            root = Path(base)
+            if not root.exists():
+                continue
+            for directory in sorted(root.glob("Arm GNU Toolchain*"), reverse=True):
+                for sub in sorted(directory.iterdir(), reverse=True) if directory.is_dir() else []:
+                    candidate = add(sub / "bin" / "arm-none-eabi-gcc.exe")
+                    if candidate:
+                        yield candidate
 
 
 def find_gcc() -> Path | None:
-    g = shutil.which("arm-none-eabi-gcc")
-    if g:
-        return Path(g)
-    if TOOLCHAIN_DIR.exists():
-        for pat in ("**/bin/arm-none-eabi-gcc.exe", "**/bin/arm-none-eabi-gcc"):
-            hits = sorted(TOOLCHAIN_DIR.glob(pat))
-            if hits:
-                return hits[0]
-    if sys.platform == "win32":
-        for base in (r"C:\Program Files (x86)", r"C:\Program Files"):
-            b = Path(base)
-            if not b.exists():
-                continue
-            for d in sorted(b.glob("Arm GNU Toolchain*"), reverse=True):
-                subs = sorted(d.iterdir(), reverse=True) if d.is_dir() else []
-                for sub in subs:
-                    cand = sub / "bin" / "arm-none-eabi-gcc.exe"
-                    if cand.exists():
-                        return cand
+    """Find the first compiler whose selected libgcc runtime archive is present."""
+    for gcc in _gcc_candidates():
+        if _libgcc_path(gcc):
+            return gcc
     return None
 
 
@@ -58,7 +97,7 @@ def xpack_platform() -> str | None:
     arch = "arm64" if m in ("arm64", "aarch64") else "x64" if m in ("amd64", "x86_64", "x64") else None
     if not arch:
         return None
-    return {"Windows": "win32", "Linux": "linux", "Darwin": "darwin"}.get(_pl.system(), None) + "-" + arch
+    return { "Windows": "win32", "Linux": "linux", "Darwin": "darwin"}.get(_pl.system(), None) + "-" + arch
 
 
 def download_toolchain() -> Path | None:
@@ -66,7 +105,7 @@ def download_toolchain() -> Path | None:
     if not plat:
         print(f"  不支持的平台：{_pl.system()} {_pl.machine()}，请手动安装 arm-none-eabi-gcc")
         return None
-    print(f"  从 xPack GitHub 下载（平台 {plat}，约 120MB，稍候）…")
+    print(f"  从 xPack GitHub 下载（平台 {plat}，约 300MB，稍候）…")
     try:
         with urllib.request.urlopen(
                 f"https://api.github.com/repos/{XPACK_REPO}/releases/latest", timeout=30) as r:
@@ -88,7 +127,12 @@ def download_toolchain() -> Path | None:
             with tarfile.open(arc) as t:
                 t.extractall(TOOLCHAIN_DIR)
         arc.unlink()
-        return find_gcc()
+        gcc = find_gcc()
+        if gcc:
+            return gcc
+        print("  下载包中没有找到可用的 Cortex-M3 libgcc.a，工具链完整性检查失败。")
+        print("  请改用完整的 Arm GNU Toolchain，或检查 .toolchain/ 是否解压完整。")
+        return None
     except Exception as e:
         print(f"  下载失败：{e}")
         print("  备选：winget install Arm.GnuArmEmbeddedToolchain（Windows，装到系统）")
@@ -106,7 +150,7 @@ def main() -> int:
     # 2. Python 依赖
     print("→ 安装 Python 依赖（pip install -e .）…")
     r = subprocess.run([sys.executable, "-m", "pip", "install", "-e", "."],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, errors="replace")
     if r.returncode != 0:
         print("  pip 安装失败（可能系统限制），建议：")
         print("    python -m venv .venv && .venv\\Scripts\\activate && pip install -e .")
@@ -114,20 +158,27 @@ def main() -> int:
     else:
         print("✓ Python 依赖就绪")
 
-    # 3. C 编译器
+    # 3. C toolchain and runtime archive
     gcc = find_gcc()
     if gcc:
+        libgcc = _libgcc_path(gcc)
         print(f"✓ arm-none-eabi-gcc：{gcc}")
+        print(f"✓ libgcc runtime：{libgcc}")
         print("\n全部就绪。启动：python -m zetsim serve")
         return 0
 
-    print("→ 未找到 arm-none-eabi-gcc，开始项目级安装（.toolchain/，不动系统）…")
+    print("→ 未找到可完整链接的 arm-none-eabi-gcc（编译器缺失，或对应的 libgcc.a 不存在/不完整）。")
+    print("→ 开始项目级安装（.toolchain/，不动系统）…")
     gcc = download_toolchain()
     if gcc:
+        libgcc = _libgcc_path(gcc)
         print(f"✓ arm-none-eabi-gcc：{gcc}")
+        print(f"✓ libgcc runtime：{libgcc}")
         print("\n全部就绪。启动：python -m zetsim serve")
         return 0
-    print("\n✗ 编译器未能自动安装。装好后重跑本脚本验证。")
+    print("\n✗ 编译工具链未能通过完整性检查。")
+    print("  请确认 libgcc.a 实际存在；也可安装：winget install Arm.GnuArmEmbeddedToolchain")
+    print("  若项目路径包含中文/特殊字符，请另复制到纯英文路径测试，例如 E:\\codebase\\zetsim。")
     return 1
 
 
