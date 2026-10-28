@@ -387,6 +387,17 @@ class Schematic:
         self._spice_buttons.clear()
         self._spice_pots.clear()
         board.devices["spice"] = cc
+        # 只把实际参与模拟元件（R/C/LED/按键）的网络送入 MNA。
+        # MCU 声明了 80 个 GPIO，但未接入模拟元件的空脚不能全部扩成 SPICE 节点，
+        # 否则一个很小的 RC 电路也会被膨胀成百余维矩阵。
+        spice_roots = set()
+        for cid, comp in self.components.items():
+            if comp["type"] in {"resistor", "capacitor", "led", "button"}:
+                for pin in PIN_DEFS[comp["type"]]:
+                    root = self.pin_net.get((cid, pin))
+                    if root is not None:
+                        spice_roots.add(root)
+
         # 网络名 -> 节点名；含 GND 元件的网络为参考地
         self._node_of_net = {}
         ground_roots = set()
@@ -401,6 +412,8 @@ class Schematic:
         for pin, root in self.mcu_pin_nets.items():
             if not (pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE" and pin[2:].isdigit()):
                 continue
+            if root not in spice_roots:
+                continue
             node = self._node_of_net.get(root)
             if node in (None, "GND") or node in attached_nodes:
                 continue
@@ -410,6 +423,8 @@ class Schematic:
         for cid, comp in self.components.items():
             if comp["type"] == "vcc":
                 root = self.pin_net[(cid, "V")]
+                if root not in spice_roots:
+                    continue
                 node = self._node_of_net.get(root)
                 if node and node != "GND":
                     src = cc.circuit.add_source(node, "GND")
@@ -444,7 +459,7 @@ class Schematic:
                 continue
             root = self.pin_net.get((cid, "W"))
             node = self._node_of_net.get(root)
-            if node and node != "GND" and node not in mcu_nodes:
+            if root in spice_roots and node and node != "GND" and node not in mcu_nodes:
                 src = cc.circuit.add_source(node, "GND")
                 src.volts = self.pot_values.get(cid, 1.65)
                 self._spice_pots[cid] = src
