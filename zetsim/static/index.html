@@ -1088,7 +1088,7 @@ async function openCaseWorkbench(id){
  $("caseModal").classList.remove("open");$("projModal").classList.add("open");
  await refreshProjList(proj.name);
  if(c.project){
-   if(proj.name!==c.project)await loadProj(c.project);
+   if(proj.name!==c.project){await loadProj(c.project);if(proj.name!==c.project)return;}
    $("projLog").textContent="案例 "+c.n+"：请先读 "+c.source+"，完成任务后保存并编译运行。";
  }else{
    buildTree();$("projLog").textContent="案例 "+c.n+" 使用预编译演示固件。寄存器流程见案例说明与 "+c.source+"。要做可编译 C 实战，可点击「＋ 项目」新建练习项目。";
@@ -1298,8 +1298,9 @@ $('projSel').onchange=e=>loadProj(e.target.value);
 async function loadProj(name){
   if(!name)return;
   saveProjBuffer();
-  if(proj.name&&name!==proj.name&&isProjDirty()){
-    if(!confirm('当前项目有未保存修改。切换项目会丢弃这些修改，是否继续？')){
+  if(proj.name&&isProjDirty()){
+    const warning=name===proj.name?'当前项目有未保存修改。重新加载会丢弃这些修改，是否继续？':'当前项目有未保存修改。切换项目会丢弃这些修改，是否继续？';
+    if(!confirm(warning)){
       $('projSel').value=proj.name;return;
     }
   }
@@ -1431,6 +1432,7 @@ $('fileNewBtn').onclick=async()=>{
   if(!proj.name){$('projLog').textContent='先选择项目。';return;}
   const name=prompt('新文件名（.c 参与编译 / .h 头文件）：');
   if(!name)return;
+  if(isProjDirty()&&!await saveProj())return;
   const b=await(await(await fetch('/api/project/'+proj.name+'/file',{method:'POST',
     headers:{'Content-Type':'application/json'},body:JSON.stringify({name})})).json());
   if(!b.ok){$('projLog').textContent='新建失败：'+b.error;$('projLog').style.color='#ff6b6b';return;}
@@ -1441,6 +1443,7 @@ $('fileDelBtn').onclick=async()=>{
   if(['main.c','startup.c','link.ld'].includes(proj.cur)){
     $('projLog').textContent=proj.cur+' 是必需文件，不能删除。';return;}
   if(!confirm('删除 '+proj.cur+'？'))return;
+  if(isProjDirty()&&!await saveProj())return;
   const b=await(await fetch('/api/project/'+proj.name+'/file/'+proj.cur,{method:'DELETE'})).json();
   if(!b.ok){$('projLog').textContent='删除失败：'+b.error;return;}
   await loadProj(proj.name);
