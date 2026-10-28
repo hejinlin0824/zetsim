@@ -59,6 +59,8 @@ def test_builder_opts_into_official_hal_for_hal_projects_only() -> None:
 def test_hal_startup_has_systick_vector_and_valid_linker_entry() -> None:
     startup = (HAL_PROJECT / "startup.c").read_text(encoding="utf-8")
     linker = (HAL_PROJECT / "link.ld").read_text(encoding="utf-8")
+    conf = (HAL_PROJECT / "stm32f1xx_hal_conf.h").read_text(encoding="utf-8")
+    assert "#define assert_param(expr) ((void)0U)" in conf
     assert "[15] = SysTick_Handler" in startup
     assert "[16 ... 75] = Default_Handler" in startup
     assert "ENTRY(Reset_Handler)" in linker

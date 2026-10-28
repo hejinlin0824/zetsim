@@ -51,4 +51,19 @@
 #include "stm32f1xx_hal_flash.h"
 #endif
 
+
+/* Match the official template default: parameter assertions are disabled
+ * unless USE_FULL_ASSERT is explicitly enabled by the application.
+ */
+#ifndef USE_FULL_ASSERT
+#ifndef assert_param
+#define assert_param(expr) ((void)0U)
+#endif
+#else
+#ifndef assert_param
+void assert_failed(uint8_t *file, uint32_t line);
+#define assert_param(expr) ((expr) ? (void)0U : assert_failed((uint8_t *)__FILE__, __LINE__))
+#endif
+#endif
+
 #endif
