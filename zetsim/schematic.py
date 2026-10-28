@@ -18,17 +18,9 @@ from .devices import Led, Button, Potentiometer
 from .spice import CoupledCircuit
 
 # 元件类型定义: 引脚名列表
-PIN_DEFS = {
-    "mcu": [f"P{p}{i}" for p in "ABCDE" for i in range(16)] + ["VDD", "VSS"],
-    "led": ["A", "K"],
-    "resistor": ["1", "2"],
-    "capacitor": ["1", "2"],
-    "button": ["1", "2"],
-    "pot": ["W", "B"],
-    "gnd": ["G"],
-    "vcc": ["V"],
-    "probe": ["P"],
-}
+from .component_registry import component_pin_defs
+
+PIN_DEFS = component_pin_defs()
 
 ANALOG_TYPES = {"resistor", "capacitor"}     # 只有真实模拟元件才触发 SPICE（VCC 走网表电源判定，不拖慢仿真）
 

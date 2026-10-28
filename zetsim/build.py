@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from .build_cache import build_cache_key, restore_cached_build, store_cached_build
 
 PROJECT_FILES = ("main.c", "startup.c", "stm32f103.h", "link.ld")   # 模板文件
 PROTECTED = ("main.c", "startup.c", "link.ld")                      # 不可删除
@@ -196,6 +197,11 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     cmd += [*srcs, libgcc,
             "-T", str(project_dir / "link.ld"),
             "-Wl,--gc-sections", "-o", str(elf)]
+    # Hash compiler version, flags, sources, linker script, and relevant CMSIS/HAL inputs.
+    cache_key = build_cache_key(project_dir, gcc, hal_project=hal_project, flags=cmd[1:])
+    if restore_cached_build(project_dir, cache_key):
+        return True, f"✓ 编译缓存命中（{cache_key[:12]}）：复用 firmware.elf / firmware.hex"
+
     r = subprocess.run(cmd, capture_output=True, text=True, errors="replace", cwd=project_dir)
     log = (
         f"工具链：{gcc}\n"
@@ -224,4 +230,6 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
                         capture_output=True, text=True, errors="replace", cwd=project_dir)
     size_line = [ln for ln in r3.stdout.splitlines() if ln.strip()][1] if r3.stdout else ""
     log += f"\n\n   text    data     bss\n{size_line}\n✓ 已生成 firmware.hex（可直接 zetsim serve 加载）"
+    store_cached_build(project_dir, cache_key)
+    log += f"\n缓存键：{cache_key[:12]}"
     return True, log
