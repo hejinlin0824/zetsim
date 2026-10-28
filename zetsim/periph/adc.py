@@ -1,5 +1,6 @@
 """ADC1/2/3 — 12 位逐次逼近（单次/连续/软件启动，EOC，IRQ，DMA 请求）。"""
 from __future__ import annotations
+import math
 from . import Peripheral
 from .sysctrl import IRQ
 
@@ -95,10 +96,18 @@ class Adc(Peripheral):
     def _sample(self, ch: int) -> int:
         if ch < len(_CH_PINS):
             port, pin = _CH_PINS[ch]
-            net = self.board.resolved_net(port, pin)
-            v = net.voltage()
+            schematic = self.board.devices.get("schematic")
+            voltage_reader = getattr(schematic, "mcu_pin_voltage", None)
+            v = voltage_reader("ABCDE"[port] + str(pin)) if callable(voltage_reader) else None
             if v is None:
-                v = 3.3 if net.level == 1 else 0.0
+                net = self.board.resolved_net(port, pin)
+                v = net.voltage()
+                if v is None:
+                    v = 3.3 if net.level == 1 else 0.0
+            # ADC 输入必须落在参考电压范围内；对非法/非有限模拟值采取安全钳位。
+            if not math.isfinite(float(v)):
+                v = 0.0
+            v = max(0.0, min(3.3, float(v)))
             return int(round(v / 3.3 * 4095))
         return 0
 
