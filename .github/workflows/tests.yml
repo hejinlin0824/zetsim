@@ -11,13 +11,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: zetsim-tests-${{ github.ref }}
+  group: zetsim-tests-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
   pytest:
     name: Python ${{ matrix.python-version }} / pytest
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
