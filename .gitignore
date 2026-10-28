@@ -9,3 +9,8 @@ artifacts/
 .venv/
 venv/
 .toolchain/
+
+# Generated outputs from the browser's editable C learning projects
+projects/*/firmware.elf
+projects/*/firmware.hex
+projects/*/firmware.map
