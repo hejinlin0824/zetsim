@@ -88,11 +88,14 @@ def test_m7_led_forward_voltage():
     board, cc, led = make_led_board()
     sim = Simulation(board)
     rep = sim.run(until_ms=1, wall_timeout_s=10)
-    vf = cc.circuit.voltage("vd")
+    pin_v = cc.circuit.voltage("pin")
+    cathode_v = cc.circuit.voltage("vd")
+    vf = pin_v - cathode_v       # 正向压降是阳极到阴极的电压差，不是阴极对地电压
     assert 1.7 < vf < 2.7, f"LED 正向压降 {vf:.2f}V 异常"
     i = led.i_last
-    expect_i = (3.3 - vf) / 220.0
+    expect_i = cathode_v / 220.0
     assert i > 2e-3, f"LED 电流 {i*1e3:.2f}mA 应 >2mA"
+    assert abs(i - expect_i) < 1e-3, f"LED 电流与限流电阻不一致：{i*1e3:.2f}mA vs {expect_i*1e3:.2f}mA"
     # LED 关断（引脚低）时电流≈0
     src = cc.pin_sources["PA5"]
     src.volts = 0.0
