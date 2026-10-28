@@ -5,7 +5,7 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root/projects/esp32s3_blink"
 
-python "$IDF_PATH/tools/idf_tools.py" install qemu-xtensa
+python "$IDF_PATH/tools/idf_tools.py" --non-interactive install qemu-xtensa
 # Install adds the binary but PATH is refreshed by export.sh.
 . "$IDF_PATH/export.sh" >/dev/null
 
