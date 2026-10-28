@@ -342,12 +342,20 @@ class Board:
 
     def read_input(self, port_idx, pin):
         net = self.resolved_net(port_idx, pin)
+        # 当引脚属于已求解的模拟网时，以实际节点电压决定数字输入，不能让弱上拉
+        # 在数字缓存中“强行赢过”分压网络。中间阈值区按低处理（真实芯片该区未定义）。
+        schematic = self.devices.get("schematic")
+        pin_name = "P" + "ABCDE"[port_idx] + str(pin)
+        spice = getattr(schematic, "spice", None) if schematic else None
+        root = getattr(schematic, "mcu_pin_nets", {}).get(pin_name) if schematic else None
+        node = getattr(schematic, "_node_of_net", {}).get(root) if schematic and root is not None else None
+        if (spice is not None and spice.stepped and node
+                and node in spice.circuit.nodes):
+            voltage = spice.circuit.voltage(node)
+            return 1 if voltage >= 0.7 * 3.3 else 0
         if net.level is not None:
             return net.level
-        # 模拟电阻网络没有数字 level 缓存时，按 STM32F1 数字输入阈值做确定性判定。
-        # VIL<=0.3*VDD 为低，VIH>=0.7*VDD 为高；中间区域按低处理（真实芯片该区未定义）。
-        schematic = self.devices.get("schematic")
-        voltage = schematic.mcu_pin_voltage("P" + "ABCDE"[port_idx] + str(pin)) if schematic else net.voltage()
+        voltage = schematic.mcu_pin_voltage(pin_name) if schematic else net.voltage()
         if voltage is not None and voltage >= 0.7 * 3.3:
             return 1
         return 0
