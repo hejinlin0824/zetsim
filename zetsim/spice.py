@@ -281,6 +281,7 @@ class CoupledCircuit:
             value = voltage if voltage is not None else 0.0
             src.volts = value
             self._prev_volts[pin] = value
+        self._sync_pin_drivers()
 
     def _sample_pin_voltages(self):
         """采样本片末的 MCU 网络电平，短于 SPICE 步长的时间片也不能跳过采样。"""
@@ -303,13 +304,14 @@ class CoupledCircuit:
             # 防御调用方复位时间源却忘了同步本耦合器的情况。
             self.rebase_time(now_ns)
             return
-        # 在求解前读取本片最新 GPIO 配置和驱动状态；输入/开漏释放均为高阻。
-        self._sync_pin_drivers()
+        # 本次积分必须使用上一片末缓存的 GPIO 状态。CPU/定时器在当前片末产生的边沿
+        # 只能影响下一片，不能把片末的新电平追溯应用到整个已逝去的时间区间。
         elapsed = max(0, int(now_ns) - self._last_ns)
         self._last_ns = int(now_ns)
         self._remainder_ns += elapsed
         n_sub = self._remainder_ns // self.dt_ns
         if n_sub <= 0:
+            self._sync_pin_drivers()
             self._sample_pin_voltages()
             return
         # 不超过时间片实际经过的固定步数；不足 dt 的尾数保留到下一次调用，
@@ -319,6 +321,8 @@ class CoupledCircuit:
             self.circuit.step(self.dt_ns / 1e9)
         self._remainder_ns -= n_sub * self.dt_ns
         self.stepped = True
+        # 解完上一状态之后，采集当前 GPIO 驱动，供下一个仿真时间区间使用。
+        self._sync_pin_drivers()
         self._sample_pin_voltages()
         for name, node in self.probes.items():
             self.history[name].append((now_ns, self.circuit.voltage(node)))
