@@ -211,7 +211,8 @@ class CoupledCircuit:
         self.probes: dict[str, str] = {}        # 探针名 -> 节点名
         self.history: dict[str, list[tuple[int, float]]] = {}
         self.enabled = False
-        self._last_ns = 0
+        self._last_ns = board.sysctrl.now_ns
+        self._remainder_ns = 0
         self._prev_volts: dict[str, float] = {}
         self.max_substeps = 2000
 
@@ -240,13 +241,19 @@ class CoupledCircuit:
         # 即本窗口末尾——分段常数源语义）
         for pin, src in self.pin_sources.items():
             src.volts = self._prev_volts.get(pin, 0.0)
-        elapsed = now_ns - self._last_ns
-        n_sub = max(1, int(elapsed // self.dt_ns))
-        n_sub = min(n_sub, self.max_substeps)
+        elapsed = max(0, int(now_ns) - self._last_ns)
+        self._last_ns = int(now_ns)
+        self._remainder_ns += elapsed
+        n_sub = self._remainder_ns // self.dt_ns
+        if n_sub <= 0:
+            return
+        # 不超过时间片实际经过的固定步数；不足 dt 的尾数保留到下一次调用，
+        # 避免短片/高频事件导致模拟时间被人为加速。
+        n_sub = min(int(n_sub), self.max_substeps)
         for _ in range(n_sub):
             self.circuit.step(self.dt_ns / 1e9)
+        self._remainder_ns -= n_sub * self.dt_ns
         self.stepped = True
-        self._last_ns = now_ns
         # 为下一窗口采样当前电平
         for pin, src in self.pin_sources.items():
             if not (pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE"
