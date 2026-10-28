@@ -98,7 +98,7 @@ class Adc(Peripheral):
             port, pin = _CH_PINS[ch]
             schematic = self.board.devices.get("schematic")
             voltage_reader = getattr(schematic, "mcu_pin_voltage", None)
-            v = voltage_reader("ABCDE"[port] + str(pin)) if callable(voltage_reader) else None
+            v = voltage_reader("P" + "ABCDE"[port] + str(pin)) if callable(voltage_reader) else None
             if v is None:
                 net = self.board.resolved_net(port, pin)
                 v = net.voltage()
