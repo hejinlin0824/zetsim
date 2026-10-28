@@ -15,32 +15,70 @@ from pathlib import Path
 
 PROJECT_FILES = ("main.c", "startup.c", "stm32f103.h", "link.ld")   # 模板文件
 PROTECTED = ("main.c", "startup.c", "link.ld")                      # 不可删除
-_CFLAGS = ["-mcpu=cortex-m3", "-mthumb", "-nostdlib", "-O0", "-g",
-           "-ffreestanding", "-Wall"]
+_TARGET_FLAGS = ["-mcpu=cortex-m3", "-mthumb"]
+_CFLAGS = [*_TARGET_FLAGS, "-nostdlib", "-O0", "-g", "-ffreestanding", "-Wall"]
 _REPO = Path(__file__).resolve().parent.parent
+
+
+def _query_libgcc(gcc: str) -> tuple[str | None, str]:
+    """Ask GCC for the runtime archive selected for Cortex-M3 Thumb and verify it exists.
+
+    Use the compiler's own multilib selection rather than asking ld to resolve -lgcc.
+    This also lets us report a damaged/incomplete toolchain before the linker emits a
+    less actionable "cannot find -lgcc" message.
+    """
+    try:
+        result = subprocess.run(
+            [gcc, *_TARGET_FLAGS, "-print-libgcc-file-name"],
+            capture_output=True, text=True, errors="replace", timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, str(exc)
+
+    reported = result.stdout.strip().strip('"')
+    if result.returncode != 0 or not reported:
+        detail = (result.stderr or result.stdout).strip() or f"exit code {result.returncode}"
+        return None, detail
+
+    archive = Path(reported)
+    if not archive.is_absolute():
+        archive = Path(gcc).resolve().parent / archive
+    if not archive.is_file():
+        return None, reported
+    return str(archive.resolve()), reported
 
 
 def find_gcc() -> str | None:
     """找到 arm-none-eabi-gcc：PATH → 项目级 .toolchain/ → winget 安装目录。"""
-    gcc = shutil.which("arm-none-eabi-gcc")
-    if gcc:
-        return gcc
-    local = _REPO / ".toolchain"                    # setup_env.py 装的项目级编译器
+    candidates: list[str] = []
+    system = shutil.which("arm-none-eabi-gcc")
+    if system:
+        candidates.append(system)
+
+    local = _REPO / ".toolchain"
     if local.exists():
         for pat in ("**/bin/arm-none-eabi-gcc.exe", "**/bin/arm-none-eabi-gcc"):
-            hits = sorted(local.glob(pat))
-            if hits:
-                return str(hits[0])
+            candidates.extend(str(path) for path in sorted(local.glob(pat)))
+
     for base in (r"C:\Program Files (x86)", r"C:\Program Files"):
-        p = Path(base)
-        if not p.exists():
+        root = Path(base)
+        if not root.exists():
             continue
-        # winget 布局：Arm GNU Toolchain arm-none-eabi\<版本>\bin\arm-none-eabi-gcc.exe
-        for d in sorted(p.glob("Arm GNU Toolchain*"), reverse=True):
-            for sub in sorted(d.iterdir(), reverse=True) if d.is_dir() else []:
-                cand = sub / "bin" / "arm-none-eabi-gcc.exe"
-                if cand.exists():
-                    return str(cand)
+        for directory in sorted(root.glob("Arm GNU Toolchain*"), reverse=True):
+            for sub in sorted(directory.iterdir(), reverse=True) if directory.is_dir() else []:
+                candidate = sub / "bin" / "arm-none-eabi-gcc.exe"
+                if candidate.exists():
+                    candidates.append(str(candidate))
+
+    seen: set[str] = set()
+    for gcc in candidates:
+        normalized = os.path.normcase(os.path.abspath(gcc))
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        libgcc, _reported = _query_libgcc(gcc)
+        if libgcc:
+            return gcc
     return None
 
 
@@ -51,10 +89,26 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
         return False, f"目录里没有 main.c：{project_dir}"
     gcc = find_gcc()
     if not gcc:
-        return False, ("未找到 arm-none-eabi-gcc（C 编译器）。安装：\n"
+        return False, ("未找到可用的 arm-none-eabi-gcc 工具链（编译器或 libgcc 运行库缺失）。安装/检查：\n"
                        "  python setup_env.py        （推荐：项目级，不动系统）\n"
                        "  winget install Arm.GnuArmEmbeddedToolchain\n"
-                       "装完重试编译即可。")
+                       "若编译器已经存在，请运行 arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -print-libgcc-file-name，\n"
+                       "并检查它输出的 libgcc.a 是否真实存在。必要时重新安装完整工具链。")
+
+    # Resolve libgcc from the selected multilib explicitly. Some Windows toolchain
+    # installs fail to expose its directory to ld's -lgcc lookup even when the
+    # compiler can identify the archive. Passing the actual archive path avoids
+    # depending on implicit -L search paths.
+    libgcc, reported = _query_libgcc(gcc)
+    if not libgcc:
+        return False, (
+            f"工具链运行库缺失：{gcc}\n"
+            f"GCC 报告的 libgcc 路径：{reported or '(无输出)'}\n"
+            "该工具链可能安装不完整，不能完成裸机链接。请运行 python setup_env.py 重新检查，"
+            "或安装完整的 Arm GNU Toolchain。\n"
+            "如果仓库路径包含中文/特殊字符，请将项目放到纯英文路径（例如 E:\\codebase\\zetsim）后重试。"
+        )
+
     tool_dir = Path(gcc).parent
     exe_suffix = ".exe" if os.name == "nt" else ""
     objcopy = tool_dir / ("arm-none-eabi-objcopy" + exe_suffix)
@@ -64,23 +118,22 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     elf = project_dir / "firmware.elf"
     hexf = project_dir / "firmware.hex"
 
-    cmd = [gcc, *_CFLAGS, *srcs, "-lgcc",
+    cmd = [gcc, *_CFLAGS, *srcs, libgcc,
            "-I", str(project_dir),
            "-T", str(project_dir / "link.ld"),
            "-Wl,--gc-sections", "-o", str(elf)]
-    r = subprocess.run(cmd, capture_output=True, text=True, cwd=project_dir,
-                       encoding="utf-8", errors="replace")
+    r = subprocess.run(cmd, capture_output=True, text=True, errors="replace", cwd=project_dir)
     log = "$ arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb ...\n" + (r.stdout + r.stderr).strip()
     if r.returncode != 0:
         return False, log
 
     r2 = subprocess.run([str(objcopy), "-O", "ihex", str(elf), str(hexf)],
-                        capture_output=True, text=True, encoding="utf-8", errors="replace")
+                        capture_output=True, text=True, errors="replace", cwd=project_dir)
     if r2.returncode != 0:
         return False, log + "\n" + r2.stderr
 
     r3 = subprocess.run([str(size_tool), str(elf)],
-                        capture_output=True, text=True, encoding="utf-8", errors="replace")
+                        capture_output=True, text=True, errors="replace", cwd=project_dir)
     size_line = [ln for ln in r3.stdout.splitlines() if ln.strip()][1] if r3.stdout else ""
     log += f"\n\n   text    data     bss\n{size_line}\n✓ 已生成 firmware.hex（可直接 zetsim serve 加载）"
     return True, log
