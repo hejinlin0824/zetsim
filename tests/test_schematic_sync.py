@@ -70,7 +70,7 @@ def test_removed_probe_is_removed_and_isolated_probe_falls_back_from_spice():
     assert set(schematic.probes) == {"PR1", "PR2"}
     assert schematic.spice is not None
     # Only GPIOs connected to analog/interactive circuit elements should enter the MNA solver.
-    assert set(schematic.spice.pin_sources) == {"PA0", "PA5"}
+    assert set(schematic.spice.pin_sources) == {"PA0", "PA5", "PA6"}
 
     isolated_net_id = schematic.probes["PR2"].net_id
     # PR2 is not connected to any SPICE element; sampling it must not raise KeyError.
@@ -174,15 +174,23 @@ def test_gpio_spice_source_has_finite_output_impedance():
     rail = coupled.circuit.add_source("VCC_TEST", "GND")
     rail.volts = 3.3
     source = coupled.attach_pin("PA5", "VCC_TEST")
+    drive_resistor = coupled.pin_resistors["PA5"]
 
     assert source.n1.name == "__gpio_drive_PA5"
-    assert any(
-        isinstance(comp, Resistor)
-        and {comp.n1.name, comp.n2.name} == {"__gpio_drive_PA5", "VCC_TEST"}
-        and comp.r == pytest.approx(25.0)
-        for comp in coupled.circuit.comps
-    )
-    coupled.circuit.step(5e-6)
+    assert {drive_resistor.n1.name, drive_resistor.n2.name} == {"__gpio_drive_PA5", "VCC_TEST"}
+    # Reset-mode GPIO is floating input, so it must not inject a virtual 0V output into the net.
+    assert drive_resistor.r == pytest.approx(1e12)
+
+    # Configure PA5 as push-pull output and set ODR high.
+    gpio = board.gpios[0]
+    gpio.write(0x00, 4, (0x44444444 & ~(0xF << 20)) | (0x3 << 20))
+    gpio.write(0x0C, 4, 1 << 5)
+
+    # The current interval is solved with the previously cached state; this captures the new mode.
+    coupled.step(5_000)
+    assert drive_resistor.r == pytest.approx(25.0)
+    assert source.volts == pytest.approx(3.3)
+    coupled.step(10_000)
     assert all(abs(value) < float("inf") for value in coupled.circuit._last)
     assert coupled.circuit.voltage("VCC_TEST") == pytest.approx(3.3)
 
