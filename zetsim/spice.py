@@ -245,8 +245,12 @@ class CoupledCircuit:
                 resistor.r = 1e12
                 continue
 
-            # AF 输出由 TIM 等外设驱动；通用输出由 GPIO ODR 驱动。
-            level = net.af_level if cnf in (0b10, 0b11) else net.mcu_level
+            # 同一电气网可能包含多个 MCU 引脚；每个 SPICE 驱动必须读取自己的输出级状态。
+            key = (port_idx, pin_idx)
+            if cnf in (0b10, 0b11):
+                level = net.af_outputs.get(key, net.af_level)
+            else:
+                level = net.mcu_outputs.get(key, net.mcu_level)
             if level is None:
                 # 开漏输出写 1 是释放引脚，必须由外部上拉决定电平。
                 resistor.r = 1e12
