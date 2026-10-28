@@ -123,8 +123,30 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     elf = project_dir / "firmware.elf"
     hexf = project_dir / "firmware.hex"
 
-    cmd = [gcc, *_CFLAGS, *srcs, libgcc,
+    device_include = _REPO / "third_party" / "cmsis-device-f1" / "Include"
+    core_include = _REPO / "third_party" / "CMSIS_5" / "CMSIS" / "Core" / "Include"
+    required_headers = (
+        device_include / "stm32f1xx.h",
+        device_include / "stm32f103xe.h",
+        core_include / "core_cm3.h",
+        core_include / "cmsis_compiler.h",
+        core_include / "cmsis_gcc.h",
+        core_include / "cmsis_version.h",
+        core_include / "mpu_armv7.h",
+    )
+    missing_headers = [str(path) for path in required_headers if not path.is_file()]
+    if missing_headers:
+        return False, (
+            "STM32 官方 CMSIS 头文件缺失，无法构建教学项目：\\n  "
+            + "\\n  ".join(missing_headers)
+            + "\\n请确认 third_party/ 目录完整，或重新拉取 DEV。"
+        )
+
+    cmd = [gcc, *_CFLAGS,
            "-I", str(project_dir),
+           "-I", str(device_include),
+           "-I", str(core_include),
+           *srcs, libgcc,
            "-T", str(project_dir / "link.ld"),
            "-Wl,--gc-sections", "-o", str(elf)]
     r = subprocess.run(cmd, capture_output=True, text=True, errors="replace", cwd=project_dir)

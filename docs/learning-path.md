@@ -433,6 +433,10 @@ main.c 中关键配置包括：
 
 ## 4. 看懂 C 工程中的四个文件
 
+六个可编译工程通常都包含 main.c、startup.c、stm32f103.h 和 link.ld。这里需要特别说明：`stm32f103.h` 现在只是一个很薄的兼容包装，不再手写寄存器结构体。实际设备定义来自 ST 官方 CMSIS 的 `third_party/cmsis-device-f1/Include/stm32f103xe.h`，核心 Cortex-M3 定义来自 ARM CMSIS。STM32F103ZET6 使用 `STM32F103xE` 型号选择宏；官方 CMSIS 设备头文件名是 `stm32f103xe.h`，而不是按完整订货号命名的 `stm32f103zet6.h`。
+
+要追溯这些定义，可打开 [third_party/README.md](../third_party/README.md)，其中记录了上游仓库、固定版本提交号和许可证。不要直接编辑厂商头文件来“适配”示例；示例项目保留 `stm32f103.h` 作为兼容入口，构建器会自动添加官方 CMSIS include 路径。
+
 六个可编译工程通常都包含 main.c、startup.c、stm32f103.h 和 link.ld。可以把它们理解成四个不同的问题。
 
 | 文件 | 它回答的问题 | 学习时怎么读 |
