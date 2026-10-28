@@ -52,7 +52,18 @@ Web 版“布线检查”目前覆盖以下基础规则：
 
 ## 当前边界与后续建设
 
-案例库中的 blink、button_exti、hello_echo、pwm_adc 属于 `tools/gen_firmware.py` 生成的演示固件。当前完整可编辑 C 项目为 `projects/led_marquee`；它适合练习保存、编译、加载和修改程序。后续可以把每个案例升级为独立、可编译的 C 工程，并逐步增加真实中断向量、UART、定时器、ADC 与 SPICE 反馈控制项目。
+案例库中的 blink、button_exti、hello_echo、pwm_adc 属于 `tools/gen_firmware.py` 生成的演示固件。当前六个案例均有独立的可编辑 C 项目，采用共同的 `main.c`、`startup.c`、`stm32f103.h` 与 `link.ld` 工程骨架：
+
+| 案例 | 工程目录 | 实战重点 |
+|---|---|---|
+| GPIO 闪灯 | `projects/gpio_blink` | RCC、GPIO 输出、SysTick 延时 |
+| 8 灯跑马灯 | `projects/led_marquee` | 位运算、GPIO 多路输出、循环 |
+| EXTI 按键 | `projects/exti_button` | EXTI/NVIC 配置与中断向量表 |
+| USART1 回显 | `projects/uart_echo` | TXE/RXNE 状态位与轮询收发 |
+| ADC 控制 PWM | `projects/pwm_adc_control` | ADC1 采样值映射到 TIM2_CCR1 |
+| RC 滤波 | `projects/pwm_rc_filter` | 固定 PWM 信号源、RC 时间常数与纹波 |
+
+案例库里的预编译 HEX 仍保留为“快速观察”路径；想改代码并做实战时，打开对应 C 工程、保存、编译和运行。跨平台编译器缺失时，先运行根目录的 `python setup_env.py`。项目源码已加入结构与关键寄存器路径测试，但新建的 C 工程仍需在本地工具链和浏览器里逐一编译、运行验收；静态测试本身不能替代真实编译或电气验证。
 
 推荐的长期建设顺序：
 
