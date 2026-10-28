@@ -109,6 +109,7 @@ class Dashboard:
         with self.lock:
             self.running = False
             self.board.reset()
+            self.sch.rebase_time()       # 仿真时钟归零时，SPICE 也重置时间基准但保留外部电路状态
             self.board.core.load_file(path)
             self.board.core.reset_cpu()      # 烧录=复位：从新固件的复位向量重新执行
             self.firmware_path = path
