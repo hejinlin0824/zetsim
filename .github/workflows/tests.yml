@@ -51,8 +51,12 @@ jobs:
           assert "schematicPushQueue" in html, "missing serialized circuit sync queue"
           assert "await pushSchematic()" in html, "boot recovery must await schematic sync"
           assert "lastBoot=s.boot_id" in html, "boot marker is not committed after recovery"
-          assert "main:has(#leftPanel.hidden):has(#rightPanel.hidden)" in html, "canvas must expand when both side panels are hidden"
+          assert "main{flex:1;display:grid;grid-template-columns:196px minmax(0,1fr) 292px" in html, "default grid must allow the canvas column to shrink safely"
+          assert "main:has(#leftPanel.hidden){grid-template-columns:minmax(0,1fr) 292px}" in html, "canvas must expand when the left panel is hidden"
+          assert "main:has(#rightPanel.hidden){grid-template-columns:196px minmax(0,1fr)}" in html, "canvas must expand when the right panel is hidden"
+          assert "main:has(#leftPanel.hidden):has(#rightPanel.hidden){grid-template-columns:minmax(0,1fr)}" in html, "canvas must fill the row when both side panels are hidden"
           assert "return{x:e.clientX-r.left,y:e.clientY-r.top};" in html, "pointer coordinates must remain in CSS pixels across DPR changes"
           assert "const k=cv.width/r.width/devicePixelRatio" not in html, "stale canvas backing-store size must not distort pointer coordinates"
-          print("Frontend circuit-sync and canvas-layout invariants verified.")
+          assert "cv.width!==Math.round(pr.width*dpr)||cv.height!==Math.round(pr.height*dpr)" in html, "polling must repair both canvas backing-store dimensions after DPR changes"
+          print("Frontend circuit-sync, responsive-layout, and DPR invariants verified.")
           PY
