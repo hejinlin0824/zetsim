@@ -114,15 +114,18 @@ def test_led_series_resistor_spice():
     g = board.gpios[0]
     g.write(0x00, 4, 0x00200000)
     g.write(0x0C, 4, 0x20)            # PA5 = 3.3V
+    spice_time_ns = 0
     for _ in range(30):
-        s.spice.step(1e-6)
+        spice_time_ns += s.spice.dt_ns
+        s.spice.step(spice_time_ns)
     d = s._spice_leds["LED1"]
     i = abs(d.i_last)
     assert 2e-3 < i < 20e-3, f"LED 电流 {i*1e3:.2f}mA 异常"
     assert s.led_states()["LED1"]["on"] is True
     g.write(0x0C, 4, 0)
     for _ in range(30):
-        s.spice.step(1e-6)
+        spice_time_ns += s.spice.dt_ns
+        s.spice.step(spice_time_ns)
     assert abs(d.i_last) < 1e-6
     assert s.led_states()["LED1"]["on"] is False
 
