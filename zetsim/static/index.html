@@ -1105,12 +1105,16 @@ function auditWiring(){
  const findings=[],components=sch.components||[],wires=sch.wires||[];
  const byId=new Map(components.map(c=>[c.id,c])),used=new Set(),seen=new Set();
  const add=(severity,code,title,detail)=>findings.push({severity,code,title,detail});
- const endpointKey=r=>Array.isArray(r)?String(r[0])+"."+String(r[1]):"";
+ const endpointKey=r=>Array.isArray(r)&&r.length>=2?String(r[0])+"."+String(r[1]):"";
  const pinType=r=>{const c=Array.isArray(r)?byId.get(r[0]):null;return c&&Array.isArray(PINS[c.type])&&PINS[c.type].includes(r[1])?c:null;};
- const isEndpoint=(w,ref)=>endpointKey(w.a)===endpointKey(ref)||endpointKey(w.b)===endpointKey(ref);
- const endpointOf=(w,ref)=>endpointKey(w.a)===endpointKey(ref)?w.b:w.a;
+ const isEndpoint=(w,ref)=>!!w&&(endpointKey(w.a)===endpointKey(ref)||endpointKey(w.b)===endpointKey(ref));
+ const endpointOf=(w,ref)=>!w?[]:(endpointKey(w.a)===endpointKey(ref)?w.b:w.a);
  for(let i=0;i<wires.length;i++){
-   const w=wires[i],a=pinType(w.a),b=pinType(w.b);
+   const w=wires[i];
+   if(!w||!Array.isArray(w.a)||!Array.isArray(w.b)){
+     add("error","WIRE_FORMAT","导线数据格式无效","第 "+(i+1)+" 条导线缺少有效的起点或终点。重新绘制这条导线。");continue;
+   }
+   const a=pinType(w.a),b=pinType(w.b);
    if(!a||!b){add("error","WIRE_PIN","导线端点无效","第 "+(i+1)+" 条导线引用了不存在的元件或引脚。删除后重新连接。");continue;}
    const ka=endpointKey(w.a),kb=endpointKey(w.b);used.add(ka);used.add(kb);
    if(ka===kb)add("error","WIRE_SELF","导线两端连接同一引脚","第 "+(i+1)+" 条导线没有形成有效连接。");
