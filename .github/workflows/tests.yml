@@ -65,9 +65,11 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           html = Path("zetsim/static/index.html").read_text(encoding="utf-8")
+          case_ids = ["gpio-blink", "led-marquee", "exti-button", "uart-echo", "pwm-adc", "rc-filter"]
+          missing_cases = [case_id for case_id in case_ids if f'id:"{case_id}"' not in html]
+          assert not missing_cases, f"missing learning cases: {missing_cases}"
           required = {
               'case library button': 'id="casesBtn"',
-              'six learning cases': 'id:"rc-filter"',
               'wiring checker': 'function auditWiring()',
               'MCU power check': 'MCU_VDD',
               'wire duplicate check': 'WIRE_DUP',
