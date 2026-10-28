@@ -233,7 +233,15 @@ class Schematic:
         source = self._spice_pots.get(comp_id)
         if source is not None:
             source.volts = value
-        # MCU 接入的电位器通过其共享 Net 被采样；不重建求解器，避免 RC 状态归零。
+        # 电位器接到 MCU 引脚时，当前 SPICE 源也应在本时间片立即看到新值，
+        # 否则下一次步进仍会先使用上一片缓存的电压。
+        root = self.pin_net.get((comp_id, "W"))
+        if root is not None and self.spice is not None:
+            for pin, pin_root in self.mcu_pin_nets.items():
+                if pin_root == root and pin in self.spice.pin_sources:
+                    self.spice.pin_sources[pin].volts = value
+                    self.spice._prev_volts[pin] = value
+        # 不重建求解器，避免 RC 状态归零。
         return True
 
     # ---------------- 网表提取 ----------------
