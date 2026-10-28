@@ -12,6 +12,7 @@
   5. 探针 -> 记录网络电压轨迹（示波器通道）
 """
 from __future__ import annotations
+import math
 from .board import Board
 from .devices import Led, Button, Potentiometer
 from .spice import CoupledCircuit
@@ -95,18 +96,106 @@ class Schematic:
         self.pot_values: dict[str, float] = {}
         self.spice: CoupledCircuit | None = None
         self._spice_leds: dict[str, object] = {}           # led id -> Diode
+        self._spice_buttons: dict[str, object] = {}        # button id -> live Resistor
+        self._spice_pots: dict[str, object] = {}           # pot id -> live VoltageSource
         self._node_of_net: dict[str, str] = {}
+
+    @staticmethod
+    def _validated_data(data: dict) -> dict:
+        """校验整个画布快照，再允许它影响正在运行的电路。"""
+        if not isinstance(data, dict):
+            raise ValueError("原理图必须是对象")
+        raw_components = data.get("components", [])
+        raw_wires = data.get("wires", [])
+        if not isinstance(raw_components, list) or not isinstance(raw_wires, list):
+            raise ValueError("components 和 wires 必须是数组")
+
+        components = []
+        by_id: dict[str, dict] = {}
+        mcu_count = 0
+        for index, raw in enumerate(raw_components):
+            if not isinstance(raw, dict):
+                raise ValueError(f"元件 #{index + 1} 必须是对象")
+            cid, kind = raw.get("id"), raw.get("type")
+            if not isinstance(cid, str) or not cid.strip() or cid != cid.strip():
+                raise ValueError(f"元件 #{index + 1} 的 id 无效")
+            if cid in by_id:
+                raise ValueError(f"元件 id 重复：{cid}")
+            if kind not in PIN_DEFS:
+                raise ValueError(f"元件 {cid} 的类型不支持：{kind}")
+            if kind == "mcu":
+                mcu_count += 1
+                if mcu_count > 1:
+                    raise ValueError("一个原理图只能放置一个 STM32 MCU")
+            props = raw.get("props", {})
+            if not isinstance(props, dict):
+                raise ValueError(f"元件 {cid} 的 props 必须是对象")
+            comp = dict(raw)
+            comp["id"], comp["type"] = cid, kind
+            comp["props"] = dict(props)
+            for coord in ("x", "y"):
+                try:
+                    value = float(raw.get(coord, 0))
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(f"元件 {cid} 的 {coord} 坐标无效") from exc
+                if not math.isfinite(value):
+                    raise ValueError(f"元件 {cid} 的 {coord} 坐标必须是有限数")
+                comp[coord] = value
+            for prop, default, label in (("ohms", 1000.0, "电阻"), ("farads", 100e-9, "电容")):
+                if (kind == "resistor" and prop == "ohms") or (kind == "capacitor" and prop == "farads"):
+                    try:
+                        value = float(comp["props"].get(prop, default))
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError(f"元件 {cid} 的{label}值无效") from exc
+                    if not math.isfinite(value) or value <= 0:
+                        raise ValueError(f"元件 {cid} 的{label}值必须是有限正数")
+                    comp["props"][prop] = value
+            components.append(comp)
+            by_id[cid] = comp
+
+        wires = []
+        for index, raw in enumerate(raw_wires):
+            if not isinstance(raw, dict):
+                raise ValueError(f"连线 #{index + 1} 必须是对象")
+            endpoints = []
+            for field in ("a", "b"):
+                endpoint = raw.get(field)
+                if not isinstance(endpoint, (list, tuple)) or len(endpoint) != 2:
+                    raise ValueError(f"连线 #{index + 1} 的 {field} 端点格式无效")
+                cid, pin = endpoint
+                if not isinstance(cid, str) or cid not in by_id:
+                    raise ValueError(f"连线 #{index + 1} 引用了不存在的元件：{cid}")
+                if not isinstance(pin, str) or pin not in PIN_DEFS[by_id[cid]["type"]]:
+                    raise ValueError(f"元件 {cid} 不存在引脚 {pin}")
+                endpoints.append([cid, pin])
+            wire = dict(raw)
+            wire["a"], wire["b"] = endpoints
+            wires.append(wire)
+
+        normalized = dict(data)
+        normalized["components"], normalized["wires"] = components, wires
+        return normalized
 
     # ---------------- 对外 ----------------
     def apply(self, data: dict):
-        self.data = data
-        self._extract()
-        self._bind()
+        candidate = self._validated_data(data)
+        previous = self.data
+        self.data = candidate
+        try:
+            self._extract()
+            self._bind()
+        except Exception:
+            # 构建意外失败时回到上一个可运行快照，而不是留下半更新的网表。
+            self.data = previous
+            self._extract()
+            self._bind()
+            raise
 
     def net_voltage(self, net_id: str) -> float:
         nid = self._node_of_net.get(net_id)
-        if self.spice and nid:
+        if self.spice and nid and nid in self.spice.circuit.nodes:
             return self.spice.circuit.voltage(nid)
+        # 孤立探针/没有进入 SPICE 网表的节点回退到数字 Net，不应让仿真线程抛 KeyError。
         net = self._net_of(net_id)
         if net is None:
             return 0.0
@@ -114,21 +203,38 @@ class Schematic:
         return v if v is not None else (3.3 if net.level == 1 else 0.0)
 
     # ---------------- 器件交互 ----------------
-    def press(self, comp_id: str, down: bool):
+    def press(self, comp_id: str, down: bool) -> bool:
         btn = self.buttons.get(comp_id)
-        if btn and down and btn.pressed:
+        if btn is None:
+            return False
+        if down and btn.pressed:
             btn.release()          # 上一轮 release 丢失（页面失焦等）：先复位再按，保证有上升沿
-        self.button_states[comp_id] = down
-        if btn:
-            (btn.press if down else btn.release)()
-        self._rebuild_spice()
+        self.button_states[comp_id] = bool(down)
+        (btn.press if down else btn.release)()
+        # 只更新当前电路里的开关电阻，不重建 SPICE；保留电容/二极管的动态状态。
+        resistor = self._spice_buttons.get(comp_id)
+        if resistor is not None:
+            resistor.r = 10.0 if down else 10e6
+        return True
 
-    def set_pot(self, comp_id: str, volts: float):
-        self.pot_values[comp_id] = max(0.0, min(3.3, volts))
+    def set_pot(self, comp_id: str, volts: float) -> bool:
         pot = self.pots.get(comp_id)
-        if pot:
-            pot.set(self.pot_values[comp_id])
-        self._rebuild_spice()
+        if pot is None:
+            return False
+        try:
+            value = float(volts)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("电位器电压必须是数字") from exc
+        if not math.isfinite(value):
+            raise ValueError("电位器电压必须是有限数")
+        value = max(0.0, min(3.3, value))
+        self.pot_values[comp_id] = value
+        pot.set(value)
+        source = self._spice_pots.get(comp_id)
+        if source is not None:
+            source.volts = value
+        # MCU 接入的电位器通过其共享 Net 被采样；不重建求解器，避免 RC 状态归零。
+        return True
 
     # ---------------- 网表提取 ----------------
     def _extract(self):
@@ -154,15 +260,15 @@ class Schematic:
 
     # ---------------- 接线 ----------------
     def _net_of(self, net_id: str):
-        """网络对应的最合适驱动 Net（优先 MCU 引脚 Net）。"""
+        """网络对应的最合适驱动 Net；同一原理图网络中的 MCU 引脚共享运行时 Net。"""
         best = None
         for cid, pin in self.nets.get(net_id, []):
             comp = self.components.get(cid)
             if comp is None:
                 continue
-            if comp["type"] == "mcu" and pin.startswith("P"):
+            if comp["type"] == "mcu" and pin.startswith("P") and len(pin) > 2:
                 port_idx = "ABCDE".index(pin[1])
-                return self.board.net(port_idx, int(pin[2:]))
+                return self.board.resolved_net(port_idx, int(pin[2:]))
             best = best or self._synth_net(net_id)
         return best
 
@@ -192,14 +298,35 @@ class Schematic:
         else:
             self.mcu_powered = True
             self.board.mcu_power = True
-        # 1) 清掉旧绑定（保留 EXTI 板级 watcher）
+        # 1) 清掉旧原理图别名与器件绑定（保留每个物理 MCU 引脚的 EXTI watcher）。
+        board.clear_schematic_bindings()
         for n in board.nets.values():
             n.reset_bindings()
         board.schematic_nets.clear()
         self.leds.clear()
         self.buttons.clear()
         self.pots.clear()
-        # 2) 生成器件并接网络
+        self.probes.clear()             # 删除/重建探针时不能残留旧 trace
+        self._spice_leds.clear()
+        self._spice_buttons.clear()
+        self._spice_pots.clear()
+
+        # 2) 将同一 union-find 网络里的 MCU GPIO 物理引脚映射到同一个运行时 Net。
+        for root, refs in self.nets.items():
+            gpio_refs = [
+                (cid, pin) for cid, pin in refs
+                if self.components[cid]["type"] == "mcu"
+                and len(pin) > 2 and pin.startswith("P")
+                and pin[1] in "ABCDE" and pin[2:].isdigit()
+            ]
+            if not gpio_refs:
+                continue
+            first_pin = gpio_refs[0][1]
+            shared = board.net("ABCDE".index(first_pin[1]), int(first_pin[2:]))
+            for _cid, pin in gpio_refs:
+                board.bind_schematic_pin("ABCDE".index(pin[1]), int(pin[2:]), shared)
+
+        # 3) 生成器件并接网络
         for cid, comp in self.components.items():
             t = comp["type"]
             props = comp.get("props", {})
@@ -241,11 +368,16 @@ class Schematic:
         if not need:
             self.spice = None
             self._spice_leds.clear()
+            self._spice_buttons.clear()
+            self._spice_pots.clear()
             self._node_of_net = {}
             board.devices.pop("spice", None)
             return
         cc = CoupledCircuit(board, dt_ns=5_000)
         self.spice = cc
+        self._spice_leds.clear()
+        self._spice_buttons.clear()
+        self._spice_pots.clear()
         board.devices["spice"] = cc
         # 网络名 -> 节点名；含 GND 元件的网络为参考地
         self._node_of_net = {}
@@ -255,19 +387,26 @@ class Schematic:
                 ground_roots.add(self.pin_net[(cid, "G")])
         for root in self.nets:
             self._node_of_net[root] = "GND" if root in ground_roots else f"n{root[:12]}"
-        # MCU 引脚 / VCC -> 电压源
+        # MCU GPIO / VCC -> 电压源。一个共享网络只装一个 GPIO 源，避免同节点重复理想源导致奇异矩阵。
+        mcu_nodes = set()
+        attached_nodes = set()
+        for pin, root in self.mcu_pin_nets.items():
+            if not (pin.startswith("P") and len(pin) > 2 and pin[1] in "ABCDE" and pin[2:].isdigit()):
+                continue
+            node = self._node_of_net.get(root)
+            if node in (None, "GND") or node in attached_nodes:
+                continue
+            cc.attach_pin(pin, node)
+            attached_nodes.add(node)
+            mcu_nodes.add(node)
         for cid, comp in self.components.items():
-            if comp["type"] == "mcu":
-                for pin, root in self.mcu_pin_nets.items():
-                    if self._node_of_net.get(root) not in (None, "GND"):
-                        cc.attach_pin(pin, self._node_of_net[root])
-            elif comp["type"] == "vcc":
+            if comp["type"] == "vcc":
                 root = self.pin_net[(cid, "V")]
                 node = self._node_of_net.get(root)
                 if node and node != "GND":
                     src = cc.circuit.add_source(node, "GND")
                     src.volts = 3.3
-        # R / C / LED
+        # R / C / LED / 按键和电位器
         for cid, comp in self.components.items():
             props = comp.get("props", {})
             t = comp["type"]
@@ -288,7 +427,19 @@ class Schematic:
                 # 按下 = 10Ω 接通，松开 = 10MΩ（数字驱动之外补充模拟路径）
                 na, nb = self._two_nodes(cid)
                 if na and nb:
-                    cc.circuit.add_r(na, nb, 10.0 if self.button_states.get(cid) else 10e6)
+                    self._spice_buttons[cid] = cc.circuit.add_r(
+                        na, nb, 10.0 if self.button_states.get(cid) else 10e6)
+        # 没有直连 MCU GPIO 的电位器 wiper 以可调 0..3.3V 源进入模拟网表；
+        # 直连 MCU 的情况则由该 GPIO 的共享 Net 采样，避免并联两个理想源。
+        for cid, comp in self.components.items():
+            if comp["type"] != "pot":
+                continue
+            root = self.pin_net.get((cid, "W"))
+            node = self._node_of_net.get(root)
+            if node and node != "GND" and node not in mcu_nodes:
+                src = cc.circuit.add_source(node, "GND")
+                src.volts = self.pot_values.get(cid, 1.65)
+                self._spice_pots[cid] = src
 
     def _two_nodes(self, cid):
         comp = self.components[cid]
