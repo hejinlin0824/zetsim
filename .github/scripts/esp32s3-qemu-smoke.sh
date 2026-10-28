@@ -16,19 +16,22 @@ if ! command -v script >/dev/null 2>&1; then
     echo "The QEMU smoke test requires the util-linux script command for a pseudo-terminal." >&2
     exit 2
 fi
-set +e
 # QEMU's stdio serial backend needs a TTY; script provides a PTY while recording UART output.
-script -q -e -c "timeout --kill-after=5s 12s idf.py qemu" "$log_file"
-qemu_status=$?
-set -e
-cat "$log_file"
+# Stop the QEMU child directly. Wrapping idf.py in timeout can kill only the
+# parent while leaving the QEMU subprocess attached to the PTY indefinitely.
+script -q -c "idf.py qemu" "$log_file" &
+session_pid=$!
 
-# QEMU intentionally runs forever because the example blinks continuously.
-# GNU timeout commonly returns 124; 143 can be returned when TERM reaches QEMU.
-if [ "$qemu_status" -ne 0 ] && [ "$qemu_status" -ne 124 ] && [ "$qemu_status" -ne 143 ]; then
-    rm -f "$log_file"
-    exit "$qemu_status"
-fi
+# Let the app boot and emit multiple UART heartbeats before stopping QEMU.
+sleep 15
+pkill -TERM -f '[q]emu-system-xtensa -M esp32s3' || true
+sleep 2
+pkill -KILL -f '[q]emu-system-xtensa -M esp32s3' || true
+pkill -TERM -f '[i]df.py qemu' || true
+sleep 1
+kill -TERM "$session_pid" 2>/dev/null || true
+wait "$session_pid" 2>/dev/null || true
+cat "$log_file"
 
 grep -Fq "ZETSIM_ESP32S3_BOOT_OK" "$log_file"
 grep -Fq "ZETSIM_ESP32S3_GPIO2=" "$log_file"
