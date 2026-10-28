@@ -51,5 +51,8 @@ jobs:
           assert "schematicPushQueue" in html, "missing serialized circuit sync queue"
           assert "await pushSchematic()" in html, "boot recovery must await schematic sync"
           assert "lastBoot=s.boot_id" in html, "boot marker is not committed after recovery"
-          print("Frontend circuit-sync invariants verified.")
+          assert "main:has(#leftPanel.hidden):has(#rightPanel.hidden)" in html, "canvas must expand when both side panels are hidden"
+          assert "return{x:e.clientX-r.left,y:e.clientY-r.top};" in html, "pointer coordinates must remain in CSS pixels across DPR changes"
+          assert "const k=cv.width/r.width/devicePixelRatio" not in html, "stale canvas backing-store size must not distort pointer coordinates"
+          print("Frontend circuit-sync and canvas-layout invariants verified.")
           PY
