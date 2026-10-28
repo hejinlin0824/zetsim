@@ -54,7 +54,7 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
                        "  python setup_env.py        （推荐：项目级，不动系统）\n"
                        "  winget install Arm.GnuArmEmbeddedToolchain\n"
                        "装完重试编译即可。")
-    tool_dir = Path(gcc).resolve().parent
+    tool_dir = Path(gcc).parent
     exe_suffix = ".exe" if os.name == "nt" else ""
     objcopy = tool_dir / ("arm-none-eabi-objcopy" + exe_suffix)
     size_tool = tool_dir / ("arm-none-eabi-size" + exe_suffix)
@@ -63,7 +63,7 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     elf = project_dir / "firmware.elf"
     hexf = project_dir / "firmware.hex"
 
-    cmd = [gcc, *_CFLAGS, *srcs,
+    cmd = [gcc, *_CFLAGS, *srcs, "-lgcc",
            "-I", str(project_dir),
            "-T", str(project_dir / "link.ld"),
            "-Wl,--gc-sections", "-o", str(elf)]
