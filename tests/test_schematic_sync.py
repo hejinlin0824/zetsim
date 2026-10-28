@@ -220,3 +220,29 @@ def test_spice_rebases_after_simulation_clock_is_reset():
     coupled.step(5_000)
     assert counter.steps == 2
 
+def test_vcc_only_spice_circuit_runs_and_duplicate_rails_are_deduplicated():
+    board = Board()
+    schematic = Schematic(board)
+    schematic.apply({
+        "components": [
+            {"id": "VCC1", "type": "vcc", "x": 0, "y": 0, "props": {}},
+            {"id": "VCC2", "type": "vcc", "x": 0, "y": 30, "props": {}},
+            {"id": "GND1", "type": "gnd", "x": 0, "y": 100, "props": {}},
+            {"id": "R1", "type": "resistor", "x": 100, "y": 0, "props": {"ohms": 1000}},
+        ],
+        "wires": [
+            {"a": ["VCC1", "V"], "b": ["R1", "1"]},
+            {"a": ["VCC2", "V"], "b": ["R1", "1"]},
+            {"a": ["R1", "2"], "b": ["GND1", "G"]},
+        ],
+    })
+
+    assert schematic.spice is not None
+    assert schematic.spice.enabled is True
+    assert len(schematic.spice.circuit.sources) == 1
+    root = schematic.pin_net[("R1", "1")]
+    node = schematic._node_of_net[root]
+    schematic.spice.step(board.sysctrl.now_ns + schematic.spice.dt_ns)
+    assert schematic.spice.stepped is True
+    assert schematic.spice.circuit.voltage(node) == pytest.approx(3.3)
+
