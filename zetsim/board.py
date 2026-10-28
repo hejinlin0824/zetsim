@@ -30,19 +30,26 @@ class Net:
         self.device_level = None     # 器件强驱动（按键）
         self.device_analog = None    # 模拟驱动（电位器）
         self.mcu_analog = None       # MCU 模拟输出（DAC）
+        self.mcu_pulls: dict[tuple[int, int], int] = {}  # 输入上下拉：弱驱动，按物理引脚分别记录
         self.level = None            # 解析结果缓存
         self.watchers: list = []
         self.power_gate = None       # Board 引用：mcu_power=False 时 MCU 侧输出高阻
 
     def _resolve(self):
         gate = self.power_gate
-        if gate is None or getattr(gate, "mcu_power", True):
+        mcu_powered = gate is None or getattr(gate, "mcu_power", True)
+        if mcu_powered:
+            # 强驱动优先于内部弱上拉/下拉；顺序也用于确定当前简化数字模型的争用优先级。
             for lv in (self.mcu_level, self.af_level, self.device_level):
                 if lv is not None:
                     return lv
-        elif self.device_level is not None:   # 掉电：只剩外部器件（按键等）还能驱动
-            return self.device_level
-        return None
+            pulls = set(self.mcu_pulls.values())
+            if len(pulls) == 1:
+                return pulls.pop()
+            # 相反方向的内部弱拉在本模型中视为不确定/浮空，而非武断地选高或低。
+            return None
+        # 掉电后，MCU 输出和内部上下拉都失效；外部器件仍然可以驱动线路。
+        return self.device_level
 
     def voltage(self) -> float | None:
         if self.device_analog is not None:
@@ -70,6 +77,16 @@ class Net:
             self.device_level = lv
             self._commit()
 
+    def set_mcu_pull(self, key: tuple[int, int], level: int | None):
+        """设置一个 MCU 引脚的内部弱上拉/下拉；None 表示断开该弱驱动。"""
+        if level not in (None, 0, 1):
+            raise ValueError("内部上下拉电平必须为 0、1 或 None")
+        if level is None:
+            self.mcu_pulls.pop(key, None)
+        else:
+            self.mcu_pulls[key] = int(level)
+        self._commit()
+
     def reset_bindings(self):
         """原理图重建：清掉所有驱动与器件 watcher（保留板级 EXTI watcher）。"""
         self.mcu_level = None
@@ -77,6 +94,7 @@ class Net:
         self.device_level = None
         self.device_analog = None
         self.mcu_analog = None
+        self.mcu_pulls.clear()
         self.watchers = [w for w in self.watchers if getattr(w, "__self__", None) is None
                          and getattr(w, "_board_watch", False)]
         self._commit()
@@ -269,13 +287,19 @@ class Board:
     def set_mcu_output(self, port_idx, pin, level):
         self.resolved_net(port_idx, pin).set_mcu(level)
 
-    # TIM AF -> 引脚（仅当 GPIO 配置为 AF 输出时驱动网络）
+    def set_mcu_pull(self, port_idx, pin, level):
+        """设置 GPIO 内部上拉/下拉电阻的数字等效状态。"""
+        self.resolved_net(port_idx, pin).set_mcu_pull((port_idx, pin), level)
+
+    # TIM AF -> 引脚（仅当 GPIO 配置为 AF 输出时驱动网络）。
+    # AF 开漏输出为高时释放线路，依赖外部上拉获得逻辑 1。
     def set_af_output(self, port_idx, pin, level):
         mode, cnf = self.gpios[port_idx].pin_cfg(pin)
-        if mode != 0 and cnf == 0b10:
-            self.resolved_net(port_idx, pin).set_af(level)
+        net = self.resolved_net(port_idx, pin)
+        if mode != 0 and cnf in (0b10, 0b11):
+            net.set_af(None if cnf == 0b11 and level == 1 else level)
         else:
-            self.resolved_net(port_idx, pin).set_af(None)
+            net.set_af(None)
 
     def set_pin_analog(self, port_idx, pin, volts):
         self.resolved_net(port_idx, pin).mcu_analog = volts
@@ -284,15 +308,29 @@ class Board:
         return self.resolved_net(port_idx, pin).level or 0
 
     def read_input(self, port_idx, pin):
-        return self.resolved_net(port_idx, pin).level or 0
+        net = self.resolved_net(port_idx, pin)
+        if net.level is not None:
+            return net.level
+        # 模拟电阻网络没有数字 level 缓存时，按 STM32F1 数字输入阈值做确定性判定。
+        # VIL<=0.3*VDD 为低，VIH>=0.7*VDD 为高；中间区域按低处理（真实芯片该区未定义）。
+        schematic = self.devices.get("schematic")
+        voltage = schematic.mcu_pin_voltage("P" + "ABCDE"[port_idx] + str(pin)) if schematic else net.voltage()
+        if voltage is not None and voltage >= 0.7 * 3.3:
+            return 1
+        return 0
 
     # ---------------- 复位 ----------------
     def reset(self):
         for p in self.all_periphs():
             p.reset()
-        for n in self.nets.values():
+        seen = set()
+        for n in list(self.nets.values()) + list(self.schematic_nets.values()):
+            if id(n) in seen:
+                continue
+            seen.add(id(n))
             n.mcu_level = None
             n.af_level = None
+            n.mcu_pulls.clear()
             n._commit()
 
     # ---------------- 事件便捷 ----------------
