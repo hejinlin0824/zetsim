@@ -148,10 +148,13 @@ class Dashboard:
                 time.sleep(0.05)
 
     def start(self):
-        # 与 load/pause 串行修改运行标志和线程代数，避免快速操作时创建重复仿真线程。
+        # 与 load/pause 串行修改运行标志和线程代数，避免快速暂停/重启时留下无工作线程的 running 状态。
         with self.lock:
+            was_running = self.running
             self.running = True
-            if self._sim_thread is None or not self._sim_thread.is_alive():
+            # 从暂停状态恢复时，即使旧线程还在退场，也必须启动新代；旧线程凭 gen 自行退出。
+            if (not was_running or self._sim_thread is None
+                    or not self._sim_thread.is_alive()):
                 self._gen += 1
                 self._anchor = True
                 self._sim_thread = threading.Thread(
