@@ -374,6 +374,7 @@ class Board:
             n.mcu_outputs.clear()
             n.af_outputs.clear()
             n.mcu_pulls.clear()
+            n.mcu_analog = None       # MCU DAC / 内部模拟输出随 MCU 复位失效；外部电位器仍保持驱动
             n._commit()
 
     # ---------------- 事件便捷 ----------------
