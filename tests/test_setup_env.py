@@ -57,3 +57,53 @@ def test_link_smoke_test_explains_missing_runtime(monkeypatch, tmp_path: Path):
 
     assert not ok
     assert "libgcc.a" in detail
+
+
+
+def test_download_toolchain_creates_nested_destination_and_reuses_cached_zip(
+    monkeypatch, tmp_path: Path
+):
+    import io
+    import json
+    import zipfile
+
+    root = tmp_path / "repo"
+    root.mkdir()
+    asset_name = "xpack-arm-none-eabi-gcc-15.2.1-1.1-win32-x64.zip"
+    cached_archive = root / asset_name
+    with zipfile.ZipFile(cached_archive, "w") as archive:
+        archive.writestr("toolchain/marker.txt", "cached package")
+
+    target = tmp_path / "LocalAppData" / "zetsim" / "toolchain"
+    expected_gcc = target / "toolchain" / "bin" / "arm-none-eabi-gcc.exe"
+    monkeypatch.setattr(setup_env, "ROOT", root)
+    monkeypatch.setattr(setup_env, "TOOLCHAIN_DIR", target)
+    monkeypatch.setattr(setup_env, "xpack_platform", lambda: "win32-x64")
+    payload = {
+        "tag_name": "v15.2.1-1.1",
+        "assets": [{
+            "name": asset_name,
+            "browser_download_url": "https://example.invalid/toolchain.zip",
+        }],
+    }
+    monkeypatch.setattr(
+        setup_env.urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: io.BytesIO(json.dumps(payload).encode("utf-8")),
+    )
+    downloads = []
+
+    def unexpected_download(url, path):
+        downloads.append((url, path))
+        raise AssertionError("cached archive should be reused")
+
+    monkeypatch.setattr(setup_env.urllib.request, "urlretrieve", unexpected_download)
+    monkeypatch.setattr(setup_env, "find_gcc", lambda: expected_gcc)
+
+    found = setup_env.download_toolchain()
+
+    assert found == expected_gcc
+    assert target.is_dir()
+    assert (target / "toolchain" / "marker.txt").read_text(encoding="utf-8") == "cached package"
+    assert not cached_archive.exists()
+    assert downloads == []

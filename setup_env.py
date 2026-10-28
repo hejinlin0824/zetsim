@@ -7,8 +7,10 @@
 做什么：
   1. 检查 Python ≥ 3.10，安装 Python 依赖（pip install -e .）
   2. 检查可完成裸机链接的 arm-none-eabi-gcc（不仅检查 gcc.exe，还要确认 libgcc.a 存在）
-  3. 都没有就从 xPack GitHub 下载 GNU Arm Embedded GCC，解压到项目内 .toolchain/
-     —— zetsim build / 网页"保存并编译运行"会自动使用它
+  3. 都没有就从 xPack GitHub 下载 GNU Arm Embedded GCC。
+     ASCII 项目路径默认安装到仓库 .toolchain/；Windows 下仓库路径有中文时，
+     为规避部分 GNU binutils 的 Unicode 路径问题，安装到 %LOCALAPPDATA%\\zetsim\\toolchain。
+     —— zetsim build / 网页"保存并编译运行"会自动发现该工具链
 
 无网络时：按提示用 winget install Arm.GnuArmEmbeddedToolchain（Windows）装系统版即可。
 """
@@ -184,9 +186,20 @@ def download_toolchain() -> Path | None:
             return None
         print(f"  下载 {asset['name']} …")
         arc = ROOT / asset["name"]
-        urllib.request.urlretrieve(asset["browser_download_url"], arc)
-        print("  解压到 .toolchain/ …")
-        TOOLCHAIN_DIR.mkdir(exist_ok=True)
+        if arc.is_file() and arc.stat().st_size > 0:
+            # A previous run may have completed the 300MB download but failed while
+            # creating the destination directory. Reuse that archive instead of redownloading it.
+            if arc.suffix == ".zip" and not zipfile.is_zipfile(arc):
+                print("  已有下载包不完整，重新下载 …")
+                arc.unlink()
+            else:
+                print(f"  复用已下载压缩包：{arc}")
+        if not arc.is_file():
+            print(f"  下载 {asset['name']} …")
+            urllib.request.urlretrieve(asset["browser_download_url"], arc)
+        print(f"  解压到：{TOOLCHAIN_DIR}")
+        # parents=True is important: the user-local target may not exist on first run.
+        TOOLCHAIN_DIR.mkdir(parents=True, exist_ok=True)
         if arc.suffix == ".zip":
             with zipfile.ZipFile(arc) as z:
                 z.extractall(TOOLCHAIN_DIR)
@@ -240,7 +253,7 @@ def main() -> int:
         print("→ 已找到工具链，但链接探测失败：")
         for failure in TOOLCHAIN_FAILURES[-3:]:
             print("  " + failure.replace("\n", "\n  "))
-    print(f"→ 开始项目级安装（{TOOLCHAIN_DIR}，不动系统）…")
+    print(f"→ 开始安装到明确的工具链目录：{TOOLCHAIN_DIR}（不修改系统安装）…")
     gcc = download_toolchain()
     if gcc:
         libgcc = _libgcc_path(gcc)
