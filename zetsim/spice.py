@@ -120,6 +120,10 @@ class Circuit:
         self.comps: list = []
         self.sources: list[VoltageSource] = []
         self._n_nodes = 1
+        # Linear R/C/source networks reuse their MNA matrix factorization while
+        # only source values and capacitor history terms change between steps.
+        self._linear_lu_key: tuple | None = None
+        self._linear_lu: tuple[list[list[float]], list[int]] | None = None
 
     def node(self, name: str) -> Node:
         if name not in self.nodes:
@@ -147,12 +151,104 @@ class Circuit:
         self.sources.append(v)
         return v
 
+    def _linear_matrix_key(self, dt: float) -> tuple | None:
+        """Return a matrix identity for linear R/C/source circuits, excluding RHS state."""
+        parts = []
+        for comp in self.comps:
+            if isinstance(comp, Resistor):
+                parts.append(("R", comp.n1.index, comp.n2.index, comp.r))
+            elif isinstance(comp, Capacitor):
+                parts.append(("C", comp.n1.index, comp.n2.index, comp.c))
+            elif isinstance(comp, VoltageSource):
+                parts.append(("V", comp.n1.index, comp.n2.index, comp.branch))
+            else:
+                # Diodes and any future nonlinear elements need the normal Newton path.
+                return None
+        nodes = tuple((name, node.index) for name, node in self.nodes.items())
+        return dt, nodes, tuple(parts), len(self.sources)
+
+    @staticmethod
+    def _factor_matrix(matrix: list[list[float]]) -> tuple[list[list[float]], list[int]] | None:
+        """LU factorization with partial pivoting; None denotes a singular matrix."""
+        lu = [row[:] for row in matrix]
+        size = len(lu)
+        pivots: list[int] = []
+        for col in range(size):
+            pivot = max(range(col, size), key=lambda row: abs(lu[row][col]))
+            if abs(lu[pivot][col]) < 1e-15:
+                return None
+            pivots.append(pivot)
+            if pivot != col:
+                lu[col], lu[pivot] = lu[pivot], lu[col]
+            diagonal = lu[col][col]
+            for row in range(col + 1, size):
+                lu[row][col] /= diagonal
+                multiplier = lu[row][col]
+                for idx in range(col + 1, size):
+                    lu[row][idx] -= multiplier * lu[col][idx]
+        return lu, pivots
+
+    @staticmethod
+    def _solve_factored(factorization: tuple[list[list[float]], list[int]],
+                        rhs: list[float]) -> list[float]:
+        """Solve LU*x=rhs, applying the same recorded row swaps as factorization."""
+        lu, pivots = factorization
+        values = rhs[:]
+        size = len(values)
+        for col, pivot in enumerate(pivots):
+            if pivot != col:
+                values[col], values[pivot] = values[pivot], values[col]
+            pivot_value = values[col]
+            for row in range(col + 1, size):
+                values[row] -= lu[row][col] * pivot_value
+        for row in range(size - 1, -1, -1):
+            residual = values[row]
+            for col in range(row + 1, size):
+                residual -= lu[row][col] * values[col]
+            values[row] = residual / lu[row][row]
+        return values
+
     def _build_and_solve(self, dt):
         n = len(self.nodes)                 # 节点索引 0..n-1（0=GND）
         m = len(self.sources)
         size = n + m
-        for i, s in enumerate(self.sources):
-            s.branch = n + i
+        for i, source in enumerate(self.sources):
+            source.branch = n + i
+
+        # In a linear R/C network, topology and component values determine the
+        # MNA coefficient matrix; source voltages and capacitor history only
+        # change the RHS. Factor once, then solve each transient step in O(N^2).
+        matrix_key = self._linear_matrix_key(dt)
+        if matrix_key is not None:
+            if matrix_key != self._linear_lu_key:
+                g = [[0.0] * size for _ in range(size)]
+                b = [0.0] * size
+                for comp in self.comps:
+                    comp.stamp(g, b, dt, self.sources)
+                # Ground is fixed at 0V, so remove its all-zero row/column before LU.
+                reduced = [row[1:] for row in g[1:]]
+                self._linear_lu = self._factor_matrix(reduced)
+                self._linear_lu_key = matrix_key
+            if self._linear_lu is not None:
+                b = [0.0] * size
+                for comp in self.comps:
+                    if isinstance(comp, Capacitor):
+                        equivalent_g = comp.c / dt
+                        a, c = comp.n1.index, comp.n2.index
+                        if a:
+                            b[a] += equivalent_g * comp.vprev
+                        if c:
+                            b[c] -= equivalent_g * comp.vprev
+                    elif isinstance(comp, VoltageSource):
+                        b[comp.branch] = comp.volts
+                x = [0.0] + self._solve_factored(self._linear_lu, b[1:])
+                for comp in self.comps:
+                    if hasattr(comp, "commit"):
+                        comp.commit(x)
+                return x
+
+        # Nonlinear circuits and singular linear networks retain the established
+        # Newton/Gauss-Jordan solver as a correctness fallback.
         for _ in range(30):                       # 二极管 Newton 外层迭代
             g = [[0.0] * size for _ in range(size)]
             b = [0.0] * size
@@ -328,10 +424,11 @@ class CoupledCircuit:
         elapsed = max(0, now - self._last_ns)
         self._last_ns = now
 
-        # 电阻/二极管/独立电压源组成的网络没有储能状态，解只取决于当前输入。
-        # GPIO 不变时重复对同一组 MNA 矩阵做上千次求解既不提高精度，也拖慢 MCU；
-        # 输入/电阻变化时重算一次即可。含电容电路仍保留原有固定步长瞬态积分。
-        if not any(isinstance(comp, Capacitor) for comp in self.circuit.comps):
+        # Memoryless-network caching is supported by the real Circuit implementation.
+        # Older test doubles may intentionally expose only step()/voltage(); preserve
+        # their fixed-step contract instead of requiring an undocumented .comps attribute.
+        components = getattr(self.circuit, "comps", None)
+        if components is not None and not any(isinstance(comp, Capacitor) for comp in components):
             self._sync_pin_drivers()
             signature = self._static_input_signature()
             if not self.stepped or signature != self._last_static_signature:
