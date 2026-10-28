@@ -45,7 +45,10 @@ header{display:flex;align-items:center;gap:12px;padding:0 14px;height:46px;
 @keyframes pl{50%{opacity:.35}}
 
 /* ---------- 主体 ---------- */
-main{flex:1;display:grid;grid-template-columns:196px 1fr 292px;gap:8px;padding:8px;min-height:0}
+main{flex:1;display:grid;grid-template-columns:196px minmax(0,1fr) 292px;gap:8px;padding:8px;min-height:0}
+main:has(#leftPanel.hidden){grid-template-columns:minmax(0,1fr) 292px}
+main:has(#rightPanel.hidden){grid-template-columns:196px minmax(0,1fr)}
+main:has(#leftPanel.hidden):has(#rightPanel.hidden){grid-template-columns:minmax(0,1fr)}
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;
   display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .panel h3{font-size:11px;color:var(--muted);letter-spacing:1.2px;padding:10px 12px 6px;
@@ -342,8 +345,10 @@ function pinHit(wx,wy){
 /* ================= 画布 ================= */
 const cv=$('sch'),ctx=cv.getContext('2d');
 function resize(){
-  const r=cv.parentElement.getBoundingClientRect();
-  cv.width=r.width*devicePixelRatio;cv.height=r.height*devicePixelRatio;
+  const r=cv.parentElement.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  const width=Math.round(r.width*dpr),height=Math.round(r.height*dpr);
+  if(cv.width!==width)cv.width=width;
+  if(cv.height!==height)cv.height=height;
   render();
 }
 addEventListener('resize',resize);
@@ -352,8 +357,9 @@ const s2w=(sx,sy)=>({x:(sx-view.x)/view.z,y:(sy-view.y)/view.z});
 const w2s=(wx,wy)=>({x:wx*view.z+view.x,y:wy*view.z+view.y});
 
 function render(){
-  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-  ctx.clearRect(0,0,cv.width,cv.height);
+  const dpr=window.devicePixelRatio||1;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cv.width/dpr,cv.height/dpr);
   ctx.save();ctx.translate(view.x,view.y);ctx.scale(view.z,view.z);
   if(showGrid)drawGrid();
   // wires（正交走线 + 通道分离 + 跨线弧）
@@ -666,9 +672,11 @@ const fmtOhms=v=>v>=1e6?(v/1e6)+'MΩ':v>=1e3?(v/1e3)+'kΩ':v+'Ω';
 const fmtF=f=>f>=1e-6?(f*1e6)+'µF':(f*1e9)+'nF';
 
 /* ================= 交互 ================= */
-function evtPos(e){const r=cv.getBoundingClientRect();
-  const k=cv.width/r.width/devicePixelRatio;   // 属性尺寸与显示尺寸脱钩时仍按显示位置换算
-  return{x:(e.clientX-r.left)*k,y:(e.clientY-r.top)*k}}
+function evtPos(e){
+  const r=cv.getBoundingClientRect();
+  // 鼠标坐标与画布视图都使用 CSS 像素；不依赖可能滞后的 backing-store 尺寸/DPI。
+  return{x:e.clientX-r.left,y:e.clientY-r.top};
+}
 cv.addEventListener('mousemove',e=>{
   const p=evtPos(e);mouse=p;mouseW=s2w(p.x,p.y);
   $('stPos').textContent=`x ${mouseW.x|0}, y ${mouseW.y|0}`;
@@ -903,8 +911,9 @@ function renderState(s){
     $('stMode').style.color='#d93025';}
   else{$('stMode').style.color='';}
   $('schCount').textContent=`${sch.components.length} 元件 · ${sch.wires.length} 连线`;
-  const pr=cv.parentElement.getBoundingClientRect();          // 布局变化后画布尺寸自愈
-  if(Math.abs(cv.width-pr.width*devicePixelRatio)>2)resize();
+  const pr=cv.parentElement.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  // 同时检查宽、高和 DPR；DPI 变化期间坐标仍保持 CSS 像素空间。
+  if(cv.width!==Math.round(pr.width*dpr)||cv.height!==Math.round(pr.height*dpr))resize();
   render();renderScope();renderOled(s.oled);
 }
 
