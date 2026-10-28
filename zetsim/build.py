@@ -8,6 +8,7 @@
     firmware.hex   编译产物（zetsim 直接加载）
 """
 from __future__ import annotations
+import os
 import shutil
 import subprocess
 from pathlib import Path
