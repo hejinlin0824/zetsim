@@ -76,7 +76,7 @@ def make_led_board():
     board.core.load_segments(fw.build())
     cc = CoupledCircuit(board, dt_ns=10_000)
     cc.attach_pin("PA5", "pin")
-    led = cc.circuit.add_led("pin", "vd", is_=1e-12, n_vt=0.052)
+    led = cc.circuit.add_led("pin", "vd", is_=1e-16, n_vt=0.08)
     cc.circuit.add_r("vd", "GND", 220.0)
     cc.probe("vd", "vd")
     board.devices["spice"] = cc
