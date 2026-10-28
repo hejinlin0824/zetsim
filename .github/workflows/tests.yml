@@ -96,3 +96,40 @@ jobs:
           print("Learning case library, wiring audit, and editor invariants verified.")
           PY
           node --check /tmp/zetsim-frontend.js
+
+  embedded-project-build:
+    name: ARM C learning projects / compile and link
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up ARM bare-metal compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-arm-none-eabi binutils-arm-none-eabi
+          arm-none-eabi-gcc --version
+          arm-none-eabi-objcopy --version
+
+      - name: Compile and link every learning project
+        run: |
+          python - <<'PY'
+          from zetsim.build import build_project
+
+          projects = (
+              "gpio_blink",
+              "led_marquee",
+              "exti_button",
+              "uart_echo",
+              "pwm_adc_control",
+              "pwm_rc_filter",
+          )
+          for name in projects:
+              ok, log = build_project(f"projects/{name}")
+              print(f"=== {name} ===")
+              print(log)
+              if not ok:
+                  raise SystemExit(f"ARM build failed for {name}")
+          print("All six ARM C learning projects compiled and linked.")
+          PY
