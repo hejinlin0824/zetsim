@@ -71,15 +71,20 @@ def find_gcc() -> str | None:
                     candidates.append(str(candidate))
 
     seen: set[str] = set()
+    first_candidate: str | None = None
     for gcc in candidates:
         normalized = os.path.normcase(os.path.abspath(gcc))
         if normalized in seen:
             continue
         seen.add(normalized)
+        if first_candidate is None:
+            first_candidate = gcc
         libgcc, _reported = _query_libgcc(gcc)
         if libgcc:
             return gcc
-    return None
+    # Keep one discovered compiler when every candidate lacks libgcc so build_project
+    # can report the exact path instead of only saying no toolchain was found.
+    return first_candidate
 
 
 def build_project(project_dir: str | Path) -> tuple[bool, str]:
