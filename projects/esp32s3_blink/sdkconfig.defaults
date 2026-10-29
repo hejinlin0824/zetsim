@@ -1,2 +1,7 @@
 CONFIG_IDF_TARGET="esp32s3"
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+
+# QEMU smoke fixture only: avoid a timer-group watchdog interrupt-allocation crash
+# observed in ESP-IDF v6.1 + Espressif QEMU before app_main(). Normal user projects
+# keep their own watchdog defaults; this setting is not a simulator-wide change.
+CONFIG_ESP_TASK_WDT_INIT=n

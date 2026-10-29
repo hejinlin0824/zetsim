@@ -47,6 +47,9 @@ def test_real_project_uses_native_esp_idf_layout() -> None:
 def test_qemu_project_selects_uart_console_for_monitor() -> None:
     sdkconfig = (PROJECT / "sdkconfig.defaults").read_text(encoding="utf-8")
     assert 'CONFIG_ESP_CONSOLE_UART_DEFAULT=y' in sdkconfig
+    # This dedicated QEMU fixture avoids the pre-app_main TWDT interrupt-allocation
+    # panic; the setting must not be treated as a global zetsim default.
+    assert "CONFIG_ESP_TASK_WDT_INIT=n" in sdkconfig
 
 
 def test_resolve_idf_command_prefers_idf_managed_python(tmp_path: Path) -> None:
