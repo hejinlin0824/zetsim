@@ -346,7 +346,11 @@ input[type=text]:focus{border-color:var(--accent)}
 #esp32PlotLegend{display:flex;flex-wrap:wrap;gap:7px;padding:5px 9px 9px}
 .esp32LegendItem{display:flex;align-items:center;gap:5px;color:#97a9bc;font:10px var(--mono)}
 .esp32LegendItem i{display:inline-block;width:8px;height:8px;border-radius:2px}
-#esp32GpioStatus{display:flex;gap:6px;flex-wrap:wrap;padding:10px}
+#esp32GpioStatus,#esp32GpioReadbackStatus{display:flex;gap:6px;flex-wrap:wrap;padding:10px}
+.esp32ReadbackWarning{border-top:1px solid #263646;padding:7px 9px;color:#8298ae;font-size:10px;line-height:1.6}
+.esp32ReadbackWarning.warning{color:#ffcd73;background:#2a2417}
+.esp32GpioPin.mismatch{border-color:#765c31;background:#2a2417;color:#ffd66e}
+.esp32GpioPin.mismatch:after{content:" mismatch";font-size:9px;color:#ffbd68}
 .esp32GpioPin{padding:5px 7px;border:1px solid #334253;border-radius:6px;background:#121d29;color:#9fb0c2;font:10px var(--mono)}
 .esp32GpioPin.high{color:#9de8b0;border-color:#315f42;background:#11251a}
 .esp32GpioPin.low{color:#92b9eb;border-color:#304d6a;background:#101d2d}
@@ -1908,6 +1912,7 @@ resize();
       <div class="esp32Metric"><small>复位原因</small><strong id="esp32MetricReset">—</strong></div>
       <div class="esp32Metric"><small>APP_MAIN</small><strong id="esp32MetricApp">未观察</strong></div>
       <div class="esp32Metric"><small>GPIO 初始化</small><strong id="esp32MetricGpio">未观察</strong></div>
+      <div class="esp32Metric"><small>GPIO 读回 / 不一致</small><strong id="esp32MetricReadback">— / 0</strong></div>
       <div class="esp32Metric"><small>应用就绪</small><strong id="esp32MetricReady">未观察</strong></div>
       <div class="esp32Metric"><small>仿真速度 / PANIC</small><strong id="esp32MetricSpeed">— / 0</strong></div>
     </div>
@@ -1947,6 +1952,11 @@ resize();
           <div id="esp32GpioStatus"><span class="empty">等待 GPIO 心跳…</span></div>
         </section>
         <section class="esp32RuntimeCard">
+          <div class="esp32RuntimeCardHead">GPIO 输入读回 · 诊断 <small id="esp32ReadbackMismatchCount">0 mismatches</small></div>
+          <div id="esp32GpioReadbackStatus" class="esp32GpioStatus"><span class="empty">等待输入读回…</span></div>
+          <div id="esp32ReadbackWarning" class="esp32ReadbackWarning">读回结果来自固件调用 gpio_get_level() 的实际日志；它可能受所选仿真后端的 GPIO/IOMUX 保真度影响。</div>
+        </section>
+        <section class="esp32RuntimeCard">
           <div class="esp32RuntimeCardHead">运行时说明</div>
           <div style="padding:10px;color:#91a5ba;font-size:11px;line-height:1.8">这些状态来自 QEMU 串口中实际观察到的启动标记与心跳，不等于所有外设寄存器均已建模。看门狗自动初始化目前只在专用烟测工程关闭；普通用户工程保持自己的设置。</div>
         </section>
@@ -1966,7 +1976,7 @@ resize();
   const ids = {
     pill: $("esp32StatePill"), status: $("esp32MetricStatus"), boot: $("esp32MetricBoot"),
     reset: $("esp32MetricReset"), app: $("esp32MetricApp"), gpio: $("esp32MetricGpio"),
-    ready: $("esp32MetricReady"), speed: $("esp32MetricSpeed"), uart: $("esp32UartLog"),
+    ready: $("esp32MetricReady"), speed: $("esp32MetricSpeed"), readbackMetric: $("esp32MetricReadback"), readbackMismatchCount: $("esp32ReadbackMismatchCount"), readbackWarning: $("esp32ReadbackWarning"), gpioReadbackStatus: $("esp32GpioReadbackStatus"), uart: $("esp32UartLog"),
     count: $("esp32UartCount"), plot: $("esp32Plot"), legend: $("esp32PlotLegend"),
     gpioStatus: $("esp32GpioStatus"), message: $("esp32RuntimeMessage"),
     boardSummary: $("esp32BoardSummary"), boardDimensions: $("esp32BoardDimensions"),
@@ -2051,6 +2061,25 @@ resize();
     ids.app.textContent = s.app_main_entered ? "已进入" : "未观察";
     ids.gpio.textContent = s.gpio_configured ? "已配置" : "未观察";
     ids.ready.textContent = s.app_ready ? "READY" : "未就绪";
+    const mismatchCount = s.gpio_output_mismatch_count || 0;
+    const readbacks = Object.entries(s.gpio_readback_levels || {}).sort((a,b)=>Number(a[0])-Number(b[0]));
+    ids.readbackMetric.textContent = (readbacks.length ? readbacks.map(([pin,level])=>"GPIO"+pin+"="+level).join(",") : "—") + " / " + mismatchCount;
+    ids.readbackMismatchCount.textContent = mismatchCount + " mismatches";
+    ids.gpioReadbackStatus.replaceChildren();
+    if (!readbacks.length) {
+      const empty=document.createElement("span");empty.className="empty";empty.textContent="等待输入读回…";ids.gpioReadbackStatus.append(empty);
+    } else readbacks.forEach(([pin,level])=>{
+      const outputLevel = (s.gpio_levels || {})[pin];
+      const mismatch = outputLevel !== undefined && outputLevel !== level;
+      const el=document.createElement("span");
+      el.className="esp32GpioPin "+(mismatch?"mismatch":level?"high":"low");
+      el.textContent="GPIO"+pin+" ↤ "+level+(outputLevel===undefined?"":" · OUT "+outputLevel);
+      ids.gpioReadbackStatus.append(el);
+    });
+    ids.readbackWarning.classList.toggle("warning",mismatchCount>0);
+    if (mismatchCount>0) ids.readbackWarning.textContent="检测到 "+mismatchCount+" 次输出/输入读回不一致；请结合当前仿真后端的 GPIO matrix/IOMUX 支持情况解释，不应将其当成真实硬件电平。";
+    else ids.readbackWarning.textContent="读回结果来自固件调用 gpio_get_level() 的实际日志；它可能受所选仿真后端的 GPIO/IOMUX 保真度影响。"
+
     ids.speed.textContent = labelValue(s.speed_percent === null ? null : s.speed_percent+"%") + " / " + (s.panic_count || 0);
     const lines = Array.isArray(s.uart_lines) ? s.uart_lines : [];
     const joined = lines.join("\n");

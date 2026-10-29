@@ -23,6 +23,8 @@ _ROM_RE = re.compile(r"ESP-ROM:esp32s3", re.IGNORECASE)
 _RESET_RE = re.compile(r"rst:0x([0-9a-fA-F]+)\s*\(([^)]*)\)")
 _IDF_TIME_RE = re.compile(r"\b[EWIDV] \((\d+)\)")
 _GPIO_RE = re.compile(r"ZETSIM_ESP32S3_GPIO(\d+)=(0|1)")
+_GPIO_READBACK_RE = re.compile(r"ZETSIM_ESP32S3_GPIO(\d+)_READBACK=(0|1)")
+_GPIO_MISMATCH_RE = re.compile(r"ZETSIM_ESP32S3_GPIO(\d+)_READBACK_MISMATCH expected=(0|1) got=(0|1)")
 _PLOT_RE = re.compile(r"^\s*([A-Za-z][A-Za-z0-9_.-]{0,63})\s*:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*$")
 
 
@@ -52,6 +54,9 @@ class ESP32RuntimeObserver:
             self.app_ready = False
             self.panic_count = 0
             self.gpio_levels: dict[str, int] = {}
+            self.gpio_readback_levels: dict[str, int] = {}
+            self.gpio_output_mismatch_count = 0
+            self._gpio_mismatches: deque[dict[str, Any]] = deque(maxlen=getattr(self, "max_samples", 1000))
             self.plot_series: dict[str, deque[dict[str, float]]] = {}
             self.sim_time_ms: float | None = None
             self._first_sim: tuple[float, float] | None = None
@@ -125,6 +130,25 @@ class ESP32RuntimeObserver:
             series = self.plot_series.setdefault(f"GPIO{pin}", deque(maxlen=self.max_samples))
             series.append({"wall_elapsed_ms": round((now - self.started_at) * 1000, 3), "value": float(level)})
 
+        readback_match = _GPIO_READBACK_RE.search(line)
+        if readback_match:
+            pin, level = readback_match.group(1), int(readback_match.group(2))
+            self.gpio_readback_levels[pin] = level
+            series = self.plot_series.setdefault(f"GPIO{pin}_READBACK", deque(maxlen=self.max_samples))
+            series.append({"wall_elapsed_ms": round((now - self.started_at) * 1000, 3), "value": float(level)})
+
+        mismatch_match = _GPIO_MISMATCH_RE.search(line)
+        if mismatch_match:
+            pin, expected, got = mismatch_match.groups()
+            self.gpio_output_mismatch_count += 1
+            self._gpio_mismatches.append({
+                "wall_elapsed_ms": round((now - self.started_at) * 1000, 3),
+                "gpio": int(pin),
+                "expected": int(expected),
+                "got": int(got),
+                "line": line,
+            })
+
         plot_match = _PLOT_RE.match(line)
         if plot_match:
             name, raw_value = plot_match.group(1), plot_match.group(2)
@@ -187,6 +211,9 @@ class ESP32RuntimeObserver:
                 "app_ready": self.app_ready,
                 "panic_count": self.panic_count,
                 "gpio_levels": dict(self.gpio_levels),
+                "gpio_readback_levels": dict(self.gpio_readback_levels),
+                "gpio_output_mismatch_count": self.gpio_output_mismatch_count,
+                "gpio_output_mismatches": list(self._gpio_mismatches),
                 "simulation_time_ms": self.sim_time_ms,
                 "wall_elapsed_ms": round((time.monotonic() - self.started_at) * 1000, 3),
                 "speed_percent": speed_percent,

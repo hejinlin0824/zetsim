@@ -99,3 +99,23 @@ def test_runtime_monitor_board_map_uses_board_registry_metadata():
     assert "esp32-s3-devkitc-1" in html
     assert "board.pins" in html
     assert "board.leds" in html
+
+
+def test_runtime_observer_tracks_gpio_readback_and_mismatch_events_separately():
+    observer=ESP32RuntimeObserver(max_lines=30,max_samples=20)
+    observer.set_process_state(True)
+    observer.ingest(
+        "ZETSIM_ESP32S3_GPIO2=1\n"
+        "ZETSIM_ESP32S3_GPIO2_READBACK=0\n"
+        "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH expected=1 got=0\n"
+        "ZETSIM_ESP32S3_GPIO2=0\n"
+        "ZETSIM_ESP32S3_GPIO2_READBACK=0\n"
+    )
+    snapshot=observer.snapshot()
+    assert snapshot["gpio_levels"]=={"2":0}
+    assert snapshot["gpio_readback_levels"]=={"2":0}
+    assert snapshot["gpio_output_mismatch_count"]==1
+    assert snapshot["gpio_output_mismatches"][0]["expected"]==1
+    assert snapshot["gpio_output_mismatches"][0]["got"]==0
+    assert snapshot["plot_series"]["GPIO2"][-1]["value"]==0.0
+    assert snapshot["plot_series"]["GPIO2_READBACK"][-1]["value"]==0.0
