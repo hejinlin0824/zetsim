@@ -81,3 +81,11 @@ def test_runtime_monitor_ui_is_wired_to_esp32_runtime_api():
     assert '/api/esp32/runtime/start' in html
     assert '/api/esp32/runtime/serial' in html
     assert 'ZETSIM_ESP32S3_GPIO' in html or 'gpio_levels' in html
+
+
+
+def test_esp32_process_tree_parser_orders_descendants_before_termination():
+    from zetsim.esp32_runtime import ESP32RuntimeSession
+
+    process_table = "10 1\n20 10\n21 10\n30 20\n40 2\n"
+    assert ESP32RuntimeSession._descendant_pids_from_ps(10, process_table) == [20, 21, 30]

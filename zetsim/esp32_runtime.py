@@ -10,6 +10,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import threading
 import time
@@ -268,6 +269,7 @@ class ESP32RuntimeSession:
                         stdout=subprocess.PIPE,
                         stderr=subprocess.STDOUT,
                         bufsize=0,
+                        start_new_session=True,
                     )
                     self._backend_kind = "script"
             except (OSError, ValueError, TypeError) as exc:
@@ -342,6 +344,63 @@ class ESP32RuntimeSession:
                 return False, f"向 ESP32-S3 UART 发送数据失败：{exc}"
             return True, None
 
+    @staticmethod
+    def _descendant_pids_from_ps(root_pid: int, ps_output: str) -> list[int]:
+        """Return descendants in parent-before-child order from a process table."""
+        children: dict[int, list[int]] = {}
+        for line in ps_output.splitlines():
+            fields = line.split()
+            if len(fields) != 2:
+                continue
+            try:
+                pid, ppid = int(fields[0]), int(fields[1])
+            except ValueError:
+                continue
+            children.setdefault(ppid, []).append(pid)
+        ordered: list[int] = []
+        queue = list(children.get(root_pid, []))
+        while queue:
+            pid = queue.pop(0)
+            if pid == root_pid or pid in ordered:
+                continue
+            ordered.append(pid)
+            queue.extend(children.get(pid, []))
+        return ordered
+
+    @classmethod
+    def _signal_script_tree(cls, process: subprocess.Popen, sig: int) -> None:
+        """Signal QEMU descendants as well as the PTY wrapper on POSIX hosts."""
+        try:
+            listing = subprocess.run(
+                ["ps", "-eo", "pid=,ppid="],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+            output = listing.stdout
+            if listing.returncode != 0:
+                fallback = subprocess.run(
+                    ["ps", "-axo", "pid=,ppid="],
+                    capture_output=True,
+                    text=True,
+                    timeout=2.0,
+                    check=False,
+                )
+                output = fallback.stdout
+            descendants = cls._descendant_pids_from_ps(process.pid, output)
+        except (OSError, subprocess.TimeoutExpired):
+            descendants = []
+        for pid in reversed(descendants):
+            try:
+                os.kill(pid, sig)
+            except (OSError, ProcessLookupError):
+                pass
+        try:
+            os.kill(process.pid, sig)
+        except (OSError, ProcessLookupError):
+            pass
+
     def stop(self, timeout_s: float = 3.0) -> dict[str, Any]:
         with self._lock:
             process, kind = self._process, self._backend_kind
@@ -350,11 +409,11 @@ class ESP32RuntimeSession:
             self._stop_requested = True
         try:
             if kind == "script":
-                process.terminate()
+                self._signal_script_tree(process, signal.SIGTERM)
                 try:
                     process.wait(timeout=timeout_s)
                 except subprocess.TimeoutExpired:
-                    process.kill()
+                    self._signal_script_tree(process, signal.SIGKILL)
                     process.wait(timeout=1.0)
             elif kind == "winpty":
                 try:
