@@ -28,6 +28,8 @@ class BoardPin:
     gpio: int | None = None
     voltage: float | None = None
     constraints: tuple[str, ...] = ()
+    x_mm: float | None = None
+    y_mm: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -37,6 +39,8 @@ class BoardPin:
             "gpio": self.gpio,
             "voltage": self.voltage,
             "constraints": list(self.constraints),
+            "x_mm": self.x_mm,
+            "y_mm": self.y_mm,
         }
 
 
@@ -51,6 +55,8 @@ class BoardDefinition:
     headers: dict[str, tuple[str, ...]]
     leds: tuple[dict[str, Any], ...]
     metadata: dict[str, Any]
+    width_mm: float | None = None
+    height_mm: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -63,6 +69,7 @@ class BoardDefinition:
             "headers": {name: list(pins) for name, pins in self.headers.items()},
             "leds": [dict(led) for led in self.leds],
             "metadata": dict(self.metadata),
+            "dimensions_mm": {"width": self.width_mm, "height": self.height_mm},
         }
 
 
@@ -165,6 +172,12 @@ def validate_board(data: dict[str, Any], *, fallback_id: str = "board") -> Board
             raise ValueError(f"{gpio_name} 的约束必须是字符串数组")
         constraints[gpio_name] = tuple(values)
 
+    width_mm, height_mm = data.get("width_mm"), data.get("height_mm")
+    if (width_mm is None) != (height_mm is None):
+        raise ValueError("板卡宽度和高度必须同时提供")
+    if width_mm is not None and (not _finite_number(width_mm) or not _finite_number(height_mm) or width_mm <= 0 or height_mm <= 0):
+        raise ValueError("板卡尺寸必须是正的有限数字")
+
     pins: dict[str, BoardPin] = {}
     for pin_name, pin_data in raw_pins.items():
         if not isinstance(pin_name, str) or not pin_name.strip():
@@ -175,10 +188,14 @@ def validate_board(data: dict[str, Any], *, fallback_id: str = "board") -> Board
         if not isinstance(mapped_target, str) or not mapped_target.strip():
             raise ValueError(f"引脚 {pin_name} 缺少 target")
         kind, gpio, voltage = _pin_kind(mapped_target)
-        if "x" in pin_data and not _finite_number(pin_data["x"]):
-            raise ValueError(f"引脚 {pin_name} 的 x 必须是有限数字")
-        if "y" in pin_data and not _finite_number(pin_data["y"]):
-            raise ValueError(f"引脚 {pin_name} 的 y 必须是有限数字")
+        if ("x" in pin_data) != ("y" in pin_data):
+            raise ValueError(f"引脚 {pin_name} 的 x 和 y 必须同时提供")
+        x_mm = pin_data.get("x")
+        y_mm = pin_data.get("y")
+        if x_mm is not None and (not _finite_number(x_mm) or not _finite_number(y_mm)):
+            raise ValueError(f"引脚 {pin_name} 的坐标必须是有限数字")
+        if x_mm is not None and width_mm is not None and (x_mm < 0 or x_mm > width_mm or y_mm < 0 or y_mm > height_mm):
+            raise ValueError(f"引脚 {pin_name} 的坐标超出板卡尺寸")
         if gpio is not None and gpio in range(49):
             gpio_constraints = constraints.get(f"GPIO{gpio}", ())
         else:
@@ -190,6 +207,8 @@ def validate_board(data: dict[str, Any], *, fallback_id: str = "board") -> Board
             gpio=gpio,
             voltage=voltage,
             constraints=gpio_constraints,
+            x_mm=float(x_mm) if x_mm is not None else None,
+            y_mm=float(y_mm) if y_mm is not None else None,
         )
 
     raw_headers = data.get("headers", {})
@@ -239,6 +258,8 @@ def validate_board(data: dict[str, Any], *, fallback_id: str = "board") -> Board
         headers=headers,
         leds=tuple(leds),
         metadata=dict(metadata),
+        width_mm=float(width_mm) if width_mm is not None else None,
+        height_mm=float(height_mm) if height_mm is not None else None,
     )
 
 
