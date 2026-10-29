@@ -78,7 +78,7 @@ def _strip_json_comments(source: str) -> str:
             result.append(char)
             if escaped:
                 escaped = False
-            elif char == "\\\\":
+            elif char == "\\":
                 escaped = True
             elif char == '"':
                 in_string = False
@@ -91,13 +91,13 @@ def _strip_json_comments(source: str) -> str:
             continue
         if char == "/" and i + 1 < len(source) and source[i + 1] == "/":
             i += 2
-            while i < len(source) and source[i] not in "\\r\\n":
+            while i < len(source) and source[i] not in "\r\n":
                 i += 1
             continue
         if char == "/" and i + 1 < len(source) and source[i + 1] == "*":
             i += 2
             while i + 1 < len(source) and source[i:i + 2] != "*/":
-                if source[i] in "\\r\\n":
+                if source[i] in "\r\n":
                     result.append(source[i])
                 i += 1
             if i + 1 >= len(source):

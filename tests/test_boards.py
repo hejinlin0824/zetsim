@@ -72,5 +72,5 @@ def test_board_loader_rejects_non_finite_pin_coordinates(tmp_path: Path):
         '"pins":{"1":{"target":"GPIO1","x":NaN}}}',
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="JSON/JSONC"):
+    with pytest.raises(ValueError, match="有限数字"):
         load_board(path)
