@@ -56,3 +56,10 @@ Each register/peripheral item should carry a fidelity state such as `documented`
 ## Source/reuse policy
 
 The board JSON in this repository is a curated data model, not a bundled board illustration or renderer. The referenced public board definition is used as a pin-mapping cross-check; no SVG, ROM binary, QEMU source, or Wokwi runtime asset is copied. Keep upstream references and the official chip-document version in the metadata. Re-check module-specific limitations and document versions when the board model is extended.
+
+
+## First machine-readable register slice: GPIO / IO MUX
+
+The initial catalog is zetsim/data/registers/esp32s3-gpio.json, exposed read-only through GET /api/hardware/registers. It records the GPIO register-summary slice in ESP32-S3 TRM v1.8, section 6.14.1, with offsets relative to DR_REG_GPIO_BASE. The absolute base is intentionally unset until verified against the address-map table in the same source revision.
+
+This catalog is marked fidelity=metadata-only and runtime_implemented=false. It records the documented register names, offsets, access modes, affected GPIO ranges, and W1TS/W1TC write-one side effects. It does not implement memory-mapped register behaviour and does not imply Espressif QEMU covers every register. Before implementing the model, reconcile register fields and reserved bits against the exact TRM v1.8 tables and ESP-IDF v6.1 SoC headers, then add guest-firmware tests for read/write semantics and observable pin edges.

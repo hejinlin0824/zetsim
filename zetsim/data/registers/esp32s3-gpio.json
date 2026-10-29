@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "target": "esp32s3",
+  "peripheral": "gpio",
+  "peripheral_name": "GPIO and GPIO Matrix",
+  "base_symbol": "DR_REG_GPIO_BASE",
+  "base_address": null,
+  "address_semantics": "Offsets relative to DR_REG_GPIO_BASE; absolute base omitted until verified against the same TRM revision address map.",
+  "source": {
+    "title": "ESP32-S3 Technical Reference Manual",
+    "version": "1.8",
+    "language": "zh",
+    "section": "6.14.1 GPIO Matrix Register Summary and Chapter 6 IO MUX and GPIO Matrix",
+    "url": "https://documentation.espressif.com/esp32-s3_technical_reference_manual_cn.pdf",
+    "cross_check_url": "https://github.com/espressif/esp-idf/blob/master/components/soc/esp32s3/register/soc/gpio_reg.h"
+  },
+  "fidelity": "metadata-only",
+  "runtime_implemented": false,
+  "note": "This catalog is not a memory-mapped register handler. Implemented semantics and QEMU coverage must be tracked separately.",
+  "registers": [
+    {
+      "name": "GPIO_BT_SELECT_REG",
+      "offset": "0x0000",
+      "offset_value": 0,
+      "access": "RW",
+      "description": "GPIO bit selection register.",
+      "gpio_ranges": [],
+      "side_effect": null,
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_OUT_REG",
+      "offset": "0x0004",
+      "offset_value": 4,
+      "access": "RW",
+      "description": "GPIO0-31 output level register. On ESP32-S3, bits 22-25 are invalid; valid GPIO bits in this bank are 0-21 and 26-31.",
+      "gpio_ranges": [
+        "0-21",
+        "26-31"
+      ],
+      "side_effect": null,
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_OUT_W1TS_REG",
+      "offset": "0x0008",
+      "offset_value": 8,
+      "access": "WO",
+      "description": "Write-one-to-set register: writing a 1 sets the corresponding output bit in GPIO_OUT_REG.",
+      "gpio_ranges": [
+        "0-31"
+      ],
+      "side_effect": "write-1 sets corresponding bits",
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_OUT_W1TC_REG",
+      "offset": "0x000C",
+      "offset_value": 12,
+      "access": "WO",
+      "description": "Write-one-to-clear register: writing a 1 clears the corresponding output bit in GPIO_OUT_REG.",
+      "gpio_ranges": [
+        "0-31"
+      ],
+      "side_effect": "write-1 clears corresponding bits",
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_OUT1_REG",
+      "offset": "0x0010",
+      "offset_value": 16,
+      "access": "RW",
+      "description": "GPIO32-48 output level register.",
+      "gpio_ranges": [
+        "32-48"
+      ],
+      "side_effect": null,
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_OUT1_W1TS_REG",
+      "offset": "0x0014",
+      "offset_value": 20,
+      "access": "WO",
+      "description": "Write-one-to-set register for GPIO32-48 output bits.",
+      "gpio_ranges": [
+        "32-48"
+      ],
+      "side_effect": "write-1 sets corresponding bits",
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_OUT1_W1TC_REG",
+      "offset": "0x0018",
+      "offset_value": 24,
+      "access": "WO",
+      "description": "Write-one-to-clear register for GPIO32-48 output bits.",
+      "gpio_ranges": [
+        "32-48"
+      ],
+      "side_effect": "write-1 clears corresponding bits",
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_SDIO_SELECT_REG",
+      "offset": "0x001C",
+      "offset_value": 28,
+      "access": "RW",
+      "description": "SDIO pad external-control selection register.",
+      "gpio_ranges": [],
+      "side_effect": null,
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_ENABLE_REG",
+      "offset": "0x0020",
+      "offset_value": 32,
+      "access": "RW",
+      "description": "GPIO0-31 output-enable register. Bits for unavailable pins are not implemented GPIOs.",
+      "gpio_ranges": [
+        "0-21",
+        "26-31"
+      ],
+      "side_effect": null,
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_ENABLE_W1TS_REG",
+      "offset": "0x0024",
+      "offset_value": 36,
+      "access": "WO",
+      "description": "Write-one-to-set register for GPIO0-31 output-enable bits.",
+      "gpio_ranges": [
+        "0-31"
+      ],
+      "side_effect": "write-1 sets corresponding bits",
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_ENABLE_W1TC_REG",
+      "offset": "0x0028",
+      "offset_value": 40,
+      "access": "WO",
+      "description": "Write-one-to-clear register for GPIO0-31 output-enable bits.",
+      "gpio_ranges": [
+        "0-31"
+      ],
+      "side_effect": "write-1 clears corresponding bits",
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_ENABLE1_REG",
+      "offset": "0x002C",
+      "offset_value": 44,
+      "access": "RW",
+      "description": "GPIO32-48 output-enable register.",
+      "gpio_ranges": [
+        "32-48"
+      ],
+      "side_effect": null,
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_ENABLE1_W1TS_REG",
+      "offset": "0x0030",
+      "offset_value": 48,
+      "access": "WO",
+      "description": "Write-one-to-set register for GPIO32-48 output-enable bits.",
+      "gpio_ranges": [
+        "32-48"
+      ],
+      "side_effect": "write-1 sets corresponding bits",
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_ENABLE1_W1TC_REG",
+      "offset": "0x0034",
+      "offset_value": 52,
+      "access": "WO",
+      "description": "Write-one-to-clear register for GPIO32-48 output-enable bits.",
+      "gpio_ranges": [
+        "32-48"
+      ],
+      "side_effect": "write-1 clears corresponding bits",
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_STRAP_REG",
+      "offset": "0x0038",
+      "offset_value": 56,
+      "access": "RO",
+      "description": "Read-only strapping-pin sample value register.",
+      "gpio_ranges": [],
+      "side_effect": null,
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_IN_REG",
+      "offset": "0x003C",
+      "offset_value": 60,
+      "access": "RO",
+      "description": "GPIO0-31 input level register; reserved/unavailable GPIO bits must not be treated as physical pins.",
+      "gpio_ranges": [
+        "0-21",
+        "26-31"
+      ],
+      "side_effect": null,
+      "reset_value": "not encoded in this initial catalog"
+    },
+    {
+      "name": "GPIO_IN1_REG",
+      "offset": "0x0040",
+      "offset_value": 64,
+      "access": "RO",
+      "description": "GPIO32-48 input level register.",
+      "gpio_ranges": [
+        "32-48"
+      ],
+      "side_effect": null,
+      "reset_value": "not encoded in this initial catalog"
+    }
+  ]
+}

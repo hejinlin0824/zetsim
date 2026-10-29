@@ -27,4 +27,4 @@ zetsim = "zetsim.cli:main"
 include = ["zetsim*"]
 
 [tool.setuptools.package-data]
-zetsim = ["static/*.html", "data/boards/*.json"]
+zetsim = ["static/*.html", "data/boards/*.json", "data/registers/*.json"]

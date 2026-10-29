@@ -170,3 +170,15 @@ def test_board_catalog_api_exposes_esp32s3_board_without_mutating_stm32_registry
         mcu = next(item for item in components if item["type"] == "mcu")
         assert "PA5" in mcu["pins"]
         assert all(not pin.startswith("GPIO") for pin in mcu["pins"])
+
+
+
+def test_hardware_register_catalog_api_exposes_metadata_only_gpio_registers():
+    with TestClient(build_app()) as client:
+        response = client.get("/api/hardware/registers")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["items"][0]["target"] == "esp32s3"
+        assert body["items"][0]["peripheral"] == "gpio"
+        assert body["items"][0]["runtime_implemented"] is False
+        assert any(item["name"] == "GPIO_OUT_W1TS_REG" for item in body["items"][0]["registers"])
