@@ -65,3 +65,15 @@ def test_esp32_runtime_observer_reboot_resets_current_boot_markers_but_keeps_his
     assert snapshot["boot_count"] == 2
     assert snapshot["app_main_entered"] is False
     assert len(snapshot["uart_lines"]) == 3
+
+
+
+def test_runtime_monitor_ui_is_wired_to_esp32_runtime_api():
+    html = (ROOT / "zetsim" / "static" / "index.html").read_text(encoding="utf-8")
+    assert 'id="esp32RuntimeModal"' in html
+    assert 'id="esp32Btn"' in html
+    assert 'id="esp32Plot"' in html
+    assert 'id="esp32SerialInput"' in html
+    assert '/api/esp32/runtime/start' in html
+    assert '/api/esp32/runtime/serial' in html
+    assert 'ZETSIM_ESP32S3_GPIO' in html or 'gpio_levels' in html

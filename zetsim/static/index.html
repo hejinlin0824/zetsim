@@ -307,6 +307,62 @@ input[type=text]:focus{border-color:var(--accent)}
   #projSel{max-width:130px}
 }
 
+
+/* ---------- ESP32-S3 QEMU runtime monitor ---------- */
+#esp32RuntimeModal{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;
+  padding:18px;background:rgba(2,6,12,.82);backdrop-filter:blur(9px)}
+#esp32RuntimeModal.open{display:flex}
+.esp32RuntimeBox{display:flex;flex-direction:column;width:min(1120px,97vw);height:min(790px,94vh);
+  background:#0f1721;border:1px solid #354456;border-radius:14px;overflow:hidden;
+  box-shadow:0 24px 80px rgba(0,0,0,.55)}
+.esp32RuntimeHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 15px;
+  background:linear-gradient(110deg,#142438,#101720);border-bottom:1px solid #2b3949}
+.esp32RuntimeTitle{display:flex;flex-direction:column;gap:2px;margin-right:auto}
+.esp32RuntimeTitle strong{font-size:14px;letter-spacing:.2px}
+.esp32RuntimeTitle small{color:#91a2b5;font-size:10px}
+#esp32ProjectSel{background:#111a26;color:#e6edf3;border:1px solid #354456;border-radius:6px;padding:6px 8px}
+.esp32StatePill{font:10px var(--mono);padding:5px 8px;border:1px solid #33475b;border-radius:999px;color:#a8bbd0}
+.esp32StatePill.ready{color:#8cdaa0;border-color:#315d3d;background:#14261c}
+.esp32StatePill.failed,.esp32StatePill.panic{color:#ff9b94;border-color:#713b3b;background:#301a1d}
+#esp32RuntimeMetrics{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px;padding:10px 12px;
+  border-bottom:1px solid #273544;background:#101923}
+.esp32Metric{min-width:0;border:1px solid #293949;background:#121e2b;border-radius:8px;padding:8px 9px}
+.esp32Metric small{display:block;color:#8196ac;font-size:9px;letter-spacing:.5px;margin-bottom:3px}
+.esp32Metric strong{display:block;color:#d8e6f3;font:11px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.esp32RuntimeGrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.9fr);gap:10px;
+  padding:10px;min-height:0;flex:1}
+.esp32RuntimeColumn{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+.esp32RuntimeCard{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;
+  border:1px solid #2d3c4c;border-radius:9px;background:#0b1119}
+.esp32RuntimeCardHead{display:flex;align-items:center;gap:8px;padding:8px 10px;
+  background:#121d29;border-bottom:1px solid #263646;color:#d4e0ec;font-size:11px;font-weight:650}
+.esp32RuntimeCardHead small{margin-left:auto;color:#8296aa;font:10px var(--mono)}
+#esp32UartLog{flex:1;min-height:180px;overflow:auto;padding:10px;margin:0;white-space:pre-wrap;
+  overflow-wrap:anywhere;font:11px/1.6 var(--mono);color:#9fe4b0;background:#080d13}
+.esp32SerialRow{display:flex;gap:7px;padding:8px;border-top:1px solid #263646;background:#101923}
+#esp32SerialInput{flex:1;min-width:0;background:#080d13;color:#e6edf3;border:1px solid #354456;
+  border-radius:7px;padding:7px 9px;font:11px var(--mono)}
+#esp32Plot{display:block;width:100%;height:190px}
+#esp32PlotLegend{display:flex;flex-wrap:wrap;gap:7px;padding:5px 9px 9px}
+.esp32LegendItem{display:flex;align-items:center;gap:5px;color:#97a9bc;font:10px var(--mono)}
+.esp32LegendItem i{display:inline-block;width:8px;height:8px;border-radius:2px}
+#esp32GpioStatus{display:flex;gap:6px;flex-wrap:wrap;padding:10px}
+.esp32GpioPin{padding:5px 7px;border:1px solid #334253;border-radius:6px;background:#121d29;color:#9fb0c2;font:10px var(--mono)}
+.esp32GpioPin.high{color:#9de8b0;border-color:#315f42;background:#11251a}
+.esp32GpioPin.low{color:#92b9eb;border-color:#304d6a;background:#101d2d}
+#esp32RuntimeMessage{min-height:27px;flex-shrink:0;padding:7px 12px;border-top:1px solid #273544;
+  color:#91a5ba;font-size:10px;background:#101923}
+#esp32RuntimeMessage.error{color:#ff9b94}
+.esp32RuntimeFoot{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid #273544}
+.esp32RuntimeFoot small{margin-right:auto;color:#8498ad;font-size:10px}
+#esp32AutoScroll{accent-color:#58a6ff}
+@media(max-width:820px){
+  #esp32RuntimeMetrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .esp32RuntimeGrid{grid-template-columns:minmax(0,1fr);overflow:auto}
+  .esp32RuntimeColumn{min-height:300px}
+  #esp32UartLog{min-height:230px}
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js" defer></script>
 </head>
@@ -320,6 +376,7 @@ input[type=text]:focus{border-color:var(--accent)}
   <button class="btn icon tog" id="togLeft" title="显示/隐藏元件库">◧ 元件库</button>
   <button class="btn icon tog" id="togScope" title="显示/隐藏示波器">⌄ 示波器</button>
   <button class="btn icon tog" id="togRight" title="显示/隐藏调试台（固件/串口/OLED）">◨ 调试台</button>
+  <button class="btn" id="esp32Btn" title="启动 ESP32-S3 / ESP-IDF + QEMU 仿真">ESP32-S3</button>
   <div class="spacer"></div>
   <button class="btn primary" id="runbtn"><span class="pulse off" id="runDot"></span><span id="runTxt">运行</span></button>
   <button class="btn" id="resetbtn">⟲ 复位</button>
@@ -1794,5 +1851,232 @@ migratePower();
 loadLocalOrDefault().then(()=>{poll();});
 resize();
 </script>
+
+<!-- ESP32-S3 runtime monitor modal -->
+<div id="esp32RuntimeModal" aria-hidden="true">
+  <section class="esp32RuntimeBox" role="dialog" aria-modal="true" aria-labelledby="esp32RuntimeTitle">
+    <header class="esp32RuntimeHead">
+      <div class="esp32RuntimeTitle"><strong id="esp32RuntimeTitle">ESP32-S3 · Runtime Monitor</strong><small>ESP-IDF + Espressif QEMU · UART0 · GPIO telemetry</small></div>
+      <select id="esp32ProjectSel" aria-label="ESP-IDF 项目"><option value="esp32s3_blink">esp32s3_blink</option></select>
+      <span id="esp32StatePill" class="esp32StatePill">STOPPED</span>
+      <button class="btn primary" id="esp32StartBtn">▶ 启动</button>
+      <button class="btn danger" id="esp32StopBtn">■ 停止</button>
+      <button class="btn icon" id="esp32CloseBtn" aria-label="关闭 ESP32 监视器">✕</button>
+    </header>
+    <div id="esp32RuntimeMetrics">
+      <div class="esp32Metric"><small>仿真状态</small><strong id="esp32MetricStatus">STOPPED</strong></div>
+      <div class="esp32Metric"><small>ROM / 启动次数</small><strong id="esp32MetricBoot">—</strong></div>
+      <div class="esp32Metric"><small>复位原因</small><strong id="esp32MetricReset">—</strong></div>
+      <div class="esp32Metric"><small>APP_MAIN</small><strong id="esp32MetricApp">未观察</strong></div>
+      <div class="esp32Metric"><small>GPIO 初始化</small><strong id="esp32MetricGpio">未观察</strong></div>
+      <div class="esp32Metric"><small>应用就绪</small><strong id="esp32MetricReady">未观察</strong></div>
+      <div class="esp32Metric"><small>仿真速度 / PANIC</small><strong id="esp32MetricSpeed">— / 0</strong></div>
+    </div>
+    <div class="esp32RuntimeGrid">
+      <div class="esp32RuntimeColumn">
+        <section class="esp32RuntimeCard" style="flex:1">
+          <div class="esp32RuntimeCardHead">UART0 · IDF Monitor <small id="esp32UartCount">0 lines</small>
+            <label style="margin-left:auto;font-weight:400;color:#8ea3b8;display:flex;align-items:center;gap:5px"><input type="checkbox" id="esp32AutoScroll" checked>自动滚动</label>
+            <button class="btn icon" id="esp32ClearLog" style="padding:2px 6px">清屏</button>
+          </div>
+          <pre id="esp32UartLog"></pre>
+          <div class="esp32SerialRow"><input id="esp32SerialInput" type="text" placeholder="发送到 UART0 RX… Enter 发送"><button class="btn primary" id="esp32SerialSend">发送</button></div>
+        </section>
+      </div>
+      <div class="esp32RuntimeColumn">
+        <section class="esp32RuntimeCard">
+          <div class="esp32RuntimeCardHead">Serial Plotter <small>name:value</small></div>
+          <canvas id="esp32Plot" width="640" height="190"></canvas>
+          <div id="esp32PlotLegend"></div>
+        </section>
+        <section class="esp32RuntimeCard">
+          <div class="esp32RuntimeCardHead">观测到的 GPIO 输出 <small>只显示固件日志报告值</small></div>
+          <div id="esp32GpioStatus"><span class="empty">等待 GPIO 心跳…</span></div>
+        </section>
+        <section class="esp32RuntimeCard">
+          <div class="esp32RuntimeCardHead">运行时说明</div>
+          <div style="padding:10px;color:#91a5ba;font-size:11px;line-height:1.8">这些状态来自 QEMU 串口中实际观察到的启动标记与心跳，不等于所有外设寄存器均已建模。看门狗自动初始化目前只在专用烟测工程关闭；普通用户工程保持自己的设置。</div>
+        </section>
+      </div>
+    </div>
+    <div id="esp32RuntimeMessage">就绪。点击启动以调用 projects/esp32s3_blink。</div>
+    <div class="esp32RuntimeFoot"><small>当前项目：ESP32-S3-DevKitC-1 元数据 / ESP-IDF v6.1 smoke profile</small><button class="btn" id="esp32RefreshBtn">刷新状态</button></div>
+  </section>
+</div>
+<script>
+/* ESP32-S3 runtime monitor panel */
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const modal = $("esp32RuntimeModal");
+  if (!modal) return;
+  const ids = {
+    pill: $("esp32StatePill"), status: $("esp32MetricStatus"), boot: $("esp32MetricBoot"),
+    reset: $("esp32MetricReset"), app: $("esp32MetricApp"), gpio: $("esp32MetricGpio"),
+    ready: $("esp32MetricReady"), speed: $("esp32MetricSpeed"), uart: $("esp32UartLog"),
+    count: $("esp32UartCount"), plot: $("esp32Plot"), legend: $("esp32PlotLegend"),
+    gpioStatus: $("esp32GpioStatus"), message: $("esp32RuntimeMessage")
+  };
+  let pollHandle = null;
+  let lastLines = "";
+  let latestSnapshot = null;
+  let requestBusy = false;
+  const colors = ["#63b3ed","#68d391","#f6ad55","#b794f4","#f687b3","#76e4f7"];
+  const labelValue = value => value === null || value === undefined || value === "" ? "—" : String(value);
+  function message(text, isError=false) {
+    ids.message.textContent = text;
+    ids.message.classList.toggle("error", isError);
+  }
+  async function request(path, options={}) {
+    const response = await fetch(path, {
+      ...options,
+      headers: {"Content-Type":"application/json", ...(options.headers || {})}
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok === false) throw new Error(data.error || ("HTTP " + response.status));
+    return data;
+  }
+  function renderPlots(seriesMap) {
+    const canvas = ids.plot;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.max(1, rect.width);
+    const height = 190;
+    if (canvas.width !== Math.round(width*dpr) || canvas.height !== Math.round(height*dpr)) {
+      canvas.width = Math.round(width*dpr);
+      canvas.height = Math.round(height*dpr);
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,width,height);
+    ctx.strokeStyle = "#273544";
+    ctx.lineWidth = 1;
+    for (let i=1;i<5;i++) {
+      const y = 8 + (height-18)*i/5;
+      ctx.beginPath(); ctx.moveTo(35,y); ctx.lineTo(width-8,y); ctx.stroke();
+    }
+    const entries = Object.entries(seriesMap || {}).filter(([,samples]) => samples && samples.length).slice(-6);
+    ids.legend.replaceChildren();
+    const values = entries.flatMap(([,samples]) => samples.map(sample=>sample.value).filter(Number.isFinite));
+    const low = values.length ? Math.min(...values) : 0;
+    const high = values.length ? Math.max(...values) : 1;
+    const span = high-low || 1;
+    entries.forEach(([name,samples],index)=>{
+      const color = colors[index % colors.length];
+      const item = document.createElement("span");
+      item.className = "esp32LegendItem";
+      const swatch = document.createElement("i");
+      swatch.style.background = color;
+      item.append(swatch, document.createTextNode(name));
+      ids.legend.append(item);
+      const points = samples.slice(-180);
+      if (points.length < 2) return;
+      ctx.strokeStyle=color; ctx.lineWidth=1.8; ctx.beginPath();
+      points.forEach((point,i)=>{
+        const x=35+(width-45)*i/Math.max(1,points.length-1);
+        const y=height-10-(point.value-low)/span*(height-25);
+        if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+    });
+    if (!entries.length) {
+      ctx.fillStyle="#6f8195";ctx.font="11px monospace";ctx.fillText("等待数值行（例如 temperature:24.5）或 GPIO 心跳…",12,25);
+    } else if (high === low) {
+      ctx.fillStyle="#6f8195";ctx.font="10px monospace";ctx.fillText("数值范围："+low,7,13);
+    }
+  }
+  function render(s) {
+    latestSnapshot = s;
+    const status = (s.status || "stopped").toUpperCase();
+    ids.pill.textContent = status;
+    ids.pill.className = "esp32StatePill " + (["READY","APP_MAIN"].includes(status)?"ready":(["FAILED","PANIC"].includes(status)?"failed":""));
+    ids.status.textContent = status;
+    ids.boot.textContent = (s.rom_seen ? "ROM · " : "") + (s.boot_count || 0);
+    ids.reset.textContent = s.reset_reason ? s.reset_reason.reason : "—";
+    ids.app.textContent = s.app_main_entered ? "已进入" : "未观察";
+    ids.gpio.textContent = s.gpio_configured ? "已配置" : "未观察";
+    ids.ready.textContent = s.app_ready ? "READY" : "未就绪";
+    ids.speed.textContent = labelValue(s.speed_percent === null ? null : s.speed_percent+"%") + " / " + (s.panic_count || 0);
+    const lines = Array.isArray(s.uart_lines) ? s.uart_lines : [];
+    const joined = lines.join("\n");
+    if (joined !== lastLines) {
+      const shouldScroll = $("esp32AutoScroll").checked;
+      ids.uart.textContent = joined;
+      ids.count.textContent = lines.length + " lines";
+      if (shouldScroll) ids.uart.scrollTop = ids.uart.scrollHeight;
+      lastLines = joined;
+    }
+    const gpios = Object.entries(s.gpio_levels || {}).sort((a,b)=>Number(a[0])-Number(b[0]));
+    ids.gpioStatus.replaceChildren();
+    if (!gpios.length) {
+      const empty=document.createElement("span");empty.className="empty";empty.textContent="等待 GPIO 心跳…";ids.gpioStatus.append(empty);
+    } else gpios.forEach(([pin,level])=>{
+      const el=document.createElement("span");el.className="esp32GpioPin "+(level?"high":"low");
+      el.textContent="GPIO"+pin+" = "+level;ids.gpioStatus.append(el);
+    });
+    renderPlots(s.plot_series || {});
+    $("esp32StopBtn").disabled = !s.process_running;
+    $("esp32SerialSend").disabled = !s.process_running;
+    $("esp32SerialInput").disabled = !s.process_running;
+    if (s.error) message(s.error,true);
+    else if (s.process_running) message("QEMU 正在运行；输出由 UART0 观测适配器实时采集。");
+    else if (s.status === "ready" || s.status === "stopped") message("状态已刷新。");
+  }
+  async function poll() {
+    if (requestBusy) return;
+    requestBusy = true;
+    try { render(await request("/api/esp32/runtime")); }
+    catch (err) { message(err.message || String(err),true); }
+    finally { requestBusy = false; }
+  }
+  function open() {
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden","false");
+    poll();
+    if (!pollHandle) pollHandle = setInterval(poll,650);
+  }
+  function close() {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden","true");
+    if (pollHandle) { clearInterval(pollHandle); pollHandle = null; }
+  }
+  async function start() {
+    message("正在启动 ESP-IDF / QEMU monitor…");
+    try {
+      const data=await request("/api/esp32/runtime/start",{method:"POST",body:JSON.stringify({project:$("esp32ProjectSel").value})});
+      lastLines="";
+      render(data.runtime);
+      message("仿真启动请求已接受；等待 ROM 和应用启动日志。");
+    } catch(err) { message(err.message || String(err),true); }
+  }
+  async function stop() {
+    message("正在停止 QEMU…");
+    try { const data=await request("/api/esp32/runtime/stop",{method:"POST",body:"{}"});render(data.runtime); }
+    catch(err) { message(err.message || String(err),true); }
+  }
+  async function sendSerial() {
+    const input=$("esp32SerialInput");
+    const value=input.value;
+    if (!value) return;
+    try {
+      await request("/api/esp32/runtime/serial",{method:"POST",body:JSON.stringify({text:value})});
+      input.value="";
+      message("已发送到 UART0 RX。");
+    } catch(err) { message(err.message || String(err),true); }
+  }
+  $("esp32Btn").addEventListener("click",open);
+  $("esp32CloseBtn").addEventListener("click",close);
+  $("esp32StartBtn").addEventListener("click",start);
+  $("esp32StopBtn").addEventListener("click",stop);
+  $("esp32SerialSend").addEventListener("click",sendSerial);
+  $("esp32SerialInput").addEventListener("keydown",event=>{if(event.key==="Enter")sendSerial();});
+  $("esp32RefreshBtn").addEventListener("click",poll);
+  $("esp32ClearLog").addEventListener("click",()=>{ids.uart.textContent="";lastLines="";});
+  modal.addEventListener("click",event=>{if(event.target===modal)close();});
+  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&modal.classList.contains("open"))close();});
+  window.addEventListener("resize",()=>{if(latestSnapshot)renderPlots(latestSnapshot.plot_series || {});});
+})();
+</script>
+
 </body>
 </html>
