@@ -320,7 +320,8 @@ input[type=text]:focus{border-color:var(--accent)}
 .esp32RuntimeTitle{display:flex;flex-direction:column;gap:2px;margin-right:auto}
 .esp32RuntimeTitle strong{font-size:14px;letter-spacing:.2px}
 .esp32RuntimeTitle small{color:#91a2b5;font-size:10px}
-#esp32ProjectSel{background:#111a26;color:#e6edf3;border:1px solid #354456;border-radius:6px;padding:6px 8px}
+#esp32ProjectSel,#esp32BackendSel{background:#111a26;color:#e6edf3;border:1px solid #354456;border-radius:6px;padding:6px 8px}
+#esp32BackendSel{max-width:180px}
 .esp32StatePill{font:10px var(--mono);padding:5px 8px;border:1px solid #33475b;border-radius:999px;color:#a8bbd0}
 .esp32StatePill.ready{color:#8cdaa0;border-color:#315d3d;background:#14261c}
 .esp32StatePill.failed,.esp32StatePill.panic{color:#ff9b94;border-color:#713b3b;background:#301a1d}
@@ -1899,8 +1900,9 @@ resize();
 <div id="esp32RuntimeModal" aria-hidden="true">
   <section class="esp32RuntimeBox" role="dialog" aria-modal="true" aria-labelledby="esp32RuntimeTitle">
     <header class="esp32RuntimeHead">
-      <div class="esp32RuntimeTitle"><strong id="esp32RuntimeTitle">ESP32-S3 · Runtime Monitor</strong><small>ESP-IDF + Espressif QEMU · UART0 · GPIO telemetry</small></div>
-      <select id="esp32ProjectSel" aria-label="ESP-IDF 项目"><option value="esp32s3_blink">esp32s3_blink</option></select>
+      <div class="esp32RuntimeTitle"><strong id="esp32RuntimeTitle">ESP32-S3 · Runtime Monitor</strong><small id="esp32RuntimeEngine">自动模式：优先 esp-emu；不可用时使用 QEMU</small></div>
+      <select id="esp32ProjectSel" aria-label="ESP-IDF 项目"><option value="esp32s3_blink">esp32s3_blink（GPIO）</option></select>
+      <select id="esp32BackendSel" aria-label="仿真后端"><option value="auto">自动选择后端</option><option value="esp-emu">esp-emu（GPIO/UART）</option><option value="qemu">Espressif QEMU</option></select>
       <span id="esp32StatePill" class="esp32StatePill">STOPPED</span>
       <button class="btn primary" id="esp32StartBtn">▶ 启动</button>
       <button class="btn danger" id="esp32StopBtn">■ 停止</button>
@@ -1974,7 +1976,7 @@ resize();
   const modal = $("esp32RuntimeModal");
   if (!modal) return;
   const ids = {
-    pill: $("esp32StatePill"), status: $("esp32MetricStatus"), boot: $("esp32MetricBoot"),
+    pill: $("esp32StatePill"), engine: $("esp32RuntimeEngine"), backend: $("esp32BackendSel"), status: $("esp32MetricStatus"), boot: $("esp32MetricBoot"),
     reset: $("esp32MetricReset"), app: $("esp32MetricApp"), gpio: $("esp32MetricGpio"),
     ready: $("esp32MetricReady"), speed: $("esp32MetricSpeed"), readbackMetric: $("esp32MetricReadback"), readbackMismatchCount: $("esp32ReadbackMismatchCount"), readbackWarning: $("esp32ReadbackWarning"), gpioReadbackStatus: $("esp32GpioReadbackStatus"), uart: $("esp32UartLog"),
     count: $("esp32UartCount"), plot: $("esp32Plot"), legend: $("esp32PlotLegend"),
@@ -2055,6 +2057,12 @@ resize();
     const status = (s.status || "stopped").toUpperCase();
     ids.pill.textContent = status;
     ids.pill.className = "esp32StatePill " + (["READY","APP_MAIN"].includes(status)?"ready":(["FAILED","PANIC"].includes(status)?"failed":""));
+    const engine = s.backend || "none";
+    ids.engine.textContent = engine === "esp-emu"
+      ? "当前后端：esp-emu"
+      : engine === "qemu"
+        ? "当前后端：Espressif QEMU（GPIO/IOMUX 有已知限制）"
+        : "未启动 · 自动模式优先 esp-emu";
     ids.status.textContent = status;
     ids.boot.textContent = (s.rom_seen ? "ROM · " : "") + (s.boot_count || 0);
     ids.reset.textContent = s.reset_reason ? s.reset_reason.reason : "—";
@@ -2226,16 +2234,17 @@ resize();
     if (pollHandle) { clearInterval(pollHandle); pollHandle = null; }
   }
   async function start() {
-    message("正在启动 ESP-IDF / QEMU monitor…");
+    const requestedBackend = ids.backend.value;
+    message("正在启动 ESP-IDF / " + requestedBackend + " …");
     try {
-      const data=await request("/api/esp32/runtime/start",{method:"POST",body:JSON.stringify({project:$("esp32ProjectSel").value})});
+      const data=await request("/api/esp32/runtime/start",{method:"POST",body:JSON.stringify({project:$("esp32ProjectSel").value,backend:requestedBackend})});
       lastLines="";
       render(data.runtime);
       message("仿真启动请求已接受；等待 ROM 和应用启动日志。");
     } catch(err) { message(err.message || String(err),true); }
   }
   async function stop() {
-    message("正在停止 QEMU…");
+    message("正在停止 ESP32-S3 仿真…");
     try { const data=await request("/api/esp32/runtime/stop",{method:"POST",body:"{}"});render(data.runtime); }
     catch(err) { message(err.message || String(err),true); }
   }

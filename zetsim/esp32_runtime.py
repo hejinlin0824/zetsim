@@ -233,6 +233,7 @@ class ESP32RuntimeSession:
         self._thread: threading.Thread | None = None
         self._project: Path | None = None
         self._backend_kind: str | None = None
+        self._engine_kind: str | None = None
         self._stop_requested = False
 
     @staticmethod
@@ -359,6 +360,7 @@ class ESP32RuntimeSession:
                 return False, "ESP32-S3 仿真已经在运行。"
             if not isinstance(backend, str) or backend not in self.BACKENDS:
                 return False, f"仿真后端无效：{backend!r}；允许值：auto、esp-emu、qemu。"
+            self._engine_kind = None
             try:
                 project = validate_project(project_dir)
             except (OSError, ValueError) as exc:

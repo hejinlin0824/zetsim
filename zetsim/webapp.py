@@ -326,14 +326,15 @@ def build_app(firmware: str | None = None) -> FastAPI:
 
     @app.post("/api/esp32/runtime/stop")
     async def esp32_runtime_stop():
-        return JSONResponse({"ok": True, "runtime": esp32_runtime.stop()})
+        runtime = await asyncio.to_thread(esp32_runtime.stop)
+        return JSONResponse({"ok": True, "runtime": runtime})
 
     @app.post("/api/esp32/runtime/serial")
     async def esp32_runtime_serial(body: dict):
         value = body.get("text", "")
         if not isinstance(value, str):
             return JSONResponse({"ok": False, "error": "串口输入必须是字符串。"}, status_code=400)
-        ok, error = esp32_runtime.send_serial(value)
+        ok, error = await asyncio.to_thread(esp32_runtime.send_serial, value)
         if not ok:
             code = 409 if error and "没有运行" in error else 400
             return JSONResponse({"ok": False, "error": error or "串口输入失败。"}, status_code=code)

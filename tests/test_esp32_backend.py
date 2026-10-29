@@ -191,3 +191,17 @@ def test_uart1_smoke_runner_requires_tcp_echo_and_uart0_receive_evidence():
     assert "_read_until(client, PAYLOAD" in helper
     assert "capture.rx_logged.wait" in helper
     assert "esp-emu 0.51.0 UART1 RX/TX loopback verified." in smoke
+
+
+
+def test_runtime_backend_selector_is_wired_to_the_start_api():
+    html = (ROOT / "zetsim" / "static" / "index.html").read_text(encoding="utf-8")
+    assert 'id="esp32BackendSel"' in html
+    assert 'value="esp-emu"' in html
+    assert 'value="qemu"' in html
+    assert 'backend:requestedBackend' in html
+    assert 'id="esp32RuntimeEngine"' in html
+    runtime = (ROOT / "zetsim" / "esp32_runtime.py").read_text(encoding="utf-8")
+    assert '"auto", "qemu", "esp-emu"' in runtime
+    assert "merged_flash.bin" in runtime
+    assert 'state["backend"] = self._engine_kind or "none"' in runtime

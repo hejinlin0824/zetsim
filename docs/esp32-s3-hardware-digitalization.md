@@ -136,3 +136,8 @@ curl -fsSL https://raw.githubusercontent.com/espressif/esp-emulator/v0.51.0/inst
 ```
 
 Selecting `esp-emu` builds the selected ESP-IDF project, merges the flash image, then launches the merged binary and ELF used for trace/symbol information. This work runs in a worker thread so it does not block unrelated web requests. UART0 input in the monitor is forwarded to the running firmware; UART1 external-device communication has a separate CI loopback regression.
+
+
+### Workbench selector and active engine display
+
+The runtime monitor now offers `Auto`, `esp-emu`, and `QEMU` in the UI. Its live status identifies the engine that actually launched, rather than merely echoing the requested preference. The start, stop, and UART0 input operations run through worker threads so IDF build/merge preparation and process lifecycle locks do not stall the web event loop. A request using an unsupported backend is rejected before a process is launched.
