@@ -116,6 +116,8 @@ def test_smoke_script_has_layered_boot_markers_and_panic_symbolization():
         "xtensa-esp32s3-elf-addr2line",
         "xtensa-esp-elf-addr2line",
         "awk '/PC[[:space:]]*:/",
+        "make_artifacts_readable",
+        "chmod 0644",
         "ESP-ROM:esp32s3",
         "ZETSIM_ESP32S3_APP_MAIN_ENTERED",
         "ZETSIM_ESP32S3_GPIO_CONFIG_OK",

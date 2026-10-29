@@ -30,11 +30,19 @@ meta_file="$artifact_dir/esp32s3-run-metadata.txt"
 idf.py build 2>&1 | tee "$artifact_dir/esp32s3-build.log"
 
 log_file="$(mktemp)"
+make_artifacts_readable() {
+    # The ESP-IDF CI action runs in a container and may leave root-owned
+    # artifacts in the mounted workspace. The host upload-artifact step must
+    # be able to read every evidence file after this container exits.
+    find "$artifact_dir" -type f -exec chmod 0644 {} + 2>/dev/null || true
+    find "$artifact_dir" -type d -exec chmod 0755 {} + 2>/dev/null || true
+}
 cleanup() {
     if [[ -f "$log_file" ]]; then
         cp "$log_file" "$artifact_dir/esp32s3-qemu.log" 2>/dev/null || true
         rm -f "$log_file"
     fi
+    make_artifacts_readable
 }
 trap cleanup EXIT
 
