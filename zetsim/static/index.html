@@ -384,6 +384,24 @@ input[type=text]:focus{border-color:var(--accent)}
 .esp32BoardLed{padding:4px 6px;border:1px solid #334253;border-radius:5px;color:#a9bdd1;background:#111d2a;font:9px var(--mono)}
 .esp32BoardLed.rgb{border-color:#5d4f79;color:#d7c8ff}
 @media(max-width:820px){.esp32BoardPinList{max-height:125px}}
+
+.esp32BoardCard{max-height:510px;flex-shrink:0}
+.esp32WireTools{padding:7px;border-bottom:1px solid #263646;display:grid;gap:6px}
+.esp32WireRow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:5px}
+.esp32WireRow select{min-width:0;background:#0b121b;color:#cbd9e7;border:1px solid #344658;border-radius:5px;padding:5px;font:10px var(--mono)}
+.esp32WireReset{grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center}
+.esp32WireReset label{display:flex;align-items:center;gap:4px;color:#91a6bb;font-size:10px;white-space:nowrap}
+.esp32WireReset input{accent-color:#58a6ff}
+.esp32WireReset .btn{font-size:10px;padding:4px 6px;white-space:nowrap}
+.esp32AssignmentList{display:flex;flex-wrap:wrap;gap:4px;max-height:70px;overflow:auto}
+.esp32Assignment{display:inline-flex;align-items:center;gap:5px;max-width:100%;padding:4px 6px;border:1px solid #334253;border-radius:5px;background:#111d2a;color:#adbed0;font:9px var(--mono)}
+.esp32Assignment button{border:0;background:transparent;color:#ff9b94;cursor:pointer;font:11px var(--mono)}
+.esp32BoardCheckResult{max-height:135px;overflow:auto;padding:6px 7px;background:#0a1119;border-radius:5px;color:#8fa5ba;font-size:10px;line-height:1.6}
+.esp32BoardCheckResult .resultSummary{font:10px var(--mono);margin-bottom:5px;color:#d3dfeb}
+.esp32BoardFinding{padding:5px 0;border-top:1px solid #233140}
+.esp32BoardFinding strong{display:block;color:#e7c67a;font:10px var(--mono)}
+.esp32BoardFinding.error strong{color:#ff938b}
+.esp32BoardFinding p{margin-top:2px;overflow-wrap:anywhere}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js" defer></script>
 </head>
@@ -1913,6 +1931,14 @@ resize();
         <section class="esp32RuntimeCard esp32BoardCard">
           <div class="esp32RuntimeCardHead">ESP32-S3-DevKitC-1 · Board Registry <small id="esp32BoardDimensions">加载板卡元数据…</small></div>
           <div id="esp32BoardSummary" class="esp32BoardSummary">针脚位置、别名和限制来自同一份板卡注册表。</div>
+          <div class="esp32WireTools">
+            <div class="esp32WireRow"><select id="esp32WirePin" aria-label="待检查针脚"></select><select id="esp32WireRole" aria-label="针脚用途">
+              <option value="gpio_input">GPIO 输入</option><option value="gpio_output">GPIO 输出</option><option value="uart_tx">UART TX</option><option value="uart_rx">UART RX</option><option value="i2c_sda">I²C SDA</option><option value="i2c_scl">I²C SCL</option><option value="spi_sck">SPI SCK</option><option value="spi_mosi">SPI MOSI</option><option value="spi_miso">SPI MISO</option><option value="pwm">PWM</option><option value="adc">ADC</option><option value="usb_serial_jtag">USB Serial/JTAG</option><option value="jtag">JTAG</option>
+            </select></div>
+            <div class="esp32WireRow esp32WireReset"><label><input type="checkbox" id="esp32DuringReset">复位期间</label><select id="esp32ExternalLevel"><option value="undriven">未外部驱动</option><option value="low">外部拉低</option><option value="high">外部拉高</option></select><button class="btn" id="esp32AddAssignment">加入</button><button class="btn primary" id="esp32RunBoardCheck">检查接线</button></div>
+            <div id="esp32AssignmentList" class="esp32AssignmentList">还没有针脚分配。</div>
+            <div id="esp32BoardCheckResult" class="esp32BoardCheckResult">这里只检查板级约束，不代替电气仿真。</div>
+          </div>
           <div id="esp32BoardHeaders" class="esp32BoardHeaders"></div>
           <div id="esp32BoardLeds"></div>
         </section>
@@ -1944,7 +1970,7 @@ resize();
     count: $("esp32UartCount"), plot: $("esp32Plot"), legend: $("esp32PlotLegend"),
     gpioStatus: $("esp32GpioStatus"), message: $("esp32RuntimeMessage"),
     boardSummary: $("esp32BoardSummary"), boardDimensions: $("esp32BoardDimensions"),
-    boardHeaders: $("esp32BoardHeaders"), boardLeds: $("esp32BoardLeds")
+    boardHeaders: $("esp32BoardHeaders"), boardLeds: $("esp32BoardLeds"), wirePin:$("esp32WirePin"), wireRole:$("esp32WireRole"), duringReset:$("esp32DuringReset"), externalLevel:$("esp32ExternalLevel"), addAssignment:$("esp32AddAssignment"), runBoardCheck:$("esp32RunBoardCheck"), assignmentList:$("esp32AssignmentList"), boardCheckResult:$("esp32BoardCheckResult")
   };
   let pollHandle = null;
   let lastLines = "";
@@ -2053,6 +2079,34 @@ resize();
   }
 
   let boardMapLoaded = false;
+  let wiringAssignments = [];
+  function renderAssignmentList() {
+    ids.assignmentList.replaceChildren();
+    if (!wiringAssignments.length) { ids.assignmentList.textContent="还没有针脚分配。"; return; }
+    wiringAssignments.forEach((a,index)=>{
+      const row=document.createElement("span");row.className="esp32Assignment";
+      row.append(document.createTextNode(a.pin+" · "+a.mode+(a.during_reset?" · RESET "+a.external_level.toUpperCase():"")));
+      const remove=document.createElement("button");remove.type="button";remove.textContent="×";remove.title="移除";
+      remove.addEventListener("click",()=>{wiringAssignments=wiringAssignments.filter((_,i)=>i!==index);renderAssignmentList();});
+      row.append(remove);ids.assignmentList.append(row);
+    });
+  }
+  async function runBoardWiringCheck() {
+    try {
+      const report=await request("/api/boards/esp32-s3-devkitc-1/check",{method:"POST",body:JSON.stringify({assignments:wiringAssignments})});
+      const summary=document.createElement("div");summary.className="resultSummary";
+      summary.textContent=(report.ok?"未发现错误":"发现错误")+" · 错误 "+report.summary.errors+" · 警告 "+report.summary.warnings+" · 提示 "+report.summary.infos;
+      ids.boardCheckResult.replaceChildren(summary);
+      (report.findings||[]).forEach(f=>{
+        const row=document.createElement("div");row.className="esp32BoardFinding "+f.severity;
+        const title=document.createElement("strong");title.textContent=f.code+" · "+f.title;
+        const detail=document.createElement("p");detail.textContent=f.detail;
+        row.append(title,detail);ids.boardCheckResult.append(row);
+      });
+      message("板级接线检查完成："+report.summary.errors+" 个错误、"+report.summary.warnings+" 个警告。",!report.ok);
+    } catch(err) { ids.boardCheckResult.textContent=err.message||String(err);message(err.message||String(err),true); }
+  }
+
   async function loadBoardMap() {
     if (boardMapLoaded) return;
     try {
@@ -2061,6 +2115,9 @@ resize();
       if (!board) throw new Error("板卡注册表未提供 ESP32-S3-DevKitC-1。");
       const dimensions = board.dimensions_mm || {};
       ids.boardDimensions.textContent = labelValue(dimensions.width) + " × " + labelValue(dimensions.height) + " mm";
+      const headerAliases=[...new Set(Object.values(board.headers||{}).flat())];
+      ids.wirePin.replaceChildren();
+      headerAliases.forEach(alias=>{const pin=(board.pins||{})[alias];if(!pin||pin.kind!=="gpio")return;const option=document.createElement("option");option.value=alias;option.textContent=alias+" → "+pin.target;ids.wirePin.append(option);});
       const headers = Object.values(board.headers || {});
       ids.boardSummary.textContent = board.name + " · 目标 " + board.target +
         " · 左右各 " + (headers.length ? headers[0].length : 0) +
@@ -2163,6 +2220,14 @@ resize();
       message("已发送到 UART0 RX。");
     } catch(err) { message(err.message || String(err),true); }
   }
+  ids.addAssignment.addEventListener("click",()=>{
+    if(!ids.wirePin.value){message("没有可分配的 GPIO 针脚。",true);return;}
+    const duringReset=ids.duringReset.checked;
+    wiringAssignments.push({pin:ids.wirePin.value,mode:ids.wireRole.value,during_reset:duringReset,external_level:duringReset?ids.externalLevel.value:"undriven",name:""});
+    renderAssignmentList();
+    ids.boardCheckResult.textContent="清单已更新；点击“检查接线”运行规则检查。";
+  });
+  ids.runBoardCheck.addEventListener("click",runBoardWiringCheck);
   $("esp32Btn").addEventListener("click",open);
   $("esp32CloseBtn").addEventListener("click",close);
   $("esp32StartBtn").addEventListener("click",start);
