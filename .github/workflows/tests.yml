@@ -95,7 +95,7 @@ jobs:
           Path("/tmp/zetsim-frontend.js").write_text(script, encoding="utf-8")
           assert "id=\"esp32RuntimeModal\"" in html, "missing ESP32-S3 runtime monitor modal"
           assert 'id=\"esp32Btn\"' in html, "missing ESP32-S3 header entry"
-          assert 'fetch(\"/api/esp32/runtime/start\"' in html, "runtime monitor is not wired to start API"
+          assert 'request(\"/api/esp32/runtime/start\"' in html, "runtime monitor is not wired to start API"
           runtime_script = html.split("/* ESP32-S3 runtime monitor panel */", 1)[1].split("</script>", 1)[0]
           Path("/tmp/zetsim-esp32-runtime.js").write_text(runtime_script, encoding="utf-8")
           print("Learning case library, editor, and ESP32-S3 monitor invariants verified.")

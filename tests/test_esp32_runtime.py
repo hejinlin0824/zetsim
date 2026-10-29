@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from zetsim.esp32_runtime import ESP32RuntimeObserver
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_esp32_runtime_observer_tracks_boot_layers_and_gpio_edges():
