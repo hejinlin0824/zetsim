@@ -1,0 +1,4342 @@
+{
+  "schema_version": 1,
+  "target": "esp32s3",
+  "peripheral": "io_mux",
+  "peripheral_name": "IO MUX pad configuration",
+  "base_symbol": "DR_REG_IO_MUX_BASE",
+  "base_address": null,
+  "address_semantics": "Offsets relative to DR_REG_IO_MUX_BASE; absolute base intentionally omitted until verified against the same TRM v1.8 address map.",
+  "source": {
+    "title": "ESP32-S3 Technical Reference Manual",
+    "version": "1.8",
+    "language": "zh",
+    "section": "Chapter 6 IO MUX and GPIO Matrix",
+    "url": "https://documentation.espressif.com/esp32-s3_technical_reference_manual_cn.pdf",
+    "cross_check_url": "https://github.com/espressif/esp-idf/blob/v6.1/components/soc/esp32s3/register/soc/io_mux_reg.h"
+  },
+  "fidelity": "metadata-only",
+  "runtime_implemented": false,
+  "note": "Register offsets and field layouts cross-checked against the ESP-IDF v6.1 ESP32-S3 register header. Per-pin MCU_SEL enum names, reset values, and actual runtime MMIO behaviour are not inferred here.",
+  "registers": [
+    {
+      "name": "IO_MUX_GPIO0_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO0_U",
+      "pin": "GPIO0",
+      "offset": "0x0004",
+      "offset_value": 4,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO0. Alias maps to PERIPHS_IO_MUX_GPIO0_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO1_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO1_U",
+      "pin": "GPIO1",
+      "offset": "0x0008",
+      "offset_value": 8,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO1. Alias maps to PERIPHS_IO_MUX_GPIO1_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO2_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO2_U",
+      "pin": "GPIO2",
+      "offset": "0x000c",
+      "offset_value": 12,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO2. Alias maps to PERIPHS_IO_MUX_GPIO2_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO3_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO3_U",
+      "pin": "GPIO3",
+      "offset": "0x0010",
+      "offset_value": 16,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO3. Alias maps to PERIPHS_IO_MUX_GPIO3_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO4_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO4_U",
+      "pin": "GPIO4",
+      "offset": "0x0014",
+      "offset_value": 20,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO4. Alias maps to PERIPHS_IO_MUX_GPIO4_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO5_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO5_U",
+      "pin": "GPIO5",
+      "offset": "0x0018",
+      "offset_value": 24,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO5. Alias maps to PERIPHS_IO_MUX_GPIO5_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO6_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO6_U",
+      "pin": "GPIO6",
+      "offset": "0x001c",
+      "offset_value": 28,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO6. Alias maps to PERIPHS_IO_MUX_GPIO6_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO7_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO7_U",
+      "pin": "GPIO7",
+      "offset": "0x0020",
+      "offset_value": 32,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO7. Alias maps to PERIPHS_IO_MUX_GPIO7_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO8_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO8_U",
+      "pin": "GPIO8",
+      "offset": "0x0024",
+      "offset_value": 36,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO8. Alias maps to PERIPHS_IO_MUX_GPIO8_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO9_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO9_U",
+      "pin": "GPIO9",
+      "offset": "0x0028",
+      "offset_value": 40,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO9. Alias maps to PERIPHS_IO_MUX_GPIO9_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO10_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO10_U",
+      "pin": "GPIO10",
+      "offset": "0x002c",
+      "offset_value": 44,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO10. Alias maps to PERIPHS_IO_MUX_GPIO10_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO11_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO11_U",
+      "pin": "GPIO11",
+      "offset": "0x0030",
+      "offset_value": 48,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO11. Alias maps to PERIPHS_IO_MUX_GPIO11_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO12_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO12_U",
+      "pin": "GPIO12",
+      "offset": "0x0034",
+      "offset_value": 52,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO12. Alias maps to PERIPHS_IO_MUX_GPIO12_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO13_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO13_U",
+      "pin": "GPIO13",
+      "offset": "0x0038",
+      "offset_value": 56,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO13. Alias maps to PERIPHS_IO_MUX_GPIO13_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO14_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO14_U",
+      "pin": "GPIO14",
+      "offset": "0x003c",
+      "offset_value": 60,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO14. Alias maps to PERIPHS_IO_MUX_GPIO14_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO15_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_XTAL_32K_P_U",
+      "pin": "GPIO15",
+      "offset": "0x0040",
+      "offset_value": 64,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO15. Alias maps to PERIPHS_IO_MUX_XTAL_32K_P_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO16_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_XTAL_32K_N_U",
+      "pin": "GPIO16",
+      "offset": "0x0044",
+      "offset_value": 68,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO16. Alias maps to PERIPHS_IO_MUX_XTAL_32K_N_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO17_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_DAC_1_U",
+      "pin": "GPIO17",
+      "offset": "0x0048",
+      "offset_value": 72,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO17. Alias maps to PERIPHS_IO_MUX_DAC_1_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO18_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_DAC_2_U",
+      "pin": "GPIO18",
+      "offset": "0x004c",
+      "offset_value": 76,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO18. Alias maps to PERIPHS_IO_MUX_DAC_2_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO19_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO19_U",
+      "pin": "GPIO19",
+      "offset": "0x0050",
+      "offset_value": 80,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO19. Alias maps to PERIPHS_IO_MUX_GPIO19_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO20_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO20_U",
+      "pin": "GPIO20",
+      "offset": "0x0054",
+      "offset_value": 84,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO20. Alias maps to PERIPHS_IO_MUX_GPIO20_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO21_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO21_U",
+      "pin": "GPIO21",
+      "offset": "0x0058",
+      "offset_value": 88,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO21. Alias maps to PERIPHS_IO_MUX_GPIO21_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO26_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_SPICS1_U",
+      "pin": "GPIO26",
+      "offset": "0x006c",
+      "offset_value": 108,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO26. Alias maps to PERIPHS_IO_MUX_SPICS1_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO27_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_SPIHD_U",
+      "pin": "GPIO27",
+      "offset": "0x0070",
+      "offset_value": 112,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO27. Alias maps to PERIPHS_IO_MUX_SPIHD_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO28_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_SPIWP_U",
+      "pin": "GPIO28",
+      "offset": "0x0074",
+      "offset_value": 116,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO28. Alias maps to PERIPHS_IO_MUX_SPIWP_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO29_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_SPICS0_U",
+      "pin": "GPIO29",
+      "offset": "0x0078",
+      "offset_value": 120,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO29. Alias maps to PERIPHS_IO_MUX_SPICS0_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO30_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_SPICLK_U",
+      "pin": "GPIO30",
+      "offset": "0x007c",
+      "offset_value": 124,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO30. Alias maps to PERIPHS_IO_MUX_SPICLK_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO31_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_SPIQ_U",
+      "pin": "GPIO31",
+      "offset": "0x0080",
+      "offset_value": 128,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO31. Alias maps to PERIPHS_IO_MUX_SPIQ_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO32_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_SPID_U",
+      "pin": "GPIO32",
+      "offset": "0x0084",
+      "offset_value": 132,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO32. Alias maps to PERIPHS_IO_MUX_SPID_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO33_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO33_U",
+      "pin": "GPIO33",
+      "offset": "0x0088",
+      "offset_value": 136,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO33. Alias maps to PERIPHS_IO_MUX_GPIO33_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO34_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO34_U",
+      "pin": "GPIO34",
+      "offset": "0x008c",
+      "offset_value": 140,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO34. Alias maps to PERIPHS_IO_MUX_GPIO34_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO35_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO35_U",
+      "pin": "GPIO35",
+      "offset": "0x0090",
+      "offset_value": 144,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO35. Alias maps to PERIPHS_IO_MUX_GPIO35_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO36_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO36_U",
+      "pin": "GPIO36",
+      "offset": "0x0094",
+      "offset_value": 148,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO36. Alias maps to PERIPHS_IO_MUX_GPIO36_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO37_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO37_U",
+      "pin": "GPIO37",
+      "offset": "0x0098",
+      "offset_value": 152,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO37. Alias maps to PERIPHS_IO_MUX_GPIO37_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO38_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO38_U",
+      "pin": "GPIO38",
+      "offset": "0x009c",
+      "offset_value": 156,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO38. Alias maps to PERIPHS_IO_MUX_GPIO38_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO39_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_MTCK_U",
+      "pin": "GPIO39",
+      "offset": "0x00a0",
+      "offset_value": 160,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO39. Alias maps to PERIPHS_IO_MUX_MTCK_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO40_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_MTDO_U",
+      "pin": "GPIO40",
+      "offset": "0x00a4",
+      "offset_value": 164,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO40. Alias maps to PERIPHS_IO_MUX_MTDO_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO41_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_MTDI_U",
+      "pin": "GPIO41",
+      "offset": "0x00a8",
+      "offset_value": 168,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO41. Alias maps to PERIPHS_IO_MUX_MTDI_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO42_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_MTMS_U",
+      "pin": "GPIO42",
+      "offset": "0x00ac",
+      "offset_value": 172,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO42. Alias maps to PERIPHS_IO_MUX_MTMS_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO43_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_U0TXD_U",
+      "pin": "GPIO43",
+      "offset": "0x00b0",
+      "offset_value": 176,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO43. Alias maps to PERIPHS_IO_MUX_U0TXD_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO44_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_U0RXD_U",
+      "pin": "GPIO44",
+      "offset": "0x00b4",
+      "offset_value": 180,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO44. Alias maps to PERIPHS_IO_MUX_U0RXD_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO45_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO45_U",
+      "pin": "GPIO45",
+      "offset": "0x00b8",
+      "offset_value": 184,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO45. Alias maps to PERIPHS_IO_MUX_GPIO45_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO46_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_GPIO46_U",
+      "pin": "GPIO46",
+      "offset": "0x00bc",
+      "offset_value": 188,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO46. Alias maps to PERIPHS_IO_MUX_GPIO46_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO47_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_SPICLK_P_U",
+      "pin": "GPIO47",
+      "offset": "0x00c0",
+      "offset_value": 192,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO47. Alias maps to PERIPHS_IO_MUX_SPICLK_P_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    },
+    {
+      "name": "IO_MUX_GPIO48_REG",
+      "hardware_symbol": "PERIPHS_IO_MUX_SPICLK_N_U",
+      "pin": "GPIO48",
+      "offset": "0x00c4",
+      "offset_value": 196,
+      "access": "RW",
+      "description": "IO MUX configuration register for GPIO48. Alias maps to PERIPHS_IO_MUX_SPICLK_N_U.",
+      "reset_value": null,
+      "fields": [
+        {
+          "name": "SLP_OE",
+          "bit": 0,
+          "width": 1,
+          "access": "RW",
+          "description": "Output enable while in sleep mode."
+        },
+        {
+          "name": "SLP_SEL",
+          "bit": 1,
+          "width": 1,
+          "access": "RW",
+          "description": "Select this pad for sleep-mode wakeup."
+        },
+        {
+          "name": "SLP_PD",
+          "bit": 2,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-down while in sleep mode."
+        },
+        {
+          "name": "SLP_PU",
+          "bit": 3,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable pull-up while in sleep mode."
+        },
+        {
+          "name": "SLP_IE",
+          "bit": 4,
+          "width": 1,
+          "access": "RW",
+          "description": "Input enable while in sleep mode."
+        },
+        {
+          "name": "SLP_DRV",
+          "bit": 5,
+          "width": 2,
+          "access": "RW",
+          "description": "Drive-strength field while in sleep mode."
+        },
+        {
+          "name": "FUN_PD",
+          "bit": 7,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-down."
+        },
+        {
+          "name": "FUN_PU",
+          "bit": 8,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pull-up."
+        },
+        {
+          "name": "FUN_IE",
+          "bit": 9,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable normal-mode pad input."
+        },
+        {
+          "name": "FUN_DRV",
+          "bit": 10,
+          "width": 2,
+          "access": "RW",
+          "description": "Normal-mode drive-strength field."
+        },
+        {
+          "name": "MCU_SEL",
+          "bit": 12,
+          "width": 3,
+          "access": "RW",
+          "description": "Select the pin function; valid function encodings can be pin-specific."
+        },
+        {
+          "name": "FILTER_EN",
+          "bit": 15,
+          "width": 1,
+          "access": "RW",
+          "description": "Enable the short-pulse input filter."
+        }
+      ]
+    }
+  ]
+}

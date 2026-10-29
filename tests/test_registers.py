@@ -32,7 +32,7 @@ def test_esp32s3_gpio_register_catalog_is_documented_but_not_claimed_implemented
 
 def test_register_catalog_has_unique_aligned_offsets_and_known_access_modes():
     catalog = register_catalog()
-    assert [item["peripheral"] for item in catalog] == ["gpio"]
+    assert [item["peripheral"] for item in catalog] == ["gpio", "io_mux"]
     regs = catalog[0]["registers"]
     offsets = [item["offset_value"] for item in regs]
     assert len(offsets) == len(set(offsets))
@@ -48,3 +48,20 @@ def test_register_catalog_rejects_claiming_metadata_as_runtime_implementation(tm
     from zetsim.registers import _load_register_file
     with pytest.raises(ValueError, match="metadata-only"):
         _load_register_file(path)
+
+
+
+def test_esp32s3_io_mux_catalog_contains_45_pins_and_documented_fields():
+    catalog = get_register_catalog("io_mux")
+    assert catalog["base_symbol"] == "DR_REG_IO_MUX_BASE"
+    assert catalog["fidelity"] == "metadata-only"
+    assert catalog["runtime_implemented"] is False
+    assert len(catalog["registers"]) == 45
+    regs = {item["pin"]: item for item in catalog["registers"]}
+    assert regs["GPIO43"]["offset"] == "0x00b0"
+    assert regs["GPIO44"]["offset"] == "0x00b4"
+    fields = {item["name"]: item for item in regs["GPIO43"]["fields"]}
+    assert fields["MCU_SEL"]["bit"] == 12
+    assert fields["MCU_SEL"]["width"] == 3
+    assert fields["SLP_DRV"]["bit"] == 5
+    assert fields["FILTER_EN"]["bit"] == 15

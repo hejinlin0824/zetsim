@@ -82,3 +82,10 @@ The ESP32-S3 runtime adapter in `zetsim/esp32_runtime.py` wraps the interactive 
 - `POST /api/esp32/runtime/stop` terminates the session. The server's shutdown handler also stops its QEMU process.
 
 The observer is bounded: it keeps rolling UART/event windows and bounded numeric plot samples. The fields describe events actually seen on the UART; they are not a substitute for hardware register fidelity. QEMU monitor/PTY availability is checked at runtime, with a clear message when the required platform PTY dependency is missing.
+
+
+### Second register slice: per-pin IO MUX
+
+A second metadata-only catalogue, `zetsim/data/registers/esp32s3-io-mux.json`, now records all 45 GPIO pad-register aliases present in the ESP-IDF v6.1 ESP32-S3 register header. Each entry carries the GPIO number, the hardware macro alias, the register offset relative to `DR_REG_IO_MUX_BASE`, access metadata, and documented fields for sleep-mode behavior, pull-up/down, input enable, drive strength, MCU function selection, and the short-pulse filter.
+
+The catalog intentionally does not invent the absolute base address, reset values, or per-pin valid `MCU_SEL` enumerations. It remains `metadata-only`; QEMU, not this JSON file, currently provides the guest's MMIO behaviour. The registry loader validates the base-symbol/peripheral pairing, offsets, access modes, and uniqueness of register offsets.

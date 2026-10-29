@@ -25,8 +25,9 @@ def _load_register_file(path: Path) -> dict[str, Any]:
         raise ValueError(f"当前首版寄存器目录只允许 esp32s3，实际为 {payload.get('target')!r}")
     if not isinstance(payload.get("peripheral"), str) or not payload["peripheral"]:
         raise ValueError("peripheral 必须是非空字符串")
-    if payload.get("base_symbol") != "DR_REG_GPIO_BASE" or payload.get("base_address") is not None:
-        raise ValueError("首版 GPIO 元数据必须保留基地址符号，不得填未经确认的绝对地址")
+    expected_base = {"gpio": "DR_REG_GPIO_BASE", "io_mux": "DR_REG_IO_MUX_BASE"}.get(payload["peripheral"])
+    if expected_base is None or payload.get("base_symbol") != expected_base or payload.get("base_address") is not None:
+        raise ValueError("寄存器元数据必须使用已登记的基地址符号，不得填未经确认的绝对地址")
     if payload.get("fidelity") != "metadata-only" or payload.get("runtime_implemented") is not False:
         raise ValueError("仅有元数据的寄存器目录必须明确标记 metadata-only / runtime_implemented=false")
     registers = payload.get("registers")
