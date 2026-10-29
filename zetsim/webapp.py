@@ -19,7 +19,8 @@ from .schematic import Schematic
 from .build import build_project, PROJECT_FILES
 from .component_registry import component_catalog
 from .targets import TARGETS
-from .boards import board_catalog
+from .boards import board_catalog, get_board
+from .board_rules import check_board_wiring
 from .registers import register_catalog
 from .soc_specs import soc_catalog
 from .esp32_runtime import ESP32RuntimeSession
@@ -282,6 +283,15 @@ def build_app(firmware: str | None = None) -> FastAPI:
     @app.get("/api/boards")
     async def boards():
         return JSONResponse({"items": board_catalog()})
+
+    @app.post("/api/boards/{board_id}/check")
+    async def check_board(board_id: str, body: dict):
+        try:
+            report = check_board_wiring(get_board(board_id), body)
+            return JSONResponse(report)
+        except ValueError as exc:
+            status = 404 if str(exc).startswith("不存在板卡") else 400
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=status)
 
     @app.get("/api/hardware/registers")
     async def hardware_registers():

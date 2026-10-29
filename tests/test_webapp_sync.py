@@ -213,3 +213,20 @@ def test_soc_spec_api_exposes_datasheet_facts_without_claiming_runtime_implement
         assert [spec["target"] for spec in specs] == ["esp32s3"]
         assert specs[0]["gpio"]["programmable_count"] == 45
         assert specs[0]["fidelity"]["runtime_implemented"] is False
+
+
+def test_board_wiring_checker_api_reports_boot_strap_and_interface_conflicts():
+    with TestClient(build_app()) as client:
+        response=client.post("/api/boards/esp32-s3-devkitc-1/check",json={"assignments":[
+          {"pin":"0","mode":"gpio_input","during_reset":True,"external_level":"high"},
+          {"pin":"TX","mode":"gpio_output"},{"pin":"19","mode":"gpio_input"}]})
+        assert response.status_code==200
+        report=response.json()
+        assert report["ok"] is False
+        codes={item["code"] for item in report["findings"]}
+        assert {"STRAP_RESET_DRIVE","UART0_TX_REPURPOSED","USB_SERIAL_JTAG_CONFLICT"} <= codes
+
+def test_board_wiring_checker_api_rejects_unknown_board_and_malformed_body():
+    with TestClient(build_app()) as client:
+        assert client.post("/api/boards/no-such-board/check",json={"assignments":[]}).status_code==404
+        assert client.post("/api/boards/esp32-s3-devkitc-1/check",json={"assignments":{}}).status_code==400
