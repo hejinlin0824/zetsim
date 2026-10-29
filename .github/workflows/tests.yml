@@ -94,6 +94,8 @@ jobs:
           script = html.split("<script>", 1)[1].split("</script>", 1)[0]
           Path("/tmp/zetsim-frontend.js").write_text(script, encoding="utf-8")
           assert "id=\"esp32RuntimeModal\"" in html, "missing ESP32-S3 runtime monitor modal"
+          assert "id=\"esp32BoardHeaders\"" in html, "missing metadata-driven ESP32-S3 pin map"
+          assert 'request(\"/api/boards\")' in html, "board map is not loading the board registry"
           assert 'id=\"esp32Btn\"' in html, "missing ESP32-S3 header entry"
           assert 'request(\"/api/esp32/runtime/start\"' in html, "runtime monitor is not wired to start API"
           runtime_script = html.split("/* ESP32-S3 runtime monitor panel */", 1)[1].split("</script>", 1)[0]

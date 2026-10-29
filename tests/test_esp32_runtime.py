@@ -89,3 +89,13 @@ def test_esp32_process_tree_parser_orders_descendants_before_termination():
 
     process_table = "10 1\n20 10\n21 10\n30 20\n40 2\n"
     assert ESP32RuntimeSession._descendant_pids_from_ps(10, process_table) == [20, 21, 30]
+
+
+def test_runtime_monitor_board_map_uses_board_registry_metadata():
+    html = (ROOT / "zetsim" / "static" / "index.html").read_text(encoding="utf-8")
+    assert 'id="esp32BoardHeaders"' in html
+    assert 'id="esp32BoardDimensions"' in html
+    assert 'request("/api/boards")' in html
+    assert "esp32-s3-devkitc-1" in html
+    assert "board.pins" in html
+    assert "board.leds" in html

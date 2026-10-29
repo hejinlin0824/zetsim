@@ -363,6 +363,27 @@ input[type=text]:focus{border-color:var(--accent)}
   #esp32UartLog{min-height:230px}
 }
 
+
+/* Metadata-driven ESP32-S3 DevKit pin reference */
+.esp32RuntimeColumn{overflow-y:auto;scrollbar-width:thin;scrollbar-color:#33475b transparent}
+.esp32BoardCard{max-height:330px;flex-shrink:0}
+.esp32BoardSummary{padding:7px 9px;color:#8fa6bd;font:10px var(--mono);border-bottom:1px solid #202f3e;line-height:1.6}
+.esp32BoardHeaders{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:7px;min-height:0}
+.esp32BoardHeader{min-width:0;border:1px solid #243342;border-radius:6px;overflow:hidden}
+.esp32BoardHeaderTitle{padding:5px 7px;background:#152233;color:#9ab0c7;font:9px var(--mono);letter-spacing:.4px}
+.esp32BoardPinList{max-height:180px;overflow:auto;padding:3px}
+.esp32BoardPin{display:flex;align-items:center;gap:4px;width:100%;padding:3px 5px;margin:1px 0;background:#101923;border:1px solid #1d2b39;border-radius:4px;color:#c1d2e3;font:9px var(--mono)}
+.esp32BoardPin .alias{min-width:34px;color:#e5edf5;font-weight:700}
+.esp32BoardPin .target{color:#8fa6bd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.esp32BoardPin.power{border-color:#674c35;background:#241c16}
+.esp32BoardPin.power .target{color:#ffc58a}
+.esp32BoardPin.ground{border-color:#3d4b59}
+.esp32BoardPin.warn{border-color:#765c31;background:#2a2417}
+.esp32BoardPin .warning{margin-left:auto;color:#ffd66e;font-weight:800}
+#esp32BoardLeds{padding:0 8px 8px;display:flex;gap:5px;flex-wrap:wrap}
+.esp32BoardLed{padding:4px 6px;border:1px solid #334253;border-radius:5px;color:#a9bdd1;background:#111d2a;font:9px var(--mono)}
+.esp32BoardLed.rgb{border-color:#5d4f79;color:#d7c8ff}
+@media(max-width:820px){.esp32BoardPinList{max-height:125px}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js" defer></script>
 </head>
@@ -1889,6 +1910,12 @@ resize();
           <canvas id="esp32Plot" width="640" height="190"></canvas>
           <div id="esp32PlotLegend"></div>
         </section>
+        <section class="esp32RuntimeCard esp32BoardCard">
+          <div class="esp32RuntimeCardHead">ESP32-S3-DevKitC-1 · Board Registry <small id="esp32BoardDimensions">加载板卡元数据…</small></div>
+          <div id="esp32BoardSummary" class="esp32BoardSummary">针脚位置、别名和限制来自同一份板卡注册表。</div>
+          <div id="esp32BoardHeaders" class="esp32BoardHeaders"></div>
+          <div id="esp32BoardLeds"></div>
+        </section>
         <section class="esp32RuntimeCard">
           <div class="esp32RuntimeCardHead">观测到的 GPIO 输出 <small>只显示固件日志报告值</small></div>
           <div id="esp32GpioStatus"><span class="empty">等待 GPIO 心跳…</span></div>
@@ -1915,7 +1942,9 @@ resize();
     reset: $("esp32MetricReset"), app: $("esp32MetricApp"), gpio: $("esp32MetricGpio"),
     ready: $("esp32MetricReady"), speed: $("esp32MetricSpeed"), uart: $("esp32UartLog"),
     count: $("esp32UartCount"), plot: $("esp32Plot"), legend: $("esp32PlotLegend"),
-    gpioStatus: $("esp32GpioStatus"), message: $("esp32RuntimeMessage")
+    gpioStatus: $("esp32GpioStatus"), message: $("esp32RuntimeMessage"),
+    boardSummary: $("esp32BoardSummary"), boardDimensions: $("esp32BoardDimensions"),
+    boardHeaders: $("esp32BoardHeaders"), boardLeds: $("esp32BoardLeds")
   };
   let pollHandle = null;
   let lastLines = "";
@@ -2022,6 +2051,75 @@ resize();
     else if (s.process_running) message("QEMU 正在运行；输出由 UART0 观测适配器实时采集。");
     else if (s.status === "ready" || s.status === "stopped") message("状态已刷新。");
   }
+
+  let boardMapLoaded = false;
+  async function loadBoardMap() {
+    if (boardMapLoaded) return;
+    try {
+      const data = await request("/api/boards");
+      const board = (data.items || []).find(item => item.id === "esp32-s3-devkitc-1");
+      if (!board) throw new Error("板卡注册表未提供 ESP32-S3-DevKitC-1。");
+      const dimensions = board.dimensions_mm || {};
+      ids.boardDimensions.textContent = labelValue(dimensions.width) + " × " + labelValue(dimensions.height) + " mm";
+      const headers = Object.values(board.headers || {});
+      ids.boardSummary.textContent = board.name + " · 目标 " + board.target +
+        " · 左右各 " + (headers.length ? headers[0].length : 0) +
+        " 针排；! 表示存在引脚约束，请结合模组/Flash 配置确认。";
+      ids.boardHeaders.replaceChildren();
+      Object.entries(board.headers || {}).forEach(([headerName, labels]) => {
+        const section = document.createElement("div");
+        section.className = "esp32BoardHeader";
+        const title = document.createElement("div");
+        title.className = "esp32BoardHeaderTitle";
+        title.textContent = (headerName === "left" ? "LEFT HEADER" : headerName === "right" ? "RIGHT HEADER" : headerName.toUpperCase()) + " · " + labels.length;
+        const list = document.createElement("div");
+        list.className = "esp32BoardPinList";
+        labels.forEach(alias => {
+          const pin = (board.pins || {})[alias];
+          const row = document.createElement("div");
+          const constraints = pin && Array.isArray(pin.constraints) ? pin.constraints : [];
+          const kind = pin ? pin.kind : "signal";
+          row.className = "esp32BoardPin " +
+            (kind === "power" ? "power " : kind === "ground" ? "ground " : "") +
+            (constraints.length ? "warn" : "");
+          const target = pin ? pin.target : "unknown";
+          const coords = pin && pin.x_mm !== null && pin.y_mm !== null
+            ? " · 坐标 (" + pin.x_mm + ", " + pin.y_mm + ") mm" : "";
+          row.title = alias + " → " + target + coords +
+            (constraints.length ? " · 约束：" + constraints.join(", ") : "");
+          const aliasEl = document.createElement("span");
+          aliasEl.className = "alias";
+          aliasEl.textContent = alias;
+          const targetEl = document.createElement("span");
+          targetEl.className = "target";
+          targetEl.textContent = target;
+          row.append(aliasEl, targetEl);
+          if (constraints.length) {
+            const warning = document.createElement("span");
+            warning.className = "warning";
+            warning.textContent = "!";
+            warning.setAttribute("aria-label", "引脚约束");
+            row.append(warning);
+          }
+          list.append(row);
+        });
+        section.append(title, list);
+        ids.boardHeaders.append(section);
+      });
+      ids.boardLeds.replaceChildren();
+      (board.leds || []).forEach(led => {
+        const item = document.createElement("span");
+        item.className = "esp32BoardLed" + (led.type === "ws2812" ? " rgb" : "");
+        const ledPins = Object.entries(led.pins || {}).map(([role, alias]) => role + "=" + alias).join(" ");
+        item.textContent = led.id + " · " + led.type + " · " + ledPins;
+        ids.boardLeds.append(item);
+      });
+      boardMapLoaded = true;
+    } catch (err) {
+      ids.boardSummary.textContent = err.message || String(err);
+      ids.boardDimensions.textContent = "元数据不可用";
+    }
+  }
   async function poll() {
     if (requestBusy) return;
     requestBusy = true;
@@ -2032,6 +2130,7 @@ resize();
   function open() {
     modal.classList.add("open");
     modal.setAttribute("aria-hidden","false");
+    loadBoardMap();
     poll();
     if (!pollHandle) pollHandle = setInterval(poll,650);
   }
