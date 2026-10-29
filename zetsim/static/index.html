@@ -2095,7 +2095,7 @@ resize();
     try {
       const report=await request("/api/boards/esp32-s3-devkitc-1/check",{method:"POST",body:JSON.stringify({assignments:wiringAssignments})});
       const summary=document.createElement("div");summary.className="resultSummary";
-      summary.textContent=(report.ok?"未发现错误":"发现错误")+" · 错误 "+report.summary.errors+" · 警告 "+report.summary.warnings+" · 提示 "+report.summary.infos;
+      summary.textContent=(report.valid?"未发现错误":"发现错误")+" · 错误 "+report.summary.errors+" · 警告 "+report.summary.warnings+" · 提示 "+report.summary.infos;
       ids.boardCheckResult.replaceChildren(summary);
       (report.findings||[]).forEach(f=>{
         const row=document.createElement("div");row.className="esp32BoardFinding "+f.severity;
@@ -2103,7 +2103,7 @@ resize();
         const detail=document.createElement("p");detail.textContent=f.detail;
         row.append(title,detail);ids.boardCheckResult.append(row);
       });
-      message("板级接线检查完成："+report.summary.errors+" 个错误、"+report.summary.warnings+" 个警告。",!report.ok);
+      message("板级接线检查完成："+report.summary.errors+" 个错误、"+report.summary.warnings+" 个警告。",!report.valid);
     } catch(err) { ids.boardCheckResult.textContent=err.message||String(err);message(err.message||String(err),true); }
   }
 

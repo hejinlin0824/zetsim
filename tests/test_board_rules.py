@@ -12,12 +12,12 @@ def codes(report):
 
 def test_strap_pin_external_drive_during_reset_is_an_error_and_warns_about_boot(board):
     report=check_board_wiring(board,{"assignments":[{"pin":"0","mode":"gpio_input","during_reset":True,"external_level":"high"}]})
-    assert report["ok"] is False
+    assert report["valid"] is False
     assert {"STRAP_PIN_ASSIGNED","STRAP_RESET_DRIVE"} <= codes(report)
 
 def test_uart_usb_jtag_and_flash_psram_repurposing_are_warned(board):
     report=check_board_wiring(board,{"assignments":[{"pin":"TX","mode":"gpio_output"},{"pin":"19","mode":"gpio_input"},{"pin":"39","mode":"gpio_output"},{"pin":"35","mode":"gpio_input"}]})
-    assert report["ok"] is True
+    assert report["valid"] is True
     assert {"UART0_TX_REPURPOSED","USB_SERIAL_JTAG_CONFLICT","JTAG_PIN_REPURPOSED","FLASH_PSRAM_PIN_CHECK"} <= codes(report)
 
 def test_same_physical_pin_cannot_be_assigned_twice(board):
@@ -36,4 +36,12 @@ def test_invalid_board_wiring_inputs_are_rejected(board,entry):
 def test_empty_or_clean_board_wiring_plan_has_explanatory_result(board):
     assert "NO_ASSIGNMENTS" in codes(check_board_wiring(board,{"assignments":[]}))
     clean=check_board_wiring(board,{"assignments":[{"pin":"2","mode":"gpio_output"}]})
-    assert clean["ok"] is True and "BOARD_WIRING_CLEAN" in codes(clean)
+    assert clean["valid"] is True and "BOARD_WIRING_CLEAN" in codes(clean)
+
+def test_non_string_modes_and_external_levels_raise_validation_errors(board):
+    for assignment in (
+        {"pin":"2","mode":["gpio_output"]},
+        {"pin":"2","mode":"gpio_output","external_level":["high"]},
+    ):
+        with pytest.raises(ValueError):
+            check_board_wiring(board,{"assignments":[assignment]})

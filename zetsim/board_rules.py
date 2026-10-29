@@ -20,10 +20,10 @@ def check_board_wiring(board: BoardDefinition, payload: dict[str, Any]) -> dict[
         pin_name,mode,name=raw.get("pin"),raw.get("mode"),raw.get("name","")
         reset,level=raw.get("during_reset",False),raw.get("external_level","undriven")
         if not isinstance(pin_name,str) or not pin_name: raise ValueError(f"{label}的 pin 必须是非空字符串")
-        if mode not in MODES: raise ValueError(f"{label}的 mode 无效")
+        if not isinstance(mode,str) or mode not in MODES: raise ValueError(f"{label}的 mode 无效")
         if not isinstance(name,str) or len(name)>80: raise ValueError(f"{label}的 name 必须是 80 字符以内的字符串")
         if not isinstance(reset,bool): raise ValueError(f"{label}的 during_reset 必须是布尔值")
-        if level not in LEVELS: raise ValueError(f"{label}的 external_level 必须是 undriven、low 或 high")
+        if not isinstance(level,str) or level not in LEVELS: raise ValueError(f"{label}的 external_level 必须是 undriven、low 或 high")
         pin=board.pins.get(pin_name)
         if pin is None:
             add("error","PIN_UNKNOWN","针脚别名不存在",f"板卡 {board.name} 没有名为 {pin_name} 的针脚别名。",pin_name); continue
@@ -55,7 +55,7 @@ def check_board_wiring(board: BoardDefinition, payload: dict[str, Any]) -> dict[
     if not assignments: add("info","NO_ASSIGNMENTS","尚无待检查的接线","先将板卡针脚加入接线清单，再运行检查。")
     if not findings: add("info","BOARD_WIRING_CLEAN","未发现已知板级约束冲突","当前清单未触发已登记规则；这不替代电气兼容性和真实硬件验证。")
     errors=sum(x["severity"]=="error" for x in findings); warnings=sum(x["severity"]=="warn" for x in findings); infos=sum(x["severity"]=="info" for x in findings)
-    return {"board_id":board.id,"board_name":board.name,"ok":errors==0,"summary":{"errors":errors,"warnings":warnings,"infos":infos},"assignments":normalized,"findings":findings,"scope_note":"板级静态规则检查；不模拟电气网络，不替代 ESP32-S3 QEMU 或真实硬件验证。"}
+    return {"board_id":board.id,"board_name":board.name,"ok":True,"valid":errors==0,"summary":{"errors":errors,"warnings":warnings,"infos":infos},"assignments":normalized,"findings":findings,"scope_note":"板级静态规则检查；不模拟电气网络，不替代 ESP32-S3 QEMU 或真实硬件验证。"}
 
 def check_board_id(board_id: str, payload: dict[str,Any]) -> dict[str,Any]:
     return check_board_wiring(get_board(board_id),payload)
