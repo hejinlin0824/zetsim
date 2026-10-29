@@ -1,7 +1,7 @@
 # 实战 01：GPIO 闪灯
 
 ## 目标
-建立“开启外设时钟 → 配置 GPIO → 改变输出 → 观察 LED / 探针”的最小闭环。
+建立“HAL 框架入口 → 开启外设时钟 → 配置 GPIO → 改变输出 → 观察 LED / 探针”的最小闭环。
 
 ## 接线
 - MCU VDD → +3.3V；VSS → GND
@@ -12,8 +12,8 @@
 ## 动手任务
 1. 先运行默认 250ms 闪灯。
 2. 把 `BLINK_MS` 从 250 改成 100，保存并编译，比较闪烁速度。
-3. 解释为什么必须先设置 RCC_APB2ENR。
-4. 把 `GPIOA->BRR` 与 `GPIOA->BSRR` 换成显式关灯/开灯逻辑。
+3. 解释为什么必须先调用 `__HAL_RCC_GPIOA_CLK_ENABLE()`（它展开了哪条寄存器写入？）。
+4. 把 `HAL_GPIO_TogglePin` 换成显式的 `HAL_GPIO_WritePin` 开灯/关灯逻辑，比较两种写法。
 
 ## 验收
 - 编译成功并生成 `firmware.hex`。

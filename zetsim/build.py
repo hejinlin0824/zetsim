@@ -137,12 +137,19 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
     hal_include = hal_root / "Inc"
     hal_source_dir = hal_root / "Src"
     hal_project = (project_dir / "stm32f1xx_hal_conf.h").is_file()
-    # Only HAL-enabled projects link the official driver code; register lessons
-    # remain on their previous, smaller build path.
+    # All teaching projects link the official HAL driver; each project's
+    # stm32f1xx_hal_conf.h selects the modules it uses, so module sources whose
+    # macro is undefined compile to empty translation units.
     hal_source_names = (
         "stm32f1xx_hal.c",
         "stm32f1xx_hal_cortex.c",
         "stm32f1xx_hal_gpio.c",
+        "stm32f1xx_hal_uart.c",
+        "stm32f1xx_hal_rcc.c",
+        "stm32f1xx_hal_rcc_ex.c",
+        "stm32f1xx_hal_dma.c",
+        "stm32f1xx_hal_adc.c",
+        "stm32f1xx_hal_tim.c",
     )
     hal_sources = [hal_source_dir / name for name in hal_source_names]
     system_source = _REPO / "third_party" / "cmsis-device-f1" / "Source" / "Templates" / "system_stm32f1xx.c"
@@ -167,6 +174,12 @@ def build_project(project_dir: str | Path) -> tuple[bool, str]:
             hal_include / "stm32f1xx_hal_flash.h",
             hal_include / "stm32f1xx_hal_rcc.h",
             hal_include / "stm32f1xx_hal_rcc_ex.h",
+            hal_include / "stm32f1xx_hal_uart.h",
+            hal_include / "stm32f1xx_hal_dma.h",
+            hal_include / "stm32f1xx_hal_adc.h",
+            hal_include / "stm32f1xx_hal_adc_ex.h",
+            hal_include / "stm32f1xx_hal_tim.h",
+            hal_include / "stm32f1xx_hal_tim_ex.h",
             system_source,
             *hal_sources,
         )

@@ -61,8 +61,9 @@ class Adc(Peripheral):
         super().write(off, size, value)
         if off == 0x08:                                # CR2
             cr2 = self._cr2()
-            # ADON 0->1 启动（简化：第二次写 ADON 等同 SWSTART）
-            if cr2 & (1 << 30):                        # SWSTART
+            # SWSTART 按 RM0008 在 bit22（F1 布局）；bit30 是 F4 的位置，
+            # 仅为兼容早期教学固件保留。
+            if cr2 & (1 << 22) or cr2 & (1 << 30):     # SWSTART
                 self._start()
                 return
             if (cr2 & 1) and not self._started and not self._conv_done_ns:

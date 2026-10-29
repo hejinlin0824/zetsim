@@ -13,6 +13,7 @@
 #define HSI_VALUE              8000000U
 #define LSI_VALUE              40000U
 #define LSE_VALUE              32768U
+#define LSE_STARTUP_TIMEOUT    5000U
 #define VDD_VALUE              3300U
 #define TICK_INT_PRIORITY      0x0FU
 #define USE_RTOS               0U

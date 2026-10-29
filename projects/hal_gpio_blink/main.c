@@ -4,7 +4,7 @@
  */
 #include "stm32f1xx_hal.h"
 
-#define BLINK_INTERVAL_MS 250U
+#define BLINK_INTERVAL_MS 50U
 
 int main(void)
 {

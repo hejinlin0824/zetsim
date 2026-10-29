@@ -12,12 +12,14 @@ PROJECTS = (
 )
 
 
-def test_all_learning_projects_use_the_thin_cmsis_wrapper():
+def test_all_learning_projects_use_the_official_hal_header():
     for project in PROJECTS:
-        wrapper = (ROOT / "projects" / project / "stm32f103.h").read_text(encoding="utf-8")
-        assert '#include "stm32f1xx.h"' in wrapper
-        assert "#define STM32F103xE" in wrapper
-        assert "typedef struct" not in wrapper, f"{project} still hand-defines peripheral structures"
+        main = (ROOT / "projects" / project / "main.c").read_text(encoding="utf-8")
+        assert '#include "stm32f1xx_hal.h"' in main
+        assert '#include "stm32f103.h"' not in main, f"{project} still uses the removed thin wrapper"
+        conf = (ROOT / "projects" / project / "stm32f1xx_hal_conf.h").read_text(encoding="utf-8")
+        assert "#define HAL_MODULE_ENABLED" in conf
+        assert "#define HSI_VALUE              8000000U" in conf, f"{project} must pin the 8MHz HSI model"
 
 
 def test_official_st_device_and_arm_core_headers_are_present():

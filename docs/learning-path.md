@@ -2,7 +2,7 @@
 
 这份教程不是 API 目录，而是一条可以照着完成的实操路线：先运行现成固件，再打开对应的 C 项目阅读，随后只改一个小地方、重新编译、运行并观察结果。每节都包含“看哪个文件、先看哪几行、为什么这样写、动手改什么、什么现象算成功、失败时查哪里”。
 
-建议每次只完成一节。不要一开始就通读整个仓库；每次围绕一个可观察的问题学习，效果会好得多。\n\n**零基础优先走库函数路线：** 先打开 `projects/hal_gpio_blink/main.c`，学习 `HAL_Init()`、`HAL_GPIO_Init()`、`HAL_GPIO_TogglePin()` 和 `HAL_Delay()`。它调用 ST 官方 STM32F1 HAL，而不是自己写的同名封装。原有 GPIO、跑马灯等案例仍保留为寄存器进阶课。详见 `projects/hal_gpio_blink/README.md`。
+建议每次只完成一节。不要一开始就通读整个仓库；每次围绕一个可观察的问题学习，效果会好得多。\n\n**全部课程走库函数路线：** 所有 C 工程都调用 ST 官方 STM32F1 HAL（`HAL_Init()`、`HAL_GPIO_Init()`、`HAL_Delay()` 等），和真实 CubeMX 工程的写法一致。想深挖某个库函数最终写了哪些寄存器，再打开 `third_party/stm32f1xx-hal-driver/Src/` 对应源文件对照阅读。详见 `projects/hal_gpio_blink/README.md`。
 
 ---
 
@@ -25,7 +25,7 @@ zetsim 不是把 LED 动画画在网页上。它加载固件并模拟 STM32F103Z
 | 名词 | 可以先这样理解 | 本项目中的入口 |
 |---|---|---|
 | 固件 / HEX | MCU 实际执行的机器码，不是 C 源码 | firmware/、项目编译输出 |
-| 寄存器 | 固件用特定内存地址控制外设的接口 | projects/*/stm32f103.h、zetsim/periph/ |
+| 寄存器 | 固件用特定内存地址控制外设的接口 | third_party/cmsis-device-f1/Include/stm32f103xe.h、zetsim/periph/ |
 | RCC | 芯片的时钟与复位控制器；外设通常要先开时钟 | projects/*/main.c、zetsim/periph/rcc.py |
 | GPIO | MCU 的输入输出引脚 | zetsim/periph/gpio.py、zetsim/board.py |
 | 中断 / NVIC | 设备事件发生后，让 CPU 暂时转去执行处理函数 | projects/exti_button、zetsim/periph/exti.py |
@@ -104,8 +104,10 @@ zetsim 不是把 LED 动画画在网页上。它加载固件并模拟 STM32F103Z
 
 | 路径 | 学什么 | 什么时候打开 |
 |---|---|---|
-| projects/hal_gpio_blink/main.c | HAL 库函数版点灯，适合入门 | 第一次学库函数时 |\n| projects/gpio_blink/main.c | 第一个 C 程序、时钟、GPIO 和延时 | 第一次学习 |
-| projects/*/stm32f103.h | 寄存器地址映射、volatile、结构体 | 看不懂 RCC 或 GPIO 定义时 |
+| projects/hal_gpio_blink/main.c | 最小 HAL 点灯示例，适合入门 | 第一次学库函数时 |
+| projects/gpio_blink/main.c | 第一个 C 程序：HAL 框架、时钟、GPIO 和延时 | 第一次学习 |
+| third_party/stm32f1xx-hal-driver/Inc | HAL 函数原型、句柄结构体定义 | 看不懂 HAL_Init 或 GPIO_InitTypeDef 时 |
+| third_party/cmsis-device-f1/Include/stm32f103xe.h | 官方 CMSIS 设备定义：外设寄存器结构体 | 想看 HAL 宏最终写成哪个寄存器时 |
 | projects/*/startup.c | 向量表、启动入口、初始化 | 中断函数为什么能被找到时 |
 | projects/*/link.ld | Flash/RAM 地址与链接布局 | 编译链接或内存布局问题 |
 | zetsim/core.py | CPU、固件加载与指令执行的封装 | HEX 为什么可以运行时 |
@@ -125,14 +127,14 @@ zetsim 不是把 LED 动画画在网页上。它加载固件并模拟 STM32F103Z
 
 例如学习 GPIO 闪灯时，依次看：
 
-1. projects/gpio_blink/main.c：固件究竟写了什么寄存器。
-2. projects/gpio_blink/stm32f103.h：这些寄存器名对应什么地址。
+1. projects/gpio_blink/main.c：固件调用了哪些 HAL 函数。
+2. third_party/stm32f1xx-hal-driver/Src/stm32f1xx_hal_gpio.c：HAL_GPIO_Init 最终写了哪些寄存器位。
 3. zetsim/bus.py 与 zetsim/core.py：固件对该地址的访问如何进入模型。
 4. zetsim/periph/gpio.py：GPIO 模型如何保存输出状态。
 5. zetsim/board.py 与 zetsim/devices.py：引脚状态如何影响 LED。
 6. tests/：项目用什么输入与可观察结果验证这条链路。
 
-初学阶段读完第 1、2 步并完成动手任务就够了；只有当结果不符合预期时，再沿链条向下追。
+初学阶段读完第 1 步并完成动手任务就够了；想深挖库函数实现时再看第 2 步；只有当结果不符合预期时，再沿链条向下追。
 
 ---
 
@@ -161,36 +163,43 @@ zetsim 不是把 LED 动画画在网页上。它加载固件并模拟 STM32F103Z
 在浏览器工具栏打开「项目」，选择 gpio_blink。也可以直接打开：
 
     projects/gpio_blink/main.c
-    projects/gpio_blink/stm32f103.h
+    projects/gpio_blink/stm32f1xx_hal_conf.h
     projects/gpio_blink/README.md
 
 先只读 main.c，不急着改代码。建议按下面顺序阅读。
 
-### 关键点 A：先开 RCC 时钟
+### 关键点 A：HAL 框架入口与外设时钟
 
-    RCC->APB2ENR |= (1u << 2);
+    HAL_Init();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
 
-GPIOA 连接在 APB2 时钟域。这里将 APB2ENR 的 bit 2 置 1。为什么是先开时钟？因为外设时钟没有使能时，访问该外设的寄存器可能无法产生预期行为。把它想成“先给设备通电，再配置设备”。
+HAL_Init 复位 HAL 状态、设置 NVIC 优先级分组，并把 SysTick 配成 1ms 中断——之后所有 HAL_Delay 都靠这个时基。第二行是宏，展开后就是往 RCC_APB2ENR 的 bit 2 写 1：为什么先开时钟？外设时钟没有使能时，访问该外设的寄存器可能无法产生预期行为。把它想成“先给设备通电，再配置设备”。库函数版照样绕不开 RCC，只是不再手写位运算。
 
-### 关键点 B：配置 PA5 模式
+### 关键点 B：用结构体描述引脚，HAL_GPIO_Init 落地
 
-    GPIOA->CRL = (GPIOA->CRL & ~(0xFu << 20)) | (0x2u << 20);
+    GPIO_InitTypeDef led = {0};
+    led.Pin   = GPIO_PIN_5;
+    led.Mode  = GPIO_MODE_OUTPUT_PP;  /* 推挽输出 */
+    led.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOA, &led);
 
-CRL 配置 PA0–PA7，每个引脚占 4 位。PA5 对应从 bit 20 开始的 4 位。表达式先清掉这 4 位，再写入 0x2，设置成通用推挽输出、2MHz 速度。
+配置意图写在结构体里，一眼可读；HAL_GPIO_Init 内部替你把 PA5 对应的 CRL 4 位（bit 20–23）清旧值、填新值。想看它到底写了什么，打开 third_party/stm32f1xx-hal-driver/Src/stm32f1xx_hal_gpio.c 搜 CRL 的位段计算。
 
-为什么不能直接把整份 CRL 随意写成一个值？因为那会同时改到 PA0–PA4、PA6、PA7 等其他引脚。先清目标位再设置目标位是更安全的寄存器操作习惯。
+为什么不能直接把整份 CRL 随意写成一个值？因为那会同时改到 PA0–PA4、PA6、PA7 等其他引脚。HAL 帮你养成了“只动目标引脚的位段”的习惯。
 
 ### 关键点 C：翻转输出
 
-    GPIOA->ODR ^= LED_PIN;
+    HAL_GPIO_TogglePin(GPIOA, LED_PIN);
 
-LED_PIN 是第 5 位掩码。异或操作会把这一位从 0 变 1，或从 1 变 0；其他位保持不变。因此循环每执行一次，LED 就改变一次状态。
+每次循环 LED 状态改变一次。HAL 内部做的是读 ODR、异或 GPIO_PIN_5、写回——和上一版手写 `ODR ^=` 等价。
 
-### 关键点 D：SysTick 延时
+### 关键点 D：HAL_Delay 与 SysTick 心跳
 
-    #define BLINK_MS 250u
+    #define BLINK_MS 250U
+    ...
+    HAL_Delay(BLINK_MS);
 
-延时函数把 LOAD 写成 8000 × 毫秒数 − 1，再启动 SysTick，等待 COUNTFLAG 置位。示例按默认 8MHz HSI 解释：每毫秒约有 8000 个时钟。它是教学延时模型，不要把该写法不加检查地用于任意系统时钟。
+HAL_Delay 比较当前 tick 与目标 tick。tick 由 SysTick_Handler 里的 HAL_IncTick() 每 1ms 加一（SysTick 由 HAL_Init 配好，LOAD = SystemCoreClock/1000 − 1 = 7999）。示例按默认 8MHz HSI 解释：每毫秒 8000 个时钟。注意 main.c 里必须定义 SysTick_Handler 并与 startup.c 向量表第 15 项一致，否则 HAL_Delay 永远等不到心跳。
 
 ## 第二步：完成第一个实验
 
@@ -225,14 +234,16 @@ LED_PIN 是第 5 位掩码。异或操作会把这一位从 0 变 1，或从 1 �
 
 ## 先读哪一段？
 
-打开 projects/led_marquee/main.c，重点看 led_init()、LED(i) 和 main() 中的超级循环。
+打开 projects/led_marquee/main.c，重点看 led_pins[]、led_init() 和 main() 中的超级循环。
 
-    #define LED(i) (1u << (i))
-    #define STEP_MS 100
+    static const uint16_t led_pins[8] = {
+        GPIO_PIN_0, GPIO_PIN_1, ..., GPIO_PIN_7,
+    };
+    #define STEP_MS 100U
 
-当 i=0 时，掩码是 00000001；i=1 时是 00000010；i=2 时是 00000100。每次只把一个输出位置为 1，其余位置为 0。
+GPIO_PIN_x 本身就是 (1u << x) 的位掩码：i=0 时是 00000001；i=1 时是 00000010。每次循环只点亮一个引脚、其余保持低电平。
 
-初始化代码把 GPIOA 的 CRL 配成 0x22222222，让 PA0–PA7 都成为通用推挽输出。随后主循环把掩码写入 ODR、等待 STEP_MS，再移动到下一位，走到 7 后回到 0。
+初始化代码把 8 个 GPIO_PIN_x 按位或成一个掩码，一次 HAL_GPIO_Init 全部配成推挽输出（HAL 内部写到 CRL 就是上一版的 0x22222222）。随后主循环 HAL_GPIO_WritePin 点亮当前灯、HAL_Delay(STEP_MS)、熄灭它、移动到下一位，走到 7 后回到 0。
 
 ## 实验步骤
 
@@ -244,14 +255,14 @@ LED_PIN 是第 5 位掩码。异或操作会把这一位从 0 变 1，或从 1 �
 6. 进阶：尝试让跑马灯从 PA7 向 PA0 倒序移动。先写下你准备怎样改变 i，再动手。
 7. 运行布线检查，留意缺失限流电阻、无效端子和重复连线报告。
 
-预期：灯按顺序移动，速度随 STEP_MS 改变。如果只有一盏灯亮、所有灯一起亮或顺序错乱，检查 PA0–PA7 的接线顺序和 ODR 写入值。
+预期：灯按顺序移动，速度随 STEP_MS 改变。如果只有一盏灯亮、所有灯一起亮或顺序错乱，检查 PA0–PA7 的接线顺序和 led_pins[] 顺序。
 
 ## 思考题
 
-- 为什么 LED(i) 使用 1u，而不是普通的有符号整数 1？
-- 写 ODR=LED(i) 与逐位异或的效果有何不同？
+- GPIO_PIN_x 宏为什么定义为 (1u << x)，而不是普通的有符号整数 1？
+- HAL_GPIO_WritePin 置位/复位与“读改写 ODR”相比，各自适合什么场景？
 - 为什么每个 LED 应有自己的限流电阻？
-- 改变 STEP_MS 只影响速度，为什么不需要改 CRL？
+- 改变 STEP_MS 只影响速度，为什么不需要动 GPIO 初始化？
 
 ---
 
@@ -271,29 +282,27 @@ LED_PIN 是第 5 位掩码。异或操作会把这一位从 0 变 1，或从 1 �
 
 main.c 中关键配置包括：
 
-- RCC：打开 AFIO 和 GPIOA 时钟。
-- GPIOA：把 PA0 配成输入，把 PA5 配成输出。
-- AFIO_EXTICR1：选择 EXTI0 使用 Port A。
-- EXTI_IMR：允许 EXTI0 请求通过。
-- EXTI_RTSR：选择上升沿触发。
-- NVIC_ISER0 的 bit 6：允许 EXTI0 IRQ。
-- EXTI0_IRQHandler：翻转 LED，并向 EXTI_PR 对应位写 1 清除 pending 标志。
+- HAL_Init + AFIO/GPIOA 时钟宏：EXTI 信号要经过 AFIO 路由到端口，AFIO 时钟必须自己开。
+- GPIO_MODE_IT_RISING：HAL_GPIO_Init 一句话完成 PA0 的“输入 + 上升沿触发”——它内部写了 AFIO_EXTICR1（路由到 Port A）、EXTI_RTSR（选上升沿）、EXTI_IMR（放行请求）。
+- HAL_NVIC_SetPriority / HAL_NVIC_EnableIRQ(EXTI0_IRQn)：允许 EXTI0（IRQ 编号 6）进入。
+- EXTI0_IRQHandler：调用 HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0)——先向 EXTI_PR 对应位写 1 清 pending，再调用回调。
+- HAL_GPIO_EXTI_Callback：HAL 约定的业务入口，这里只做 HAL_GPIO_TogglePin 翻转 LED。
 
 中断链可以写成：
 
     SW1 → PA0 → EXTI0 边沿检测 → NVIC IRQ6
-        → EXTI0_IRQHandler → 改变 PA5 → LED 改变
+        → EXTI0_IRQHandler → 清 pending → 回调翻转 PA5 → LED 改变
 
-这里的 GPIO 输入配置和 EXTI 中断配置是两个不同层次；仅把 PA0 设成输入，并不会自动打开中断。
+这里的“GPIO 输入”与“EXTI 中断”由同一个 GPIO_MODE_IT_RISING 完成，但它们仍是两个硬件层次；理解这条链路后，再回头看 HAL_GPIO_Init 帮你省掉了哪几步寄存器操作。
 
 ## 动手实验
 
 1. 编译并运行 exti_button。
 2. 在画布按下再松开 SW1，观察 LED 是否翻转。
 3. 完整按键五次，记录实际触发次数。
-4. 只做一次临时实验：注释 NVIC_ISER0 的使能语句，重新编译运行，观察中断是否还会进入。完成后恢复原代码。
-5. 再检查 EXTI_PR 清除语句：先解释为什么需要清 pending，再决定是否做对照实验；实验后务必恢复。
-6. 打开 startup.c，找到 EXTI0_IRQHandler 如何关联到向量表。不要只看函数名，要看启动表里是否确实登记。
+4. 只做一次临时实验：注释 HAL_NVIC_EnableIRQ(EXTI0_IRQn)，重新编译运行，观察中断是否还会进入。完成后恢复原代码。
+5. 再看 EXTI0_IRQHandler 里的 HAL_GPIO_EXTI_IRQHandler：先解释为什么它要先清 pending，再决定是否做对照实验（把回调改空不算清 pending 实验）；实验后务必恢复。
+6. 打开 startup.c，找到 EXTI0_IRQHandler 如何关联到向量表第 22 项（16 + EXTI0_IRQn=6）。不要只看函数名，要看启动表里是否确实登记。
 
 预期：每次有效按下都触发一次翻转。若没有触发，按 RCC、GPIO 输入、AFIO 路由、触发边沿、EXTI_IMR、NVIC、向量表、pending 清除的顺序检查。
 
@@ -303,25 +312,23 @@ main.c 中关键配置包括：
 
 ---
 
-# 实战 04：USART1 回显——寄存器状态位与字符收发
+# 实战 04：USART1 回显——HAL 轮询收发与字符回环
 
 ## 学习目标
 
-跟踪浏览器中输入的字符怎样进入 MCU，再由固件写回串口终端。理解 TXE 与 RXNE 是两个不同的状态位。
+跟踪浏览器中输入的字符怎样进入 MCU，再由固件写回串口终端。理解 HAL_UART_Init 的参数结构和 HAL_UART_Transmit / HAL_UART_Receive 两个轮询 API 的方向区别。
 
 ## 先读源码
 
 打开 projects/uart_echo/main.c。找到以下内容：
 
-- RCC：开启 GPIOA 与 USART1 时钟。
-- GPIOA_CRH：PA9 配为 USART1_TX 复用推挽输出，PA10 配成 RX 输入。
-- USART1_BRR：在默认 HSI 8MHz 教学条件下设置近似 115200 baud。
-- USART1_CR1：打开 USART、发送器与接收器。
-- TXE（SR bit 7）：发送数据寄存器可以写入新数据。
-- RXNE（SR bit 5）：收到一个字节，数据寄存器可读。
-- USART1_DR：读接收到的字节、或写入要发送的字节。
+- 时钟宏：开启 GPIOA 与 USART1。
+- 引脚：PA9 配为 GPIO_MODE_AF_PP（复用推挽，信号交给 USART1），PA10 配为 GPIO_MODE_INPUT 浮空输入——上一版手工算 CRH 位段，现在结构体可读。
+- huart1.Init：BaudRate=115200、8 数据位、1 停止位、无校验、TX_RX 双向、无硬件流控。HAL_UART_Init 内部按 SystemCoreClock（8MHz HSI）替你算 BRR 分频。
+- HAL_UART_Transmit：阻塞式发送，内部等 TXE/TC 标志，整段发完才返回。
+- HAL_UART_Receive：阻塞式接收一个字节，内部等 RXNE 标志；超时用 HAL_MAX_DELAY 表示一直等。
 
-程序是轮询实现：主循环不断看 RXNE；收到数据后读取 DR，再等 TXE 可以发送时把字符写回。它不是靠中断来接收。
+程序是轮询实现：主循环阻塞等一个字节，收到后原样发回。它不是靠中断来接收；两个 HAL API 的名字就写明了方向（Transmit/Receive），而 SR 里的 TXE/RXNE 状态位是它们的内部依据，想看细节可读 third_party/stm32f1xx-hal-driver/Src/stm32f1xx_hal_uart.c。
 
 ## 动手实验
 
@@ -329,7 +336,7 @@ main.c 中关键配置包括：
 2. 等待终端显示固件启动问候语。
 3. 在 USART1 终端逐个输入 hello，再输入一段较长文本。
 4. 改动 main.c 里的启动问候语，保存、编译、运行，验证新问候语出现。
-5. 试着回答：如果没有 RXNE 就直接读取 DR，代码可能会有什么问题？如果不等 TXE 就连续写，可能会丢掉什么？
+5. 试着回答：HAL_UART_Receive 阻塞等待期间 CPU 在做什么？如果把它换成 1ms 超时并配合 HAL_GetTick，主循环还能顺带做哪些事？
 
 预期：输入字符由固件逐字节回显，启动问候语随源码修改变化。若终端空白，检查工程是否正在运行、加载的是哪个固件、USART1 是否正确启动以及终端是否选中 USART1。
 
@@ -345,15 +352,14 @@ main.c 中关键配置包括：
 
 打开 projects/pwm_adc_control/main.c。逐个定位：
 
-1. ADC1_SQR3：选择规则序列通道 1，对应 PA1。
-2. ADC1_CR2：启动 ADC，并设置连续转换。
-3. ADC1_SR 的 EOC 位：本次转换完成。
-4. ADC1_DR：读出 12 位采样值，范围约为 0–4095。
-5. TIM2_PSC=7、TIM2_ARR=99：在相关定时器时钟为 8MHz 的前提下，目标 PWM 频率为 10kHz。
-6. TIM2_CCR1：比较值决定 PWM 占空比。
-7. 计算式把 ADC 值映射到约 5%–95% 的占空比范围，避免长期贴在 0% 或 100%。
+1. htim2.Init：Prescaler=7、Period=99——在定时器时钟 8MHz 前提下（HAL 成员原样写进 PSC/ARR 寄存器：分频 8、100 拍），目标 PWM 频率 10kHz。
+2. TIM_OCMODE_PWM1 + HAL_TIM_PWM_ConfigChannel：PWM 模式 1，Pulse 初值 5；HAL_TIM_PWM_Start 让波形开始输出。
+3. hadc1.Init：单通道、连续转换（ContinuousConvMode=ENABLE）、软件触发。
+4. HAL_ADC_ConfigChannel：规则序列第 1 个 = 通道 1，对应 PA1。
+5. HAL_ADC_PollForConversion：等本次转换完成（EOC）；HAL_ADC_GetValue 读出 12 位采样值，范围约 0–4095。
+6. __HAL_TIM_SET_COMPARE：把采样值映射到约 5%–95% 占空比（DUTY_MIN/DUTY_SPAN 宏），避免长期贴在 0% 或 100%。
 
-注意：ADC 的数值和 PWM 占空比是两回事。ADC 读的是输入电压；CCR 是定时器的比较值。
+注意：ADC 的数值和 PWM 占空比是两回事。ADC 读的是输入电压；CCR 是定时器的比较值。另外真实硬件建议在 ADC 启动前跑一次 HAL_ADCEx_Calibration_Start 校准；zetsim 的教学模型未建模校准位，跳过不影响结果。
 
 ## 动手实验
 
@@ -361,7 +367,7 @@ main.c 中关键配置包括：
 2. 把探针接到 PA0，观察 PWM；将另一个探针（或仪表）放到 PA1 所在网络。
 3. 缓慢拖动电位器，观察 PA1 电压变化。
 4. 同时观察 PA0 的占空比，而不只看是否有方波。
-5. 把映射范围从 5..95 改成 10..80，保存并编译，比较低、中、高电位器位置的响应。
+5. 把 DUTY_MIN/DUTY_SPAN 从 5/90 改成 10/70，保存并编译，比较低、中、高电位器位置的响应。
 6. 恢复或记录修改，确保知道最后运行的是哪一版固件。
 
 预期：PA0 频率大致保持在 10kHz，电位器改变时占空比随之改变。若 PA1 电压变化、但 PWM 占空比不变化，按 ADC 通道、EOC、DR 读取、映射计算、CCR 写入、定时器输出使能的顺序排查。
@@ -417,7 +423,7 @@ main.c 中关键配置包括：
 3. 接入 1kΩ + 100nF RC 网络，并在 RC 节点放置探针。
 4. 对比两个探针：原始 PWM 是方波，RC 节点应呈现较平滑的充放电波形。
 5. 将电容改为 220nF，保持其他条件不变，记录纹波范围与达到稳定状态所需时间。
-6. 恢复 100nF，再把 CCR1 从 30 改成 60，预测平均电压后观察。
+6. 恢复 100nF，再把 PWM_DUTY 从 30 改成 60，预测平均电压后观察。
 7. 再用带 LED 的电路做对照：它是非线性器件参与的电路，数值求解路径可能与纯 RC 不同。
 
 ## 怎样判断结果？
@@ -433,20 +439,20 @@ main.c 中关键配置包括：
 
 ## 4. 看懂 C 工程中的四个文件
 
-六个可编译工程通常都包含 main.c、startup.c、stm32f103.h 和 link.ld。这里需要特别说明：`stm32f103.h` 现在只是一个很薄的兼容包装，不再手写寄存器结构体。实际设备定义来自 ST 官方 CMSIS 的 `third_party/cmsis-device-f1/Include/stm32f103xe.h`，核心 Cortex-M3 定义来自 ARM CMSIS。STM32F103ZET6 使用 `STM32F103xE` 型号选择宏；官方 CMSIS 设备头文件名是 `stm32f103xe.h`，而不是按完整订货号命名的 `stm32f103zet6.h`。
+每个可编译工程都包含 main.c、startup.c、stm32f1xx_hal_conf.h 和 link.ld。设备定义来自 ST 官方 CMSIS 的 `third_party/cmsis-device-f1/Include/stm32f103xe.h`，HAL 函数实现来自 `third_party/stm32f1xx-hal-driver/`，核心 Cortex-M3 定义来自 ARM CMSIS。STM32F103ZET6 使用 `STM32F103xE` 型号选择宏；官方 CMSIS 设备头文件名是 `stm32f103xe.h`，而不是按完整订货号命名的 `stm32f103zet6.h`。
 
-要追溯这些定义，可打开 [third_party/README.md](../third_party/README.md)，其中记录了上游仓库、固定版本提交号和许可证。不要直接编辑厂商头文件来“适配”示例；示例项目保留 `stm32f103.h` 作为兼容入口，构建器会自动添加官方 CMSIS include 路径。
+要追溯这些上游代码的版本和许可证，可打开 [third_party/README.md](../third_party/README.md)，其中记录了上游仓库、固定版本提交号和许可证。不要直接编辑厂商头文件来“适配”示例；构建器会自动添加官方 CMSIS/HAL 的 include 路径并把所需 HAL 源文件一起编译。
 
-六个可编译工程通常都包含 main.c、startup.c、stm32f103.h 和 link.ld。可以把它们理解成四个不同的问题。
+可以把四个工程文件理解成四个不同的问题。
 
 | 文件 | 它回答的问题 | 学习时怎么读 |
 |---|---|---|
-| main.c | 程序要做什么？ | 从 main() 开始，跟着初始化函数和主循环读 |
-| stm32f103.h | 寄存器名字与地址是什么？ | 找到源代码中用到的结构体、基地址、位偏移 |
+| main.c | 程序要做什么？ | 从 main() 开始，跟着 HAL 调用和主循环读 |
+| stm32f1xx_hal_conf.h | 这个工程用到 HAL 的哪些模块？ | 看启用了哪些 HAL_XXX_MODULE_ENABLED，以及时钟数值宏 |
 | startup.c | 复位后 CPU 从哪里开始？中断函数怎样被找到？ | 看向量表、Reset_Handler、数据段初始化和 IRQ 项 |
 | link.ld | 机器码放进 Flash/RAM 的哪里？ | 看 FLASH、RAM 区域以及 .text、.data、.bss 段的布局 |
 
-学习顺序始终先 main.c。等看到它引用了寄存器、启动函数或向量表，再跳到对应文件。不要先逐行读 link.ld，也不要把自动生成的寄存器地图当作普通业务代码随意修改。
+学习顺序始终先 main.c。等看到它调用了某个 HAL 函数，想深挖实现时再跳到 third_party 对应的 .c 文件。不要先逐行读 link.ld，也不要修改厂商驱动源码来迁就示例。
 
 ## 5. 编译、加载、运行：命令行和浏览器各自负责什么？
 

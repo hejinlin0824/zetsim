@@ -14,8 +14,9 @@
 - **原理图画布**：像 Proteus 一样摆元件、连线、仿真；探针记录网络电压
 - **学习案例库**：6 个循序案例（GPIO、跑马灯、EXTI、USART、ADC→PWM、RC 滤波），每个案例提供接线表、代码阅读点、实操任务与验收标准
 - **布线检查**：检查 MCU 供电、无效/重复导线、悬空端子和常见 LED 限流问题；属于教学性基础检查，不替代完整 ERC/DRC
-- **C 项目工作台**：6 个寄存器级课程项目 + 1 个 HAL 入门项目，支持保存、编译、未保存提醒和编译日志
-- **官方 CMSIS + STM32 HAL**：原有课程使用 ST 官方 STM32F103xE 设备定义；新增 `hal_gpio_blink` 使用 ST 官方 STM32F1 HAL 函数。上游版本和许可证见 [third_party 说明](third_party/README.md)\n- **ESP32-S3 独立后端**：新增 ESP-IDF GPIO 例程，通过 Espressif QEMU 启动真实 Xtensa LX7 固件。它与 STM32/Cortex-M3 路径分开运行，详见 [ESP32-S3 支持说明](docs/esp32s3.md)
+- **C 项目工作台**：7 个 HAL 库函数课程项目，支持保存、编译、未保存提醒和编译日志
+- **官方 CMSIS + STM32 HAL**：所有 C 课程均使用 ST 官方 STM32F103xE 设备定义与 STM32F1 HAL 函数，写法与真实 CubeMX 工程一致。上游版本和许可证见 [third_party 说明](third_party/README.md)
+- **ESP32-S3 独立后端**：新增 ESP-IDF GPIO 例程，通过 Espressif QEMU 启动真实 Xtensa LX7 固件。它与 STM32/Cortex-M3 路径分开运行，详见 [ESP32-S3 支持说明](docs/esp32s3.md)
 
 ## 学习与测试文档
 
@@ -48,20 +49,21 @@ CLI 示例：
 
 ## 跟着项目学 C 与 MCU
 
-初学者建议先从 `projects/hal_gpio_blink/main.c` 开始：它使用 ST 官方 HAL 的 `HAL_GPIO_Init`、`HAL_GPIO_TogglePin` 和 `HAL_Delay`。熟悉后再读 `projects/gpio_blink/main.c` 中的寄存器级写法，理解库函数背后的实现。
+所有课程项目都调用 ST 官方 STM32F1 HAL 库函数，与真实 CubeMX 工程的写法一致。建议先从 `projects/hal_gpio_blink/main.c` 入门（只涉及 `HAL_GPIO_Init`、`HAL_GPIO_TogglePin` 和 `HAL_Delay`），再按表学习其余工程。想理解库函数背后做了什么，可对照阅读 `third_party/stm32f1xx-hal-driver/Src/` 中对应的驱动源码。
 
-七个可编辑 C 项目位于 projects/（`hal_gpio_blink` 为库函数入门示例）：
+七个可编辑 C 项目位于 projects/：
 
 | 工程 | 学习重点 |
 |---|---|
-| gpio_blink | RCC、GPIO 输出、SysTick 延时 |
-| led_marquee | 位掩码、循环、8 路 GPIO |
-| exti_button | EXTI、NVIC、中断向量与 pending 清除 |
-| uart_echo | USART1、TXE/RXNE、数据寄存器 |
-| pwm_adc_control | ADC 采样值控制 TIM2 PWM 占空比 |
-| pwm_rc_filter | 10kHz PWM、RC 时间常数、平均电压和纹波 |\n| hal_gpio_blink | ST 官方 STM32 HAL 库函数入门 |
+| hal_gpio_blink | HAL 框架入门：HAL_Init、GPIO 输出、HAL_Delay |
+| gpio_blink | HAL 时钟宏、GPIO_InitTypeDef、SysTick 时基 |
+| led_marquee | GPIO_PIN_x 位掩码、循环、8 路 GPIO |
+| exti_button | GPIO_MODE_IT_RISING、HAL_NVIC、EXTI 回调三段式 |
+| uart_echo | HAL_UART_Init 参数结构、阻塞式收发 |
+| pwm_adc_control | HAL_ADC 连续采样 + __HAL_TIM_SET_COMPARE 控制占空比 |
+| pwm_rc_filter | HAL_TIM PWM 三步曲、RC 时间常数、平均电压和纹波 |
 
-每个工程都有 main.c、startup.c、stm32f103.h 与 link.ld。main.c 讲业务逻辑；startup.c 处理复位和向量表；stm32f103.h 描述寄存器地址；link.ld 决定 Flash 与 RAM 布局。
+每个工程都有 main.c、startup.c、stm32f1xx_hal_conf.h 与 link.ld。main.c 讲业务逻辑；startup.c 处理复位和向量表；stm32f1xx_hal_conf.h 选择该工程启用的 HAL 模块；link.ld 决定 Flash 与 RAM 布局。设备定义与 HAL 驱动来自 third_party/ 下的官方上游代码。
 
 ## 验证
 
