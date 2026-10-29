@@ -21,6 +21,7 @@ from .component_registry import component_catalog
 from .targets import TARGETS
 from .boards import board_catalog
 from .registers import register_catalog
+from .esp32_runtime import ESP32RuntimeSession
 from .project import from_legacy_circuit, validate_project, to_legacy_circuit
 
 # 首次打开的默认示例电路：MCU + LED(PA5) + 按键(PA0) + 电位器(PA1) + 探针
@@ -250,6 +251,9 @@ def build_app(firmware: str | None = None) -> FastAPI:
     if firmware:
         dash.start()          # 带固件启动即自动开跑
     app = FastAPI(title="zetsim")
+    esp32_runtime = ESP32RuntimeSession()
+    app.state.esp32_runtime = esp32_runtime
+    app.add_event_handler("shutdown", esp32_runtime.stop)
     static_dir = Path(__file__).parent / "static"
 
     @app.get("/", response_class=HTMLResponse)
@@ -272,6 +276,40 @@ def build_app(firmware: str | None = None) -> FastAPI:
     @app.get("/api/hardware/registers")
     async def hardware_registers():
         return JSONResponse({"items": register_catalog()})
+
+    @app.get("/api/esp32/runtime")
+    async def esp32_runtime_state():
+        return JSONResponse(esp32_runtime.snapshot())
+
+    @app.post("/api/esp32/runtime/start")
+    async def esp32_runtime_start(body: dict):
+        name = body.get("project", "esp32s3_blink")
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+            return JSONResponse({"ok": False, "error": "项目名只能包含字母、数字、下划线和连字符。"}, status_code=400)
+        root = (Path.cwd() / "projects").resolve()
+        project = (root / name).resolve()
+        if project.parent != root or not project.is_dir():
+            return JSONResponse({"ok": False, "error": "只允许启动 projects/ 下的 ESP-IDF 项目。"}, status_code=404)
+        ok, error = esp32_runtime.start(project)
+        if not ok:
+            code = 409 if error and "已经在运行" in error else 400
+            return JSONResponse({"ok": False, "error": error or "启动 ESP32-S3 仿真失败。"}, status_code=code)
+        return JSONResponse({"ok": True, "runtime": esp32_runtime.snapshot()})
+
+    @app.post("/api/esp32/runtime/stop")
+    async def esp32_runtime_stop():
+        return JSONResponse({"ok": True, "runtime": esp32_runtime.stop()})
+
+    @app.post("/api/esp32/runtime/serial")
+    async def esp32_runtime_serial(body: dict):
+        value = body.get("text", "")
+        if not isinstance(value, str):
+            return JSONResponse({"ok": False, "error": "串口输入必须是字符串。"}, status_code=400)
+        ok, error = esp32_runtime.send_serial(value)
+        if not ok:
+            code = 409 if error and "没有运行" in error else 400
+            return JSONResponse({"ok": False, "error": error or "串口输入失败。"}, status_code=code)
+        return JSONResponse({"ok": True})
 
     @app.get("/api/state")
     async def state():

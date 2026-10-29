@@ -1,0 +1,372 @@
+"""ESP32-S3 UART telemetry parser and QEMU monitor session.
+
+The parser reports observed behaviour, not inferred hardware support. Runtime
+process launching uses a pseudo-terminal because QEMU/IDF monitor are interactive.
+"""
+from __future__ import annotations
+
+from collections import deque
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import threading
+import time
+from pathlib import Path
+from typing import Any, Mapping
+
+from .esp32 import resolve_idf_command, validate_project
+
+_ROM_RE = re.compile(r"ESP-ROM:esp32s3", re.IGNORECASE)
+_RESET_RE = re.compile(r"rst:0x([0-9a-fA-F]+)\s*\(([^)]*)\)")
+_IDF_TIME_RE = re.compile(r"\b[EWIDV] \((\d+)\)")
+_GPIO_RE = re.compile(r"ZETSIM_ESP32S3_GPIO(\d+)=(0|1)")
+_PLOT_RE = re.compile(r"^\s*([A-Za-z][A-Za-z0-9_.-]{0,63})\s*:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*$")
+
+
+class ESP32RuntimeObserver:
+    """Thread-safe bounded observer for UART0 text from an ESP32-S3 session."""
+
+    def __init__(self, *, max_lines: int = 2000, max_samples: int = 1000):
+        self.max_lines = max(20, int(max_lines))
+        self.max_samples = max(10, int(max_samples))
+        self._lock = threading.RLock()
+        self.reset()
+
+    def reset(self) -> None:
+        with getattr(self, "_lock", threading.RLock()):
+            self.started_at = time.monotonic()
+            self.process_running = False
+            self.exit_code: int | None = None
+            self.error: str | None = None
+            self._pending = ""
+            self._lines: deque[str] = deque(maxlen=getattr(self, "max_lines", 2000))
+            self._events: deque[dict[str, Any]] = deque(maxlen=getattr(self, "max_samples", 1000))
+            self.boot_count = 0
+            self.rom_seen = False
+            self.reset_reason: dict[str, str] | None = None
+            self.app_main_entered = False
+            self.gpio_configured = False
+            self.app_ready = False
+            self.panic_count = 0
+            self.gpio_levels: dict[str, int] = {}
+            self.plot_series: dict[str, deque[dict[str, float]]] = {}
+            self.sim_time_ms: float | None = None
+            self._first_sim: tuple[float, float] | None = None
+            self._last_sim: tuple[float, float] | None = None
+            self.last_line_at: float | None = None
+
+    def set_process_state(
+        self, running: bool, *, exit_code: int | None = None, error: str | None = None
+    ) -> None:
+        with self._lock:
+            self.process_running = bool(running)
+            self.exit_code = exit_code
+            if error:
+                self.error = str(error)
+            self.last_line_at = time.monotonic()
+
+    def ingest(self, chunk: str | bytes) -> None:
+        """Consume an arbitrary UART chunk; line boundaries may span calls."""
+        if isinstance(chunk, bytes):
+            text = chunk.decode("utf-8", "replace")
+        else:
+            text = str(chunk)
+        with self._lock:
+            combined = self._pending + text.replace("\r\n", "\n").replace("\r", "\n")
+            parts = combined.split("\n")
+            self._pending = parts.pop()
+            for line in parts:
+                self._consume_line(line.rstrip())
+            self.last_line_at = time.monotonic()
+
+    def flush(self) -> None:
+        with self._lock:
+            if self._pending:
+                self._consume_line(self._pending.rstrip())
+                self._pending = ""
+
+    def _consume_line(self, line: str) -> None:
+        now = time.monotonic()
+        self._lines.append(line)
+        self._events.append({"wall_elapsed_ms": round((now - self.started_at) * 1000, 3), "line": line})
+
+        if _ROM_RE.search(line):
+            self.rom_seen = True
+            self.boot_count += 1
+            self.reset_reason = None
+            self.app_main_entered = False
+            self.gpio_configured = False
+            self.app_ready = False
+            self.sim_time_ms = None
+            self._first_sim = None
+            self._last_sim = None
+
+        reset_match = _RESET_RE.search(line)
+        if reset_match:
+            self.reset_reason = {"code": "0x" + reset_match.group(1).lower(), "reason": reset_match.group(2).strip()}
+
+        if "Guru Meditation Error" in line or "Unhandled exception" in line:
+            self.panic_count += 1
+
+        if "ZETSIM_ESP32S3_APP_MAIN_ENTERED" in line:
+            self.app_main_entered = True
+        if "ZETSIM_ESP32S3_GPIO_CONFIG_OK" in line:
+            self.gpio_configured = True
+        if "ZETSIM_ESP32S3_BOOT_OK" in line:
+            self.app_ready = True
+
+        gpio_match = _GPIO_RE.search(line)
+        if gpio_match:
+            pin, level = gpio_match.group(1), int(gpio_match.group(2))
+            self.gpio_levels[pin] = level
+            series = self.plot_series.setdefault(f"GPIO{pin}", deque(maxlen=self.max_samples))
+            series.append({"wall_elapsed_ms": round((now - self.started_at) * 1000, 3), "value": float(level)})
+
+        plot_match = _PLOT_RE.match(line)
+        if plot_match:
+            name, raw_value = plot_match.group(1), plot_match.group(2)
+            try:
+                value = float(raw_value)
+            except ValueError:
+                value = float("nan")
+            if value == value and abs(value) != float("inf"):
+                series = self.plot_series.setdefault(name, deque(maxlen=self.max_samples))
+                series.append({"wall_elapsed_ms": round((now - self.started_at) * 1000, 3), "value": value})
+
+        time_match = _IDF_TIME_RE.search(line)
+        if time_match:
+            sim_ms = float(time_match.group(1))
+            if self._last_sim is not None and sim_ms < self._last_sim[0]:
+                # IDF millisecond timestamps reset at a reboot.
+                self._first_sim = None
+                self._last_sim = None
+            self.sim_time_ms = sim_ms
+            if self._first_sim is None:
+                self._first_sim = (sim_ms, now)
+            self._last_sim = (sim_ms, now)
+
+    def snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            if self.error:
+                status = "failed"
+            elif self.panic_count and self.process_running:
+                status = "panic"
+            elif not self.process_running:
+                status = "stopped" if self.exit_code in (None, 0) else "failed"
+            elif self.app_ready:
+                status = "ready"
+            elif self.app_main_entered:
+                status = "app_main"
+            elif self.rom_seen:
+                status = "booting"
+            else:
+                status = "starting"
+
+            speed_percent = None
+            if self._first_sim and self._last_sim and self._last_sim[1] > self._first_sim[1]:
+                sim_delta = self._last_sim[0] - self._first_sim[0]
+                wall_delta_ms = (self._last_sim[1] - self._first_sim[1]) * 1000
+                if sim_delta >= 0 and wall_delta_ms > 0:
+                    speed_percent = round(sim_delta / wall_delta_ms * 100.0, 1)
+
+            return {
+                "type": "esp32_runtime",
+                "target": "esp32s3",
+                "status": status,
+                "process_running": self.process_running,
+                "exit_code": self.exit_code,
+                "error": self.error,
+                "rom_seen": self.rom_seen,
+                "boot_count": self.boot_count,
+                "reset_reason": dict(self.reset_reason) if self.reset_reason else None,
+                "app_main_entered": self.app_main_entered,
+                "gpio_configured": self.gpio_configured,
+                "app_ready": self.app_ready,
+                "panic_count": self.panic_count,
+                "gpio_levels": dict(self.gpio_levels),
+                "simulation_time_ms": self.sim_time_ms,
+                "wall_elapsed_ms": round((time.monotonic() - self.started_at) * 1000, 3),
+                "speed_percent": speed_percent,
+                "uart_lines": list(self._lines),
+                "events": list(self._events),
+                "plot_series": {name: list(samples) for name, samples in self.plot_series.items()},
+            }
+
+
+class ESP32RuntimeSession:
+    """Manage one ESP-IDF/QEMU monitor process and its UART observation stream."""
+
+    def __init__(self):
+        self._lock = threading.RLock()
+        self.observer = ESP32RuntimeObserver()
+        self._process: Any = None
+        self._thread: threading.Thread | None = None
+        self._project: Path | None = None
+        self._backend_kind: str | None = None
+        self._stop_requested = False
+
+    @staticmethod
+    def _runtime_command(project: Path, env: Mapping[str, str]) -> tuple[list[str] | None, str | None]:
+        idf_command, error = resolve_idf_command(env)
+        if error or idf_command is None:
+            return None, error or "无法找到 ESP-IDF 命令。"
+        return [*idf_command, "-C", str(project), "qemu", "monitor"], None
+
+    def start(self, project_dir: str | Path) -> tuple[bool, str | None]:
+        with self._lock:
+            if self._process is not None and self._is_alive(self._process):
+                return False, "ESP32-S3 仿真已经在运行。"
+            try:
+                project = validate_project(project_dir)
+            except (OSError, ValueError) as exc:
+                return False, str(exc)
+
+            sdkconfig = project / "sdkconfig.defaults"
+            if not sdkconfig.is_file() or 'CONFIG_IDF_TARGET="esp32s3"' not in sdkconfig.read_text(encoding="utf-8"):
+                return False, "项目必须在 sdkconfig.defaults 中声明 CONFIG_IDF_TARGET=\"esp32s3\"。"
+
+            env = dict(os.environ)
+            env["IDF_TARGET"] = "esp32s3"
+            command, error = self._runtime_command(project, env)
+            if error or command is None:
+                return False, error or "无法初始化 ESP-IDF 命令。"
+
+            self.observer = ESP32RuntimeObserver()
+            self._project = project
+            self._stop_requested = False
+            try:
+                if os.name == "nt":
+                    try:
+                        from winpty import PtyProcess
+                    except ImportError:
+                        return False, (
+                            "Windows 浏览器运行时需要安装可选伪终端依赖："
+                            'python -m pip install -e ".[windows-pty]"'
+                        )
+                    # WinPTY gives QEMU/IDF Monitor a console while keeping UART
+                    # output readable by this backend.
+                    command_line = subprocess.list2cmdline(command)
+                    proc = PtyProcess.spawn(
+                        command_line,
+                        cwd=str(project),
+                        env=env,
+                        dimensions=(30, 120),
+                        encoding="utf-8",
+                    )
+                    self._backend_kind = "winpty"
+                else:
+                    script = shutil.which("script")
+                    if not script:
+                        return False, "未找到 util-linux 的 script；QEMU 串口捕获需要伪终端。"
+                    proc = subprocess.Popen(
+                        [script, "-q", "-f", "-e", "-c", shlex.join(command), "/dev/null"],
+                        cwd=str(project),
+                        env=env,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        bufsize=0,
+                    )
+                    self._backend_kind = "script"
+            except (OSError, ValueError, TypeError) as exc:
+                self._process = None
+                return False, f"启动 ESP-IDF/QEMU monitor 失败：{exc}"
+
+            self._process = proc
+            self.observer.set_process_state(True)
+            self._thread = threading.Thread(target=self._reader_loop, args=(proc, self._backend_kind), daemon=True)
+            self._thread.start()
+            return True, None
+
+    @staticmethod
+    def _is_alive(process: Any) -> bool:
+        if hasattr(process, "poll"):
+            return process.poll() is None
+        try:
+            return bool(process.isalive())
+        except Exception:
+            return False
+
+    def _reader_loop(self, process: Any, backend_kind: str | None) -> None:
+        exit_code: int | None = None
+        try:
+            if backend_kind == "script":
+                assert process.stdout is not None
+                for raw in iter(process.stdout.readline, b""):
+                    self.observer.ingest(raw)
+                exit_code = int(process.wait())
+            elif backend_kind == "winpty":
+                while process.isalive():
+                    line = process.readline()
+                    if line:
+                        self.observer.ingest(line)
+                    else:
+                        time.sleep(0.01)
+                exit_code = getattr(process, "exitstatus", None)
+        except Exception as exc:
+            self.observer.set_process_state(False, error=f"读取 QEMU UART 输出失败：{exc}")
+            return
+        finally:
+            self.observer.flush()
+            with self._lock:
+                stopped_by_user = self._stop_requested
+                self.observer.set_process_state(
+                    False,
+                    exit_code=exit_code,
+                    error=None if stopped_by_user or exit_code in (None, 0) else f"QEMU monitor 退出码：{exit_code}",
+                )
+
+    def send_serial(self, text: str) -> tuple[bool, str | None]:
+        if not isinstance(text, str):
+            return False, "串口输入必须是字符串。"
+        if len(text) > 4096:
+            return False, "单次串口输入不能超过 4096 个字符。"
+        with self._lock:
+            process, kind = self._process, self._backend_kind
+            if process is None or not self._is_alive(process):
+                return False, "ESP32-S3 仿真没有运行。"
+            payload = text if text.endswith("\n") or text.endswith("\r") else text + "\r\n"
+            try:
+                if kind == "script":
+                    if process.stdin is None:
+                        return False, "QEMU 伪终端输入通道不可用。"
+                    process.stdin.write(payload.encode("utf-8", "replace"))
+                    process.stdin.flush()
+                elif kind == "winpty":
+                    process.write(payload)
+                else:
+                    return False, "未知的 QEMU 终端后端。"
+            except (OSError, ValueError) as exc:
+                return False, f"向 ESP32-S3 UART 发送数据失败：{exc}"
+            return True, None
+
+    def stop(self, timeout_s: float = 3.0) -> dict[str, Any]:
+        with self._lock:
+            process, kind = self._process, self._backend_kind
+            if process is None or not self._is_alive(process):
+                return self.observer.snapshot()
+            self._stop_requested = True
+        try:
+            if kind == "script":
+                process.terminate()
+                try:
+                    process.wait(timeout=timeout_s)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=1.0)
+            elif kind == "winpty":
+                try:
+                    process.terminate(force=True)
+                except TypeError:
+                    process.terminate()
+                deadline = time.monotonic() + timeout_s
+                while process.isalive() and time.monotonic() < deadline:
+                    time.sleep(0.05)
+        except Exception as exc:
+            self.observer.set_process_state(False, error=f"停止 ESP32-S3 仿真失败：{exc}")
+        return self.observer.snapshot()
+
+    def snapshot(self) -> dict[str, Any]:
+        return self.observer.snapshot()

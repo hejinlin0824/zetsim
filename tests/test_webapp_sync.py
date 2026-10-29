@@ -182,3 +182,23 @@ def test_hardware_register_catalog_api_exposes_metadata_only_gpio_registers():
         assert body["items"][0]["peripheral"] == "gpio"
         assert body["items"][0]["runtime_implemented"] is False
         assert any(item["name"] == "GPIO_OUT_W1TS_REG" for item in body["items"][0]["registers"])
+
+
+
+def test_esp32_runtime_api_exposes_idle_state_and_requires_active_session_for_serial():
+    with TestClient(build_app()) as client:
+        state = client.get("/api/esp32/runtime")
+        assert state.status_code == 200
+        assert state.json()["target"] == "esp32s3"
+        assert state.json()["status"] == "stopped"
+        response = client.post("/api/esp32/runtime/serial", json={"text": "ping"})
+        assert response.status_code == 409
+        assert response.json()["ok"] is False
+
+
+def test_esp32_runtime_api_rejects_unsafe_project_paths_before_launch():
+    with TestClient(build_app()) as client:
+        response = client.post("/api/esp32/runtime/start", json={"project": "../outside"})
+        assert response.status_code == 400
+        response = client.post("/api/esp32/runtime/start", json={"project": "does_not_exist"})
+        assert response.status_code == 404

@@ -70,3 +70,15 @@ This catalog is marked fidelity=metadata-only and runtime_implemented=false. It 
 A symbolized CI backtrace on ESP-IDF v6.1 showed the panic occurs before the application entry point: `main_task` calls `esp_task_wdt_init`, which enters `esp_task_wdt_impl_timer_allocate` and the interrupt allocator before a null-address `LoadProhibited`. This is a QEMU smoke-fixture failure, not evidence that application GPIO code caused the panic.
 
 The dedicated `projects/esp32s3_blink/sdkconfig.defaults` therefore sets `CONFIG_ESP_TASK_WDT_INIT=n` so the test firmware can reach `app_main` and verify UART plus GPIO behavior. This is intentionally scoped to the smoke fixture. It does not change defaults for arbitrary user projects and does not claim that Task Watchdog timer-group interrupts are fully emulated or verified. Re-enable this setting only after the selected QEMU/ESP-IDF pairing passes a dedicated TWDT test.
+
+
+## Runtime observation and monitor API
+
+The ESP32-S3 runtime adapter in `zetsim/esp32_runtime.py` wraps the interactive `idf.py qemu monitor` session in a pseudo-terminal and parses UART0 output. On Linux/macOS it uses `script`; Windows uses the optional `pywinpty` backend. On Windows install it with `python -m pip install -e ".[windows-pty]"`.
+
+- `GET /api/esp32/runtime` returns boot markers, reset reason, app-entry/GPIO setup state, observed GPIO heartbeat levels, panic count, recent UART lines, plotter samples and measured simulation speed when enough timestamp data exists.
+- `POST /api/esp32/runtime/start` with JSON `{"project":"esp32s3_blink"}` starts an ESP-IDF/QEMU monitor session. Only a simple project name under `projects/` is accepted; arbitrary commands and paths are not exposed.
+- `POST /api/esp32/runtime/serial` with JSON `{"text":"..."}` sends a line to the emulated UART RX.
+- `POST /api/esp32/runtime/stop` terminates the session. The server's shutdown handler also stops its QEMU process.
+
+The observer is bounded: it keeps rolling UART/event windows and bounded numeric plot samples. The fields describe events actually seen on the UART; they are not a substitute for hardware register fidelity. QEMU monitor/PTY availability is checked at runtime, with a clear message when the required platform PTY dependency is missing.

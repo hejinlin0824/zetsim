@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest", "httpx>=0.25"]
+windows-pty = ["pywinpty>=2.0; platform_system == 'Windows'"]
 
 [project.scripts]
 zetsim = "zetsim.cli:main"
