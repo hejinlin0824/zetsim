@@ -156,3 +156,11 @@ def test_smoke_script_separates_qemu_gpiomatrix_limit_from_esp_emu_readback_acce
     assert 'grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=1" "$emu_log"' in script
     assert 'grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=0" "$emu_log"' in script
     assert 'grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH" "$emu_log"' in script
+
+
+
+def test_esp32s3_esp_emu_merge_bin_uses_path_relative_to_idf_build_directory():
+    script = (ROOT / ".github" / "scripts" / "esp32s3-qemu-smoke.sh").read_text(encoding="utf-8")
+    assert 'idf.py merge-bin -o merged_flash.bin' in script
+    assert 'idf.py merge-bin -o build/merged_flash.bin' not in script
+    assert '--firmware "$PWD/build/merged_flash.bin"' in script

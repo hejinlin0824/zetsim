@@ -121,7 +121,7 @@ echo "Espressif QEMU boot and software output path verified; GPIO readback fidel
 
 # The alternate Espressif emulator models GPIO and exposes real firmware UART
 # output. Pin its version so a moving latest release cannot silently change CI.
-idf.py merge-bin -o build/merged_flash.bin 2>&1 | tee -a "$artifact_dir/esp32s3-build.log"
+idf.py merge-bin -o merged_flash.bin 2>&1 | tee -a "$artifact_dir/esp32s3-build.log"
 emu_bin_dir="$repo_root/.tools/esp-emu-0.51.0"
 mkdir -p "$emu_bin_dir"
 curl -fsSL https://raw.githubusercontent.com/espressif/esp-emulator/v0.51.0/install.sh | sh -s -- --version 0.51.0 --bin-dir "$emu_bin_dir" --force
