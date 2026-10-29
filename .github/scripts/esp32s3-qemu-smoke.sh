@@ -160,5 +160,5 @@ python "$repo_root/.github/scripts/esp32s3-uart1-smoke.py" \
     --firmware "$PWD/build/merged_flash.bin" \
     --elf "$PWD/build/zetsim_esp32s3_uart1_echo.elf" \
     --log "$artifact_dir/esp32s3-uart1-echo.log"
-printf 'ESP_EMU_UART1_ECHO=verified\\n' >> "$meta_file"
+printf 'ESP_EMU_UART1_ECHO=verified\n' >> "$meta_file"
 echo "esp-emu 0.51.0 UART1 RX/TX loopback verified."

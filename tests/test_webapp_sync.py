@@ -230,3 +230,13 @@ def test_board_wiring_checker_api_rejects_unknown_board_and_malformed_body():
     with TestClient(build_app()) as client:
         assert client.post("/api/boards/no-such-board/check",json={"assignments":[]}).status_code==404
         assert client.post("/api/boards/esp32-s3-devkitc-1/check",json={"assignments":{}}).status_code==400
+
+
+def test_esp32_runtime_api_rejects_unknown_backend_without_launching_process():
+    with TestClient(build_app()) as client:
+        response = client.post(
+            "/api/esp32/runtime/start",
+            json={"project":"esp32s3_blink","backend":"unicorn"},
+        )
+        assert response.status_code == 400
+        assert "auto、esp-emu 或 qemu" in response.json()["error"]

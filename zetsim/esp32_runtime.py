@@ -242,10 +242,123 @@ class ESP32RuntimeSession:
             return None, error or "无法找到 ESP-IDF 命令。"
         return [*idf_command, "-C", str(project), "qemu", "monitor"], None
 
-    def start(self, project_dir: str | Path) -> tuple[bool, str | None]:
+    BACKENDS = {"auto", "qemu", "esp-emu"}
+    ESP_EMU_VERSION = "0.51.0"
+
+    @staticmethod
+    def _find_esp_emu(
+        env: Mapping[str, str] | None = None,
+        *,
+        repo_root: Path | None = None,
+    ) -> Path | None:
+        """Find esp-emu in an explicit override, PATH, or the repo-local tools directory."""
+        current_env = os.environ if env is None else env
+        candidates: list[Path] = []
+        override = current_env.get("ZETSIM_ESP_EMU")
+        if override:
+            candidates.append(Path(override).expanduser())
+        path_executable = shutil.which("esp-emu", path=current_env.get("PATH"))
+        if path_executable:
+            candidates.append(Path(path_executable))
+        root = repo_root or Path(__file__).resolve().parents[1]
+        tools_dir = root / ".tools" / f"esp-emu-{ESP32RuntimeSession.ESP_EMU_VERSION}"
+        candidates.extend((tools_dir / "esp-emu", tools_dir / "esp-emu.exe"))
+        for candidate in candidates:
+            try:
+                if candidate.is_file():
+                    return candidate.resolve()
+            except OSError:
+                continue
+        return None
+
+    @staticmethod
+    def _project_name(project: Path) -> str:
+        """Read CMake's project() name because the directory and ELF names can differ."""
+        source = (project / "CMakeLists.txt").read_text(encoding="utf-8")
+        match = re.search(r"(?im)^\s*project\s*\(\s*([A-Za-z0-9_.+-]+)", source)
+        if not match:
+            raise ValueError(f"无法从 {project / 'CMakeLists.txt'} 读取 CMake project() 名称。")
+        return match.group(1)
+
+    @staticmethod
+    def _run_idf_step(
+        idf_command: list[str],
+        project: Path,
+        env: Mapping[str, str],
+        args: list[str],
+        timeout_s: int = 1200,
+    ) -> tuple[bool, str]:
+        command = [*idf_command, "-C", str(project), *args]
+        try:
+            result = subprocess.run(
+                command,
+                cwd=str(project),
+                env=dict(env),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                errors="replace",
+                timeout=timeout_s,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            output = exc.stdout or ""
+            if isinstance(output, bytes):
+                output = output.decode("utf-8", "replace")
+            return False, f"命令超时（{timeout_s}s）：{shlex.join(command)}\n{output[-6000:]}"
+        except OSError as exc:
+            return False, f"无法执行 {shlex.join(command)}：{exc}"
+        output = result.stdout or ""
+        if result.returncode:
+            return False, f"命令失败（exit={result.returncode}）：{shlex.join(command)}\n{output[-8000:]}"
+        return True, output
+
+    @classmethod
+    def _esp_emu_install_hint(cls) -> str:
+        version = cls.ESP_EMU_VERSION
+        return (
+            f"未找到 esp-emu（建议版本 {version}）。在仓库根目录运行以下命令安装到本地 .tools/ 目录：\n"
+            "curl -fsSL https://raw.githubusercontent.com/espressif/esp-emulator/v"
+            f"{version}/install.sh | sh -s -- --version {version} --bin-dir "
+            f".tools/esp-emu-{version} --force"
+        )
+
+    def _prepare_esp_emu(
+        self, project: Path, env: Mapping[str, str], emu: Path
+    ) -> tuple[list[str] | None, str | None]:
+        idf_command, error = resolve_idf_command(env)
+        if error or idf_command is None:
+            return None, error or "运行 esp-emu 需要可用的 ESP-IDF 环境。"
+        try:
+            project_name = self._project_name(project)
+        except (OSError, ValueError) as exc:
+            return None, str(exc)
+        ok, output = self._run_idf_step(idf_command, project, env, ["build"])
+        if not ok:
+            return None, f"esp-emu 启动前编译失败：\n{output}"
+        # ESP-IDF v6.1 runs merge-bin relative to build/, so output must be
+        # "merged_flash.bin", not "build/merged_flash.bin".
+        ok, output = self._run_idf_step(
+            idf_command, project, env, ["merge-bin", "-o", "merged_flash.bin"]
+        )
+        if not ok:
+            return None, f"esp-emu 启动前合并固件镜像失败：\n{output}"
+        firmware = project / "build" / "merged_flash.bin"
+        elf = project / "build" / f"{project_name}.elf"
+        missing = [str(path) for path in (firmware, elf) if not path.is_file()]
+        if missing:
+            return None, "ESP-IDF 命令已完成，但缺少 esp-emu 运行文件：\n  " + "\n  ".join(missing)
+        return [
+            str(emu), "--chip", "esp32s3", "--firmware", str(firmware),
+            "--elf", str(elf), "--console", "uart0",
+        ], None
+
+    def start(self, project_dir: str | Path, backend: str = "auto") -> tuple[bool, str | None]:
         with self._lock:
             if self._process is not None and self._is_alive(self._process):
                 return False, "ESP32-S3 仿真已经在运行。"
+            if not isinstance(backend, str) or backend not in self.BACKENDS:
+                return False, f"仿真后端无效：{backend!r}；允许值：auto、esp-emu、qemu。"
             try:
                 project = validate_project(project_dir)
             except (OSError, ValueError) as exc:
@@ -257,24 +370,56 @@ class ESP32RuntimeSession:
 
             env = dict(os.environ)
             env["IDF_TARGET"] = "esp32s3"
-            command, error = self._runtime_command(project, env)
-            if error or command is None:
-                return False, error or "无法初始化 ESP-IDF 命令。"
+            emu = self._find_esp_emu(env)
+            if backend == "esp-emu":
+                if emu is None:
+                    return False, self._esp_emu_install_hint()
+                engine = "esp-emu"
+            elif backend == "qemu":
+                engine = "qemu"
+            else:
+                engine = "esp-emu" if emu is not None else "qemu"
+
+            if engine == "esp-emu":
+                if emu is None:
+                    return False, self._esp_emu_install_hint()
+                # This operation can build the project and merge a flash image;
+                # callers should run it in a worker thread, not on the ASGI loop.
+                command, error = self._prepare_esp_emu(project, env, emu)
+                if error or command is None:
+                    return False, error or "无法准备 esp-emu 固件。"
+            else:
+                command, error = self._runtime_command(project, env)
+                if error or command is None:
+                    return False, error or "无法初始化 ESP-IDF/QEMU 命令。"
 
             self.observer = ESP32RuntimeObserver()
             self._project = project
             self._stop_requested = False
+            self._engine_kind = engine
+            self._backend_kind = None
             try:
-                if os.name == "nt":
+                if engine == "esp-emu":
+                    proc = subprocess.Popen(
+                        command,
+                        cwd=str(project),
+                        env=env,
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        bufsize=0,
+                        start_new_session=(os.name != "nt"),
+                    )
+                    self._backend_kind = "esp-emu"
+                elif os.name == "nt":
                     try:
                         from winpty import PtyProcess
                     except ImportError:
+                        self._engine_kind = None
                         return False, (
                             "Windows 浏览器运行时需要安装可选伪终端依赖："
                             'python -m pip install -e ".[windows-pty]"'
                         )
-                    # WinPTY gives QEMU/IDF Monitor a console while keeping UART
-                    # output readable by this backend.
                     command_line = subprocess.list2cmdline(command)
                     proc = PtyProcess.spawn(
                         command_line,
@@ -285,8 +430,9 @@ class ESP32RuntimeSession:
                     )
                     self._backend_kind = "winpty"
                 else:
-                    script = shutil.which("script")
+                    script = shutil.which("script", path=env.get("PATH"))
                     if not script:
+                        self._engine_kind = None
                         return False, "未找到 util-linux 的 script；QEMU 串口捕获需要伪终端。"
                     proc = subprocess.Popen(
                         [script, "-q", "-f", "-e", "-c", shlex.join(command), "/dev/null"],
@@ -301,11 +447,15 @@ class ESP32RuntimeSession:
                     self._backend_kind = "script"
             except (OSError, ValueError, TypeError) as exc:
                 self._process = None
-                return False, f"启动 ESP-IDF/QEMU monitor 失败：{exc}"
+                self._backend_kind = None
+                self._engine_kind = None
+                return False, f"启动 ESP32-S3 / {engine} 仿真失败：{exc}"
 
             self._process = proc
             self.observer.set_process_state(True)
-            self._thread = threading.Thread(target=self._reader_loop, args=(proc, self._backend_kind), daemon=True)
+            self._thread = threading.Thread(
+                target=self._reader_loop, args=(proc, self._backend_kind), daemon=True
+            )
             self._thread.start()
             return True, None
 
@@ -321,7 +471,7 @@ class ESP32RuntimeSession:
     def _reader_loop(self, process: Any, backend_kind: str | None) -> None:
         exit_code: int | None = None
         try:
-            if backend_kind == "script":
+            if backend_kind in {"script", "esp-emu"}:
                 assert process.stdout is not None
                 for raw in iter(process.stdout.readline, b""):
                     self.observer.ingest(raw)
@@ -358,9 +508,9 @@ class ESP32RuntimeSession:
                 return False, "ESP32-S3 仿真没有运行。"
             payload = text if text.endswith("\n") or text.endswith("\r") else text + "\r\n"
             try:
-                if kind == "script":
+                if kind in {"script", "esp-emu"}:
                     if process.stdin is None:
-                        return False, "QEMU 伪终端输入通道不可用。"
+                        return False, "仿真终端输入通道不可用。"
                     process.stdin.write(payload.encode("utf-8", "replace"))
                     process.stdin.flush()
                 elif kind == "winpty":
@@ -432,7 +582,7 @@ class ESP32RuntimeSession:
         with self._lock:
             process, kind = self._process, self._backend_kind
             if process is None or not self._is_alive(process):
-                return self.observer.snapshot()
+                return self.snapshot()
             self._stop_requested = True
         try:
             if kind == "script":
@@ -441,6 +591,13 @@ class ESP32RuntimeSession:
                     process.wait(timeout=timeout_s)
                 except subprocess.TimeoutExpired:
                     self._signal_script_tree(process, signal.SIGKILL)
+                    process.wait(timeout=1.0)
+            elif kind == "esp-emu":
+                process.terminate()
+                try:
+                    process.wait(timeout=timeout_s)
+                except subprocess.TimeoutExpired:
+                    process.kill()
                     process.wait(timeout=1.0)
             elif kind == "winpty":
                 try:
@@ -452,7 +609,9 @@ class ESP32RuntimeSession:
                     time.sleep(0.05)
         except Exception as exc:
             self.observer.set_process_state(False, error=f"停止 ESP32-S3 仿真失败：{exc}")
-        return self.observer.snapshot()
+        return self.snapshot()
 
     def snapshot(self) -> dict[str, Any]:
-        return self.observer.snapshot()
+        state = self.observer.snapshot()
+        state["backend"] = self._engine_kind or "none"
+        return state

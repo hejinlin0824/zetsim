@@ -123,3 +123,16 @@ Sources:
 The dedicated ESP-IDF project `projects/esp32s3_uart1_echo` configures UART1 at 115200 8N1, assigns GPIO17/18 as TX/RX, reads with `uart_read_bytes()`, and echoes the received bytes through `uart_write_bytes()`. The CI helper `.github/scripts/esp32s3-uart1-smoke.py` launches the pinned Espressif `esp-emu 0.51.0` UART1 TCP server, waits for the application-ready marker, connects a host-side mock device, sends a unique byte payload, requires the same bytes to be received back, and additionally requires a UART0 log line proving the firmware RX driver processed data. A socket response without the UART0 RX marker is not accepted as a pass.
 
 This covers the UART1 RX/TX data path of this firmware and emulator version; it does not imply that every baud-rate corner case, UART interrupt path, GPIO matrix route, or all ESP32-S3 UARTs are fully modelled.
+
+
+## Interactive runtime backend selection
+
+The ESP32-S3 runtime monitor now accepts `backend=auto|esp-emu|qemu`. Auto mode selects a locally available `esp-emu` first, then falls back to the Espressif QEMU monitor when it is absent. Explicit `esp-emu` selection does not silently fall back: if the binary is missing the API returns the pinned installation command. QEMU remains a deliberate choice for its ROM/boot diagnostic path, and the runtime monitor labels its known GPIO/IOMUX readback limitation.
+
+The adapter discovers the executable in this order: `ZETSIM_ESP_EMU`, `PATH`, then the repository-local ignored directory `.tools/esp-emu-0.51.0/`. The CI does not check the binary into Git. To install it locally on a supported POSIX host from the repository root:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/espressif/esp-emulator/v0.51.0/install.sh | sh -s -- --version 0.51.0 --bin-dir .tools/esp-emu-0.51.0 --force
+```
+
+Selecting `esp-emu` builds the selected ESP-IDF project, merges the flash image, then launches the merged binary and ELF used for trace/symbol information. This work runs in a worker thread so it does not block unrelated web requests. UART0 input in the monitor is forwarded to the running firmware; UART1 external-device communication has a separate CI loopback regression.

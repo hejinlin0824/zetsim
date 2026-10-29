@@ -3,6 +3,7 @@
 启动:  python -m zetsim serve   页面: http://127.0.0.1:8000
 """
 from __future__ import annotations
+import asyncio
 import base64
 import json
 import threading
@@ -308,13 +309,16 @@ def build_app(firmware: str | None = None) -> FastAPI:
     @app.post("/api/esp32/runtime/start")
     async def esp32_runtime_start(body: dict):
         name = body.get("project", "esp32s3_blink")
+        backend = body.get("backend", "auto")
         if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", name):
             return JSONResponse({"ok": False, "error": "项目名只能包含字母、数字、下划线和连字符。"}, status_code=400)
+        if not isinstance(backend, str) or backend not in ESP32RuntimeSession.BACKENDS:
+            return JSONResponse({"ok": False, "error": "后端必须是 auto、esp-emu 或 qemu。"}, status_code=400)
         root = (Path.cwd() / "projects").resolve()
         project = (root / name).resolve()
         if project.parent != root or not project.is_dir():
             return JSONResponse({"ok": False, "error": "只允许启动 projects/ 下的 ESP-IDF 项目。"}, status_code=404)
-        ok, error = esp32_runtime.start(project)
+        ok, error = await asyncio.to_thread(esp32_runtime.start, project, backend)
         if not ok:
             code = 409 if error and "已经在运行" in error else 400
             return JSONResponse({"ok": False, "error": error or "启动 ESP32-S3 仿真失败。"}, status_code=code)

@@ -119,3 +119,43 @@ def test_runtime_observer_tracks_gpio_readback_and_mismatch_events_separately():
     assert snapshot["gpio_output_mismatches"][0]["got"]==0
     assert snapshot["plot_series"]["GPIO2"][-1]["value"]==0.0
     assert snapshot["plot_series"]["GPIO2_READBACK"][-1]["value"]==0.0
+
+
+def test_esp_emu_discovery_finds_repo_local_pinned_binary(tmp_path: Path):
+    from zetsim.esp32_runtime import ESP32RuntimeSession
+
+    executable = tmp_path / ".tools" / "esp-emu-0.51.0" / "esp-emu"
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"test binary placeholder")
+    found = ESP32RuntimeSession._find_esp_emu({"PATH": ""}, repo_root=tmp_path)
+    assert found == executable.resolve()
+
+
+def test_esp_emu_discovery_honors_explicit_environment_override(tmp_path: Path):
+    from zetsim.esp32_runtime import ESP32RuntimeSession
+
+    executable = tmp_path / "custom-esp-emu"
+    executable.write_bytes(b"test binary placeholder")
+    found = ESP32RuntimeSession._find_esp_emu(
+        {"PATH": "", "ZETSIM_ESP_EMU": str(executable)}, repo_root=tmp_path
+    )
+    assert found == executable.resolve()
+
+
+def test_idf_project_name_is_read_from_cmake_not_directory_name(tmp_path: Path):
+    from zetsim.esp32_runtime import ESP32RuntimeSession
+
+    (tmp_path / "CMakeLists.txt").write_text(
+        "cmake_minimum_required(VERSION 3.16)\nproject(zetsim_esp32s3_blink)\n",
+        encoding="utf-8",
+    )
+    assert ESP32RuntimeSession._project_name(tmp_path) == "zetsim_esp32s3_blink"
+
+
+def test_runtime_snapshot_discloses_selected_backend():
+    from zetsim.esp32_runtime import ESP32RuntimeSession
+
+    session = ESP32RuntimeSession()
+    assert session.snapshot()["backend"] == "none"
+    session._engine_kind = "esp-emu"
+    assert session.snapshot()["backend"] == "esp-emu"

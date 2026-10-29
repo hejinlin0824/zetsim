@@ -17,3 +17,6 @@ projects/*/firmware.map
 
 # Local content-addressed compiler cache
 .zetsim/cache/
+
+# Locally installed Espressif emulator binaries
+.tools/
