@@ -3,7 +3,7 @@
 项目目录约定（如 projects/led_marquee/）：
     main.c         项目代码（必填）
     startup.c      复位启动（缺省用项目自带；没有则报错）
-    stm32f103.h    寄存器定义
+    stm32f1xx_hal_conf.h HAL 配置（存在时启用官方 HAL 构建）
     link.ld        链接脚本
     firmware.hex   编译产物（zetsim 直接加载）
 """
@@ -14,8 +14,8 @@ import subprocess
 from pathlib import Path
 from .build_cache import build_cache_key, restore_cached_build, store_cached_build
 
-PROJECT_FILES = ("main.c", "startup.c", "stm32f103.h", "link.ld")   # 模板文件
-PROTECTED = ("main.c", "startup.c", "link.ld")                      # 不可删除
+PROJECT_FILES = ("main.c", "startup.c", "stm32f1xx_hal_conf.h", "link.ld")  # HAL 模板文件
+PROTECTED = ("main.c", "startup.c", "link.ld", "stm32f1xx_hal_conf.h")          # 必需文件，不可删除
 _TARGET_FLAGS = ["-mcpu=cortex-m3", "-mthumb"]
 _CFLAGS = [*_TARGET_FLAGS, "-nostdlib", "-O0", "-g", "-ffreestanding", "-Wall"]
 _REPO = Path(__file__).resolve().parent.parent

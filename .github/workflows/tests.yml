@@ -164,6 +164,37 @@ jobs:
           print(f"HAL GPIO runtime verified: {len(edges)} PA5 transitions; {report.exceptions} exceptions.")
           PY
 
+      - name: Boot every STM32 C lesson in zetsim
+        run: |
+          python - <<'PY'
+          from zetsim.board import Board
+          from zetsim.engine import Simulation
+
+          projects = (
+              "gpio_blink",
+              "led_marquee",
+              "exti_button",
+              "uart_echo",
+              "pwm_adc_control",
+              "pwm_rc_filter",
+          )
+          for name in projects:
+              board = Board()
+              board.reset()
+              firmware = f"projects/{name}/firmware.hex"
+              board.core.load_file(firmware)
+              report = Simulation(board).run(until_ms=5, wall_timeout_s=30)
+              assert report.error is None, f"{name}: runtime error: {report.error}"
+              assert report.instructions > 0, f"{name}: firmware did not execute"
+              assert report.halt_reason == "timeout", (
+                  f"{name}: unexpected stop reason {report.halt_reason!r}"
+              )
+              print(
+                  f"{name}: boot smoke passed; {report.instructions} instructions, "
+                  f"{report.exceptions} exceptions"
+              )
+          PY
+
   esp32s3-qemu:
     name: ESP32-S3 / ESP-IDF build + QEMU smoke
     runs-on: ubuntu-latest
