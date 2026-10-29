@@ -142,3 +142,17 @@ def test_gpio_readback_fixture_enables_the_pad_input_path():
     source = (ROOT / "projects" / "esp32s3_blink" / "main" / "main.c").read_text(encoding="utf-8")
     assert ".mode = GPIO_MODE_INPUT_OUTPUT" in source
     assert ".mode = GPIO_MODE_OUTPUT," not in source
+
+
+
+def test_smoke_script_separates_qemu_gpiomatrix_limit_from_esp_emu_readback_acceptance():
+    script = (ROOT / ".github" / "scripts" / "esp32s3-qemu-smoke.sh").read_text(encoding="utf-8")
+    assert "GPIO_READBACK_QEMU_FIDELITY_GAP=observed" in script
+    assert "GPIO_READBACK_QEMU_FIDELITY_GAP=not-observed" in script
+    assert "GPIO_MODE_INPUT_OUTPUT" not in script
+    assert "--version 0.51.0" in script
+    assert "--chip esp32s3" in script
+    assert "--firmware \"$PWD/build/merged_flash.bin\"" in script
+    assert 'grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=1" "$emu_log"' in script
+    assert 'grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=0" "$emu_log"' in script
+    assert 'grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH" "$emu_log"' in script

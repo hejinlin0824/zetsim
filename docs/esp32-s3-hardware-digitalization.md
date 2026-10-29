@@ -104,3 +104,15 @@ The ESP32-S3 blink smoke firmware now reads GPIO2 immediately after each output-
 
 
 The first readback run consistently returned 0 because the fixture configured GPIO2 as `GPIO_MODE_OUTPUT`, while `gpio_get_level()` samples the input path and ESP-IDF documents that it returns 0 when input is not enabled. The fixture now uses `GPIO_MODE_INPUT_OUTPUT`; this is a correction to the test setup, not evidence of a QEMU bug. If bidirectional mode still fails after this change, then investigate the selected QEMU GPIO feedback model separately.
+
+
+## GPIO readback: QEMU gap and second emulator
+
+The ESP32-S3 readback fixture uses `GPIO_MODE_INPUT_OUTPUT`, but the current Espressif QEMU run still reports `gpio_get_level(GPIO2) == 0` after both commanded levels. The official QEMU feature matrix explicitly marks GPIO matrix / IOMUX as unsupported, so this result is tracked as a QEMU fidelity gap rather than represented as a firmware GPIO pass: https://github.com/espressif/esp-toolchain-docs/blob/main/qemu/README.md.
+
+CI now keeps the QEMU job as a ROM/boot/app-start/output-call smoke test and writes `GPIO_READBACK_QEMU_FIDELITY_GAP` into the evidence metadata when the mismatch is observed. It additionally runs the same merged ESP-IDF firmware in the separately version-pinned Espressif `esp-emu 0.51.0` emulator, which is published under Apache-2.0 and lists GPIO, UART, timers, and interrupt support. That second run is the acceptance test for commanded GPIO2 high/low and the corresponding input readback; it must show both readback levels and no mismatch marker. `esp-emu` is currently a beta emulator, so its passing test is evidence for the tested firmware and version, not a claim that every ESP32-S3 peripheral is fully modelled.
+
+Sources:
+- ESP-IDF GPIO API documents that `gpio_get_level()` reads the input path and returns zero when the pad is not configured as input or input/output: https://docs.espressif.com/projects/esp-idf/en/v6.0/esp32s3/api-reference/peripherals/gpio.html
+- Espressif `esp-emu` release 0.51.0 notes and documented installation: https://github.com/espressif/esp-emulator/releases/tag/v0.51.0
+- `esp-emu` README and peripheral list: https://github.com/espressif/esp-emulator/blob/v0.51.0/README.md

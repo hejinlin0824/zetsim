@@ -104,11 +104,48 @@ grep -Eq 'rst:0x1 \(POWERON(_RESET)?\)' "$log_file"
 grep -Fq "ZETSIM_ESP32S3_APP_MAIN_ENTERED" "$log_file"
 grep -Fq "ZETSIM_ESP32S3_GPIO_CONFIG_OK" "$log_file"
 grep -Fq "ZETSIM_ESP32S3_BOOT_OK" "$log_file"
-grep -Fq "ZETSIM_ESP32S3_GPIO2=" "$log_file"
-grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=1" "$log_file"
-grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=0" "$log_file"
+grep -Fq "ZETSIM_ESP32S3_GPIO2=1" "$log_file"
+grep -Fq "ZETSIM_ESP32S3_GPIO2=0" "$log_file"
+grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=" "$log_file"
+
+# Espressif's QEMU feature matrix explicitly lists GPIO matrix / IOMUX as
+# unsupported. Keep the readback mismatch visible in artifacts, but do not
+# fail the QEMU boot test on a peripheral path this emulator documents as absent.
 if grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH" "$log_file"; then
-    echo "ESP32-S3 GPIO output/readback mismatch detected." >&2
+    echo "KNOWN LIMITATION: Espressif QEMU's published feature matrix marks GPIO matrix/IOMUX unsupported; GPIO2 input readback is diagnostic only in this QEMU job." | tee -a "$meta_file"
+    printf 'GPIO_READBACK_QEMU_FIDELITY_GAP=observed\n' >>"$meta_file"
+else
+    printf 'GPIO_READBACK_QEMU_FIDELITY_GAP=not-observed\n' >>"$meta_file"
+fi
+echo "Espressif QEMU boot and software output path verified; GPIO readback fidelity is checked separately with esp-emu."
+
+# The alternate Espressif emulator models GPIO and exposes real firmware UART
+# output. Pin its version so a moving latest release cannot silently change CI.
+idf.py merge-bin -o build/merged_flash.bin 2>&1 | tee -a "$artifact_dir/esp32s3-build.log"
+emu_bin_dir="$repo_root/.tools/esp-emu-0.51.0"
+mkdir -p "$emu_bin_dir"
+curl -fsSL https://raw.githubusercontent.com/espressif/esp-emulator/v0.51.0/install.sh | sh -s -- --version 0.51.0 --bin-dir "$emu_bin_dir" --force
+emu="$emu_bin_dir/esp-emu"
+"$emu" --version | tee -a "$meta_file"
+
+emu_log="$artifact_dir/esp32s3-esp-emu.log"
+set +e
+"$emu" --chip esp32s3 --firmware "$PWD/build/merged_flash.bin" --elf "$PWD/build/zetsim_esp32s3_blink.elf" --console uart0 --timeout 8s 2>&1 | tee "$emu_log"
+emu_rc=${PIPESTATUS[0]}
+set -e
+if (( emu_rc != 0 )); then
+    echo "esp-emu smoke exited with status $emu_rc; see $emu_log" >&2
+    exit "$emu_rc"
+fi
+grep -Fq "ZETSIM_ESP32S3_APP_MAIN_ENTERED" "$emu_log"
+grep -Fq "ZETSIM_ESP32S3_GPIO_CONFIG_OK" "$emu_log"
+grep -Fq "ZETSIM_ESP32S3_GPIO2=1" "$emu_log"
+grep -Fq "ZETSIM_ESP32S3_GPIO2=0" "$emu_log"
+grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=1" "$emu_log"
+grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=0" "$emu_log"
+if grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH" "$emu_log"; then
+    echo "esp-emu GPIO2 output/readback mismatch detected." >&2
     exit 1
 fi
-echo "ESP32-S3 QEMU boot, app_main, GPIO output, readback, and UART heartbeat verified."
+printf 'ESP_EMU_GPIO_READBACK=verified\n' >>"$meta_file"
+echo "esp-emu 0.51.0 boot, UART output and GPIO2 output/readback verified."
