@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "target": "esp32s3",
+  "name": "ESP32-S3 Series",
+  "architecture": {
+    "isa": "Xtensa LX7",
+    "cores": 2,
+    "maximum_frequency_mhz": 240
+  },
+  "gpio": {
+    "programmable_count": 45,
+    "valid_gpio_numbers": [
+      [
+        0,
+        21
+      ],
+      [
+        26,
+        48
+      ]
+    ],
+    "gpio_matrix": true,
+    "strap_pins": [
+      {
+        "gpio": 0,
+        "roles": [
+          "boot-mode-selection"
+        ],
+        "warning": "External circuit levels during reset can affect boot mode."
+      },
+      {
+        "gpio": 3,
+        "roles": [
+          "JTAG-source-selection"
+        ],
+        "warning": "Strapping role; inspect eFuse and board design before use."
+      },
+      {
+        "gpio": 45,
+        "roles": [
+          "VDD_SPI-voltage-selection"
+        ],
+        "warning": "Strapping role; incorrect level can affect flash supply configuration."
+      },
+      {
+        "gpio": 46,
+        "roles": [
+          "boot-mode-selection",
+          "ROM-log-control"
+        ],
+        "warning": "Strapping role; inspect ROM log and boot configuration."
+      }
+    ],
+    "common_fixed_routes": [
+      {
+        "signal": "USB_SERIAL_JTAG_D-",
+        "gpio": 19
+      },
+      {
+        "signal": "USB_SERIAL_JTAG_D+",
+        "gpio": 20
+      },
+      {
+        "signal": "JTAG",
+        "gpio_range": [
+          39,
+          42
+        ]
+      },
+      {
+        "signal": "UART0_TXD_DEFAULT",
+        "gpio": 43
+      },
+      {
+        "signal": "UART0_RXD_DEFAULT",
+        "gpio": 44
+      }
+    ],
+    "module_memory_constraints": [
+      {
+        "gpio_range": [
+          26,
+          32
+        ],
+        "constraint": "flash-psram-reservation-check",
+        "note": "Availability depends on module and flash/PSRAM configuration."
+      },
+      {
+        "gpio_range": [
+          33,
+          37
+        ],
+        "constraint": "octal-flash-psram-conflict-check",
+        "note": "May be occupied by octal flash/PSRAM; check the actual module configuration."
+      }
+    ]
+  },
+  "peripherals": {
+    "uart": {
+      "count": 3
+    },
+    "i2c": {
+      "count": 2
+    },
+    "general_purpose_spi": {
+      "count": 2
+    },
+    "led_pwm": {
+      "channels_up_to": 8
+    },
+    "rmt": {
+      "available": true
+    },
+    "adc": {
+      "resolution_bits": 12,
+      "controllers": 2
+    },
+    "general_purpose_timers": {
+      "count": 4,
+      "width_bits": 54
+    },
+    "system_timer": {
+      "width_bits": 52
+    },
+    "watchdog_timers": {
+      "count": 3
+    }
+  },
+  "fidelity": {
+    "category": "datasheet-specification",
+    "runtime_implemented": false,
+    "note": "This file records chip/documentation facts. It is not an MMIO model, and does not assert that every peripheral is emulated by the selected QEMU version."
+  },
+  "sources": {
+    "datasheet": {
+      "title": "ESP32-S3 Series Datasheet (Chinese)",
+      "version": "2.2",
+      "date": "2026-03-05",
+      "url": "https://documentation.espressif.com/esp32-s3_datasheet_cn.pdf"
+    },
+    "technical_reference_manual": {
+      "title": "ESP32-S3 Technical Reference Manual (Chinese)",
+      "version": "1.8",
+      "date": "2026-03-04",
+      "url": "https://documentation.espressif.com/esp32-s3_technical_reference_manual_cn.pdf"
+    },
+    "implementation_cross_check": {
+      "title": "ESP-IDF v6.1 ESP32-S3 SoC headers",
+      "url": "https://github.com/espressif/esp-idf/tree/v6.1/components/soc/esp32s3"
+    }
+  }
+}

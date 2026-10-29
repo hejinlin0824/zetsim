@@ -89,3 +89,10 @@ The observer is bounded: it keeps rolling UART/event windows and bounded numeric
 A second metadata-only catalogue, `zetsim/data/registers/esp32s3-io-mux.json`, now records all 45 GPIO pad-register aliases present in the ESP-IDF v6.1 ESP32-S3 register header. Each entry carries the GPIO number, the hardware macro alias, the register offset relative to `DR_REG_IO_MUX_BASE`, access metadata, and documented fields for sleep-mode behavior, pull-up/down, input enable, drive strength, MCU function selection, and the short-pulse filter.
 
 The catalog intentionally does not invent the absolute base address, reset values, or per-pin valid `MCU_SEL` enumerations. It remains `metadata-only`; QEMU, not this JSON file, currently provides the guest's MMIO behaviour. The registry loader validates the base-symbol/peripheral pairing, offsets, access modes, and uniqueness of register offsets.
+
+
+## Versioned SoC specification
+
+The file `zetsim/data/soc/esp32s3.json` records SoC-level facts from the ESP32-S3 datasheet separately from the physical DevKit board definition and the register catalogues. It captures the Xtensa LX7 architecture, GPIO ranges/strapping constraints, common routes, module memory conflicts, and the peripheral inventory described in the referenced datasheet version.
+
+The read-only `GET /api/hardware/soc` endpoint serves this spec to tooling and the workbench. The spec is explicitly marked `runtime_implemented: false`: it is a versioned description of the chip, not an emulator. Board aliases still come from the Board Registry, while register offsets/fields come from the TRM-oriented register catalogues. This separation lets the same SoC spec be reused by multiple compatible board definitions without copying physical-header geometry into chip facts.

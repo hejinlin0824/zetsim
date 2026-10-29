@@ -202,3 +202,14 @@ def test_esp32_runtime_api_rejects_unsafe_project_paths_before_launch():
         assert response.status_code == 400
         response = client.post("/api/esp32/runtime/start", json={"project": "does_not_exist"})
         assert response.status_code == 404
+
+
+
+def test_soc_spec_api_exposes_datasheet_facts_without_claiming_runtime_implementation():
+    with TestClient(build_app()) as client:
+        response = client.get("/api/hardware/soc")
+        assert response.status_code == 200
+        specs = response.json()["items"]
+        assert [spec["target"] for spec in specs] == ["esp32s3"]
+        assert specs[0]["gpio"]["programmable_count"] == 45
+        assert specs[0]["fidelity"]["runtime_implemented"] is False

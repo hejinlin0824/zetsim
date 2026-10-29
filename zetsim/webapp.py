@@ -21,6 +21,7 @@ from .component_registry import component_catalog
 from .targets import TARGETS
 from .boards import board_catalog
 from .registers import register_catalog
+from .soc_specs import soc_catalog
 from .esp32_runtime import ESP32RuntimeSession
 from .project import from_legacy_circuit, validate_project, to_legacy_circuit
 
@@ -285,6 +286,10 @@ def build_app(firmware: str | None = None) -> FastAPI:
     @app.get("/api/hardware/registers")
     async def hardware_registers():
         return JSONResponse({"items": register_catalog()})
+
+    @app.get("/api/hardware/soc")
+    async def hardware_soc_specs():
+        return JSONResponse({"items": soc_catalog()})
 
     @app.get("/api/esp32/runtime")
     async def esp32_runtime_state():
