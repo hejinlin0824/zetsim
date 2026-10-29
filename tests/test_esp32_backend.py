@@ -214,3 +214,28 @@ def test_runtime_backend_availability_ui_is_wired_to_read_only_api():
     assert "esp-emu 可用" in html
     web = (ROOT / "zetsim" / "webapp.py").read_text(encoding="utf-8")
     assert '@app.get("/api/esp32/runtime/backends")' in web
+
+
+
+def test_gptimer_irq_project_uses_official_driver_and_emits_a_real_callback_count():
+    project = ROOT / "projects" / "esp32s3_gptimer_irq"
+    source = (project / "main" / "main.c").read_text(encoding="utf-8")
+    component = (project / "main" / "CMakeLists.txt").read_text(encoding="utf-8")
+    assert "esp_driver_gptimer" in component
+    assert "gptimer_new_timer" in source
+    assert "gptimer_register_event_callbacks" in source
+    assert "gptimer_set_alarm_action" in source
+    assert "gptimer_start(timer)" in source
+    assert "g_alarm_count++" in source
+    assert "ZETSIM_GPTIMER_IRQ_COUNT=%" in source
+    assert "ZETSIM_GPTIMER_IRQ_PASS" in source
+    assert "ZETSIM_GPTIMER_IRQ_FAIL" in source
+
+
+def test_gptimer_irq_smoke_requires_minimum_interrupt_count_and_pass_marker():
+    script = (ROOT / ".github" / "scripts" / "esp32s3-qemu-smoke.sh").read_text(encoding="utf-8")
+    assert "ZETSIM_GPTIMER_IRQ_STARTED" in script
+    assert 'ZETSIM_GPTIMER_IRQ_COUNT=([0-9]+)' in script
+    assert "count < 5" in script
+    assert "ZETSIM_GPTIMER_IRQ_PASS" in script
+    assert "ESP_EMU_GPTIMER_IRQ=verified" in script

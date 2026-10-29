@@ -162,3 +162,34 @@ python "$repo_root/.github/scripts/esp32s3-uart1-smoke.py" \
     --log "$artifact_dir/esp32s3-uart1-echo.log"
 printf 'ESP_EMU_UART1_ECHO=verified\n' >> "$meta_file"
 echo "esp-emu 0.51.0 UART1 RX/TX loopback verified."
+
+echo "esp-emu 0.51.0 UART1 loopback passed; starting GPTimer interrupt regression."
+
+cd "$repo_root/projects/esp32s3_gptimer_irq"
+idf.py build 2>&1 | tee -a "$artifact_dir/esp32s3-build.log"
+idf.py merge-bin -o merged_flash.bin 2>&1 | tee -a "$artifact_dir/esp32s3-build.log"
+timer_log="$artifact_dir/esp32s3-gptimer-irq.log"
+set +e
+"$emu" --chip esp32s3 --firmware "$PWD/build/merged_flash.bin" \
+    --elf "$PWD/build/zetsim_esp32s3_gptimer_irq.elf" --console uart0 --timeout 8s \
+    2>&1 | tee "$timer_log"
+timer_rc=${PIPESTATUS[0]}
+set -e
+if (( timer_rc != 0 )); then
+    echo "GPTimer esp-emu smoke exited with status $timer_rc; see $timer_log" >&2
+    exit "$timer_rc"
+fi
+grep -Fq "ZETSIM_GPTIMER_IRQ_APP_MAIN_ENTERED" "$timer_log"
+grep -Fq "ZETSIM_GPTIMER_IRQ_STARTED" "$timer_log"
+count="$(sed -nE 's/.*ZETSIM_GPTIMER_IRQ_COUNT=([0-9]+).*/\1/p' "$timer_log" | tail -n 1)"
+if [[ ! "$count" =~ ^[0-9]+$ ]] || (( count < 5 )); then
+    echo "GPTimer alarm interrupt count below expected minimum: ${count:-missing}" >&2
+    exit 1
+fi
+grep -Fq "ZETSIM_GPTIMER_IRQ_PASS" "$timer_log"
+if grep -Fq "ZETSIM_GPTIMER_IRQ_FAIL" "$timer_log"; then
+    echo "GPTimer firmware reported an interrupt regression." >&2
+    exit 1
+fi
+printf 'ESP_EMU_GPTIMER_IRQ=verified\n' >> "$meta_file"
+echo "esp-emu 0.51.0 GPTimer alarm interrupt verified (count=$count)."

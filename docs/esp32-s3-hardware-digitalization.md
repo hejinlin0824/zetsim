@@ -151,3 +151,10 @@ The official `esp-emu` README currently documents prebuilt native binaries for L
 ### Backend availability preflight
 
 The UI calls `GET /api/esp32/runtime/backends` before launching a project. It reports whether the pinned `esp-emu` executable was found and whether the host has the ESP-IDF command, QEMU executable, and interactive console transport needed by the QEMU backend. Missing prerequisites include actionable reasons; this check does not start the emulator, compile firmware, or make a promise that the firmware itself will run successfully.
+
+
+## GPTimer hardware-alarm interrupt regression
+
+A third dedicated project, `projects/esp32s3_gptimer_irq`, follows the ESP-IDF v6.1 GPTimer example pattern. It configures a 1 MHz count-up timer with a 10 ms auto-reloading alarm; the `IRAM_ATTR` callback increments a counter. The task runs for 260 ms, stops and disables the timer, then prints the callback count and PASS/FAIL marker.
+
+The smoke script runs the merged firmware on the pinned `esp-emu 0.51.0` engine and fails unless at least five alarm callbacks occurred. This validates the timer-driver-to-interrupt-callback path for this ESP32-S3 firmware and emulator version. It does not establish exact physical timer jitter or prove every interrupt-priority/shared-interrupt configuration. Reference implementation: ESP-IDF v6.1 `examples/peripherals/timer_group/gptimer/main/gptimer_example_main.c`, CC0-1.0: https://github.com/espressif/esp-idf/blob/v6.1/examples/peripherals/timer_group/gptimer/main/gptimer_example_main.c.
