@@ -48,7 +48,12 @@ void app_main(void)
     while (1) {
         level = !level;
         ESP_ERROR_CHECK(gpio_set_level(BLINK_GPIO, level));
+        const int readback = gpio_get_level(BLINK_GPIO);
         printf("ZETSIM_ESP32S3_GPIO2=%d\n", level);
+        printf("ZETSIM_ESP32S3_GPIO2_READBACK=%d\n", readback);
+        if (readback != level) {
+            printf("ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH expected=%d got=%d\n", level, readback);
+        }
         fflush(stdout);
         vTaskDelay(pdMS_TO_TICKS(BLINK_PERIOD_MS));
     }

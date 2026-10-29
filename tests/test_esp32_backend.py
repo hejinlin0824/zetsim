@@ -123,5 +123,16 @@ def test_smoke_script_has_layered_boot_markers_and_panic_symbolization():
         "ZETSIM_ESP32S3_GPIO_CONFIG_OK",
         "ZETSIM_ESP32S3_BOOT_OK",
         "ZETSIM_ESP32S3_GPIO2=",
+        "ZETSIM_ESP32S3_GPIO2_READBACK=1",
+        "ZETSIM_ESP32S3_GPIO2_READBACK=0",
+        "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH",
     ):
         assert token in script
+
+
+def test_esp32s3_blink_firmware_checks_gpio_output_readback():
+    source = (ROOT / "projects" / "esp32s3_blink" / "main" / "main.c").read_text(encoding="utf-8")
+    assert "gpio_set_level(BLINK_GPIO, level)" in source
+    assert "gpio_get_level(BLINK_GPIO)" in source
+    assert "ZETSIM_ESP32S3_GPIO2_READBACK=%d" in source
+    assert "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH" in source

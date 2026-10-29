@@ -105,4 +105,10 @@ grep -Fq "ZETSIM_ESP32S3_APP_MAIN_ENTERED" "$log_file"
 grep -Fq "ZETSIM_ESP32S3_GPIO_CONFIG_OK" "$log_file"
 grep -Fq "ZETSIM_ESP32S3_BOOT_OK" "$log_file"
 grep -Fq "ZETSIM_ESP32S3_GPIO2=" "$log_file"
-echo "ESP32-S3 QEMU boot, app_main, GPIO setup, and UART heartbeat verified."
+grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=1" "$log_file"
+grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK=0" "$log_file"
+if grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH" "$log_file"; then
+    echo "ESP32-S3 GPIO output/readback mismatch detected." >&2
+    exit 1
+fi
+echo "ESP32-S3 QEMU boot, app_main, GPIO output, readback, and UART heartbeat verified."

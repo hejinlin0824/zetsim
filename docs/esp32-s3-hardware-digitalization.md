@@ -96,3 +96,8 @@ The catalog intentionally does not invent the absolute base address, reset value
 The file `zetsim/data/soc/esp32s3.json` records SoC-level facts from the ESP32-S3 datasheet separately from the physical DevKit board definition and the register catalogues. It captures the Xtensa LX7 architecture, GPIO ranges/strapping constraints, common routes, module memory conflicts, and the peripheral inventory described in the referenced datasheet version.
 
 The read-only `GET /api/hardware/soc` endpoint serves this spec to tooling and the workbench. The spec is explicitly marked `runtime_implemented: false`: it is a versioned description of the chip, not an emulator. Board aliases still come from the Board Registry, while register offsets/fields come from the TRM-oriented register catalogues. This separation lets the same SoC spec be reused by multiple compatible board definitions without copying physical-header geometry into chip facts.
+
+
+## GPIO output/readback regression
+
+The ESP32-S3 blink smoke firmware now reads GPIO2 immediately after each output-level update and emits both the requested level and the readback value. CI requires both levels to be observed and fails if the readback differs from the requested output. This is a firmware-driven test of the selected ESP-IDF/QEMU combination, not proof that every GPIO matrix field or IO MUX register is implemented. If the check fails, retain the captured UART log and treat it as a QEMU fidelity gap to investigate rather than weakening the assertion.
