@@ -43,17 +43,21 @@ cat "$log_file"
 if grep -Fq "Guru Meditation Error" "$log_file"; then
     echo "ESP32-S3 QEMU panic detected; attempting Xtensa backtrace symbolization." >&2
     elf="$PWD/build/zetsim_esp32s3_blink.elf"
-    addr2line="$(command -v xtensa-esp32s3-elf-addr2line || true)"
+    # ESP-IDF's Xtensa toolchain is normally named xtensa-esp-elf, not
+    # xtensa-esp32s3-elf. Accept both names across toolchain packaging changes.
+    addr2line="$(command -v xtensa-esp-elf-addr2line || command -v xtensa-esp32s3-elf-addr2line || true)"
     if [[ -n "$addr2line" && -f "$elf" ]]; then
-        pc="$(sed -nE 's/.*PC[[:space:]]*:[[:space:]]*(0x[0-9a-fA-F]+).*/\1/p' "$log_file" | head -n 1)"
-        backtrace="$(sed -nE 's/.*Backtrace:[[:space:]]*(.*)/\1/p' "$log_file" | head -n 1)"
+        # Avoid sed | head under pipefail: head can close the pipe early and
+        # mask symbolization with SIGPIPE before addr2line is called.
+        pc="$(awk '/PC[[:space:]]*:/ { line=$0; sub(/^.*PC[[:space:]]*:[[:space:]]*/, "", line); sub(/[[:space:]].*$/, "", line); if (line ~ /^0x[0-9a-fA-F]+$/) { print line; exit } }' "$log_file")"
+        backtrace="$(awk '/Backtrace:[[:space:]]*/ { sub(/^.*Backtrace:[[:space:]]*/, ""); print; exit }' "$log_file")"
         addresses=()
         [[ -n "$pc" ]] && addresses+=("$pc")
-        if [[ -n "$backtrace" ]]; then
-            while IFS= read -r address; do
-                addresses+=("$address")
-            done < <(printf '%s\n' "$backtrace" | grep -oE '0x[0-9a-fA-F]{8}' || true)
-        fi
+        while [[ "$backtrace" =~ (0x[0-9a-fA-F]{8}) ]]; do
+            address="${BASH_REMATCH[1]}"
+            addresses+=("$address")
+            backtrace="${backtrace#*"$address"}"
+        done
         if (( ${#addresses[@]} )); then
             echo "Decoded panic frames (ELF: $elf):" >&2
             "$addr2line" -pfiaC -e "$elf" "${addresses[@]}" || true
