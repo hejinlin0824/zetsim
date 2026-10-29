@@ -149,3 +149,16 @@ if grep -Fq "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH" "$emu_log"; then
 fi
 printf 'ESP_EMU_GPIO_READBACK=verified\n' >>"$meta_file"
 echo "esp-emu 0.51.0 boot, UART output and GPIO2 output/readback verified."
+
+echo "esp-emu 0.51.0 GPIO2 readback passed; starting UART1 RX/TX loopback test."
+
+cd "$repo_root/projects/esp32s3_uart1_echo"
+idf.py build 2>&1 | tee -a "$artifact_dir/esp32s3-build.log"
+idf.py merge-bin -o merged_flash.bin 2>&1 | tee -a "$artifact_dir/esp32s3-build.log"
+python "$repo_root/.github/scripts/esp32s3-uart1-smoke.py" \
+    --emu "$emu" \
+    --firmware "$PWD/build/merged_flash.bin" \
+    --elf "$PWD/build/zetsim_esp32s3_uart1_echo.elf" \
+    --log "$artifact_dir/esp32s3-uart1-echo.log"
+printf 'ESP_EMU_UART1_ECHO=verified\\n' >> "$meta_file"
+echo "esp-emu 0.51.0 UART1 RX/TX loopback verified."

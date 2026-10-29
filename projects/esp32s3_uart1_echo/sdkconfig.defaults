@@ -1,0 +1,5 @@
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+
+# CI-only profile: avoid the known ESP-IDF v6.1 + QEMU pre-app_main TWDT crash.
+CONFIG_ESP_TASK_WDT_INIT=n

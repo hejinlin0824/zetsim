@@ -164,3 +164,30 @@ def test_esp32s3_esp_emu_merge_bin_uses_path_relative_to_idf_build_directory():
     assert 'idf.py merge-bin -o merged_flash.bin' in script
     assert 'idf.py merge-bin -o build/merged_flash.bin' not in script
     assert '--firmware "$PWD/build/merged_flash.bin"' in script
+
+
+
+def test_uart1_echo_project_uses_real_esp_idf_driver_and_tcp_smoke():
+    project = ROOT / "projects" / "esp32s3_uart1_echo"
+    source = (project / "main" / "main.c").read_text(encoding="utf-8")
+    component = (project / "main" / "CMakeLists.txt").read_text(encoding="utf-8")
+    assert 'project(zetsim_esp32s3_uart1_echo)' in (project / "CMakeLists.txt").read_text(encoding="utf-8")
+    assert "esp_driver_uart" in component
+    assert "uart_driver_install" in source
+    assert "uart_param_config" in source
+    assert "uart_set_pin" in source
+    assert "uart_read_bytes" in source
+    assert "uart_write_bytes" in source
+    assert "UART_NUM_1" in source
+    assert "ZETSIM_UART1_ECHO_READY" in source
+    assert "ZETSIM_UART1_ECHO_RX_BYTES=" in source
+
+
+def test_uart1_smoke_runner_requires_tcp_echo_and_uart0_receive_evidence():
+    helper = (ROOT / ".github" / "scripts" / "esp32s3-uart1-smoke.py").read_text(encoding="utf-8")
+    smoke = (ROOT / ".github" / "scripts" / "esp32s3-qemu-smoke.sh").read_text(encoding="utf-8")
+    assert '"--uart1-tcp", f"127.0.0.1:{port}"' in helper
+    assert "client.sendall(PAYLOAD)" in helper
+    assert "_read_until(client, PAYLOAD" in helper
+    assert "capture.rx_logged.wait" in helper
+    assert "esp-emu 0.51.0 UART1 RX/TX loopback verified." in smoke

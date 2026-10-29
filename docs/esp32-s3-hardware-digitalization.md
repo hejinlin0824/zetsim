@@ -116,3 +116,10 @@ Sources:
 - ESP-IDF GPIO API documents that `gpio_get_level()` reads the input path and returns zero when the pad is not configured as input or input/output: https://docs.espressif.com/projects/esp-idf/en/v6.0/esp32s3/api-reference/peripherals/gpio.html
 - Espressif `esp-emu` release 0.51.0 notes and documented installation: https://github.com/espressif/esp-emulator/releases/tag/v0.51.0
 - `esp-emu` README and peripheral list: https://github.com/espressif/esp-emulator/blob/v0.51.0/README.md
+
+
+## UART1 external-device loopback regression
+
+The dedicated ESP-IDF project `projects/esp32s3_uart1_echo` configures UART1 at 115200 8N1, assigns GPIO17/18 as TX/RX, reads with `uart_read_bytes()`, and echoes the received bytes through `uart_write_bytes()`. The CI helper `.github/scripts/esp32s3-uart1-smoke.py` launches the pinned Espressif `esp-emu 0.51.0` UART1 TCP server, waits for the application-ready marker, connects a host-side mock device, sends a unique byte payload, requires the same bytes to be received back, and additionally requires a UART0 log line proving the firmware RX driver processed data. A socket response without the UART0 RX marker is not accepted as a pass.
+
+This covers the UART1 RX/TX data path of this firmware and emulator version; it does not imply that every baud-rate corner case, UART interrupt path, GPIO matrix route, or all ESP32-S3 UARTs are fully modelled.
