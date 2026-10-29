@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "zetsim"
 version = "0.1.0"
-description = "STM32F103ZET6 个人仿真器 — Unicorn 内核 + 自研外设模型 + Web 仪表盘"
+description = "STM32F103ZET6 and ESP32-S3 embedded project simulator"
 requires-python = ">=3.10"
 dependencies = [
     "unicorn>=2.1",
@@ -27,4 +27,4 @@ zetsim = "zetsim.cli:main"
 include = ["zetsim*"]
 
 [tool.setuptools.package-data]
-zetsim = ["static/*.html"]
+zetsim = ["static/*.html", "data/boards/*.json"]

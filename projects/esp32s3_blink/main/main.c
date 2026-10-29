@@ -24,6 +24,13 @@ static const char *TAG = "zetsim-esp32s3";
 
 void app_main(void)
 {
+    /*
+     * Keep a marker before touching GPIO. If QEMU panics below, CI can prove
+     * that app_main was entered and narrow the failure to peripheral setup.
+     */
+    printf("ZETSIM_ESP32S3_APP_MAIN_ENTERED\n");
+    fflush(stdout);
+
     const gpio_config_t config = {
         .pin_bit_mask = 1ULL << BLINK_GPIO,
         .mode = GPIO_MODE_OUTPUT,
@@ -33,12 +40,16 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(gpio_config(&config));
 
-    ESP_LOGI(TAG, "ZETSIM_ESP32S3_BOOT_OK: ESP-IDF app_main is running");
+    printf("ZETSIM_ESP32S3_GPIO_CONFIG_OK\n");
+    fflush(stdout);
+    ESP_LOGI(TAG, "ZETSIM_ESP32S3_BOOT_OK: ESP-IDF app_main and GPIO setup completed");
+
     int level = 0;
     while (1) {
         level = !level;
         ESP_ERROR_CHECK(gpio_set_level(BLINK_GPIO, level));
         printf("ZETSIM_ESP32S3_GPIO2=%d\n", level);
+        fflush(stdout);
         vTaskDelay(pdMS_TO_TICKS(BLINK_PERIOD_MS));
     }
 }

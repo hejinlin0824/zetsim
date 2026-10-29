@@ -75,3 +75,10 @@ Avoid requiring a single hard-coded timestamp or an entire exact UART transcript
 2. Add schema-adapter tests for import/export and round-trip preservation before implementing Wokwi `diagram.json` compatibility.
 3. Add scheduler/net/device invariants as tests before adding more device types or analog models.
 4. Evaluate `@wokwi/elements` in a thin rendering adapter/prototype first; do not couple its DOM/Web Component lifecycle directly to the backend or canonical project schema.
+
+
+## Hardware-manual digitization
+
+The detailed ESP32-S3 work plan lives in `docs/esp32-s3-hardware-digitalization.md`. Treat the chip datasheet, chip TRM, board pinout, and emulator runtime as separate sources of truth. A register description alone does not prove runtime support; register behaviour must be connected to the selected QEMU implementation and covered by firmware-driven tests.
+
+The first local board model is `zetsim/data/boards/esp32-s3-devkitc-1.json`, loaded and validated by `zetsim.boards`. It records board header aliases, SoC pin targets, onboard power/RGB LEDs, and datasheet-derived pin constraints. The read-only `/api/boards` catalog exposes this metadata without merging S3 pins into the legacy STM32 schematic component registry.

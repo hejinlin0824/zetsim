@@ -12,6 +12,11 @@ python "$IDF_PATH/tools/idf_tools.py" --non-interactive install qemu-xtensa
 idf.py build
 
 log_file="$(mktemp)"
+cleanup() {
+    rm -f "$log_file"
+}
+trap cleanup EXIT
+
 if ! command -v script >/dev/null 2>&1; then
     echo "The QEMU smoke test requires the util-linux script command for a pseudo-terminal." >&2
     exit 2
@@ -33,7 +38,38 @@ kill -TERM "$session_pid" 2>/dev/null || true
 wait "$session_pid" 2>/dev/null || true
 cat "$log_file"
 
+# A panic is a failed smoke test even if a later reboot accidentally prints a
+# marker. Symbolize the Xtensa PC/backtrace against the exact ELF from this run.
+if grep -Fq "Guru Meditation Error" "$log_file"; then
+    echo "ESP32-S3 QEMU panic detected; attempting Xtensa backtrace symbolization." >&2
+    elf="$PWD/build/zetsim_esp32s3_blink.elf"
+    addr2line="$(command -v xtensa-esp32s3-elf-addr2line || true)"
+    if [[ -n "$addr2line" && -f "$elf" ]]; then
+        pc="$(sed -nE 's/.*PC[[:space:]]*:[[:space:]]*(0x[0-9a-fA-F]+).*/\1/p' "$log_file" | head -n 1)"
+        backtrace="$(sed -nE 's/.*Backtrace:[[:space:]]*(.*)/\1/p' "$log_file" | head -n 1)"
+        addresses=()
+        [[ -n "$pc" ]] && addresses+=("$pc")
+        if [[ -n "$backtrace" ]]; then
+            while IFS= read -r address; do
+                addresses+=("$address")
+            done < <(printf '%s\n' "$backtrace" | grep -oE '0x[0-9a-fA-F]{8}' || true)
+        fi
+        if (( ${#addresses[@]} )); then
+            echo "Decoded panic frames (ELF: $elf):" >&2
+            "$addr2line" -pfiaC -e "$elf" "${addresses[@]}" || true
+        else
+            echo "Panic found, but no PC/backtrace addresses could be parsed." >&2
+        fi
+    else
+        echo "xtensa-esp32s3-elf-addr2line or the built ELF is missing; raw panic is above." >&2
+    fi
+    exit 1
+fi
+
+grep -Fq "ESP-ROM:esp32s3" "$log_file"
+grep -Eq 'rst:0x1 \(POWERON(_RESET)?\)' "$log_file"
+grep -Fq "ZETSIM_ESP32S3_APP_MAIN_ENTERED" "$log_file"
+grep -Fq "ZETSIM_ESP32S3_GPIO_CONFIG_OK" "$log_file"
 grep -Fq "ZETSIM_ESP32S3_BOOT_OK" "$log_file"
 grep -Fq "ZETSIM_ESP32S3_GPIO2=" "$log_file"
-rm -f "$log_file"
-echo "ESP32-S3 QEMU boot and UART heartbeat verified."
+echo "ESP32-S3 QEMU boot, app_main, GPIO setup, and UART heartbeat verified."

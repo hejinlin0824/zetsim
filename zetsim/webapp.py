@@ -19,6 +19,7 @@ from .schematic import Schematic
 from .build import build_project, PROJECT_FILES
 from .component_registry import component_catalog
 from .targets import TARGETS
+from .boards import board_catalog
 from .project import from_legacy_circuit, validate_project, to_legacy_circuit
 
 # 首次打开的默认示例电路：MCU + LED(PA5) + 按键(PA0) + 电位器(PA1) + 探针
@@ -262,6 +263,10 @@ def build_app(firmware: str | None = None) -> FastAPI:
     @app.get("/api/targets")
     async def targets():
         return JSONResponse({"items": [{"id": key, **value} for key, value in TARGETS.items()]})
+
+    @app.get("/api/boards")
+    async def boards():
+        return JSONResponse({"items": board_catalog()})
 
     @app.get("/api/state")
     async def state():

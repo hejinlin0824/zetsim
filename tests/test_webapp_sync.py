@@ -151,3 +151,22 @@ def test_versioned_project_snapshot_export_import_and_rejection_are_safe():
         unsupported["target"] = "esp32s3"
         response = client.post("/api/project/snapshot", json=unsupported)
         assert response.status_code == 400
+
+
+
+def test_board_catalog_api_exposes_esp32s3_board_without_mutating_stm32_registry():
+    with TestClient(build_app()) as client:
+        response = client.get("/api/boards")
+        assert response.status_code == 200
+        items = response.json()["items"]
+        assert [board["id"] for board in items] == ["esp32-s3-devkitc-1"]
+        board = items[0]
+        assert board["target"] == "esp32s3"
+        assert board["pins"]["TX"]["gpio"] == 43
+        assert board["pins"]["RX"]["gpio"] == 44
+        assert board["leds"][1]["type"] == "ws2812"
+        # The legacy MCU component is still the STM32 pin model.
+        components = client.get("/api/components").json()["items"]
+        mcu = next(item for item in components if item["type"] == "mcu")
+        assert "PA5" in mcu["pins"]
+        assert all(not pin.startswith("GPIO") for pin in mcu["pins"])

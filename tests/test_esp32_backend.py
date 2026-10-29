@@ -99,3 +99,18 @@ def test_missing_idf_environment_is_actionable(tmp_path: Path, monkeypatch) -> N
     command, error = esp32.resolve_idf_command({"PATH": ""})
     assert command is None
     assert error and "ESP-IDF" in error
+
+
+
+def test_smoke_script_has_layered_boot_markers_and_panic_symbolization():
+    script = (ROOT / ".github" / "scripts" / "esp32s3-qemu-smoke.sh").read_text(encoding="utf-8")
+    for token in (
+        "Guru Meditation Error",
+        "xtensa-esp32s3-elf-addr2line",
+        "ESP-ROM:esp32s3",
+        "ZETSIM_ESP32S3_APP_MAIN_ENTERED",
+        "ZETSIM_ESP32S3_GPIO_CONFIG_OK",
+        "ZETSIM_ESP32S3_BOOT_OK",
+        "ZETSIM_ESP32S3_GPIO2=",
+    ):
+        assert token in script
