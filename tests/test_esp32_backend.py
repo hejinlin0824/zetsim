@@ -104,6 +104,10 @@ def test_missing_idf_environment_is_actionable(tmp_path: Path, monkeypatch) -> N
 
 def test_smoke_script_has_layered_boot_markers_and_panic_symbolization():
     script = (ROOT / ".github" / "scripts" / "esp32s3-qemu-smoke.sh").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+    assert "Upload ESP32-S3 smoke evidence" in workflow
+    assert "if: always()" in workflow
+    assert "actions/upload-artifact@v4" in workflow
     for token in (
         "Guru Meditation Error",
         "xtensa-esp32s3-elf-addr2line",

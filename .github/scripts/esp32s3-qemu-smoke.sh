@@ -9,11 +9,32 @@ python "$IDF_PATH/tools/idf_tools.py" --non-interactive install qemu-xtensa
 # Install adds the binary but PATH is refreshed by export.sh.
 . "$IDF_PATH/export.sh" >/dev/null
 
-idf.py build
+# Preserve diagnostic evidence for both passing and failing smoke runs.
+artifact_dir="$repo_root/artifacts"
+mkdir -p "$artifact_dir"
+meta_file="$artifact_dir/esp32s3-run-metadata.txt"
+{
+    printf 'target=esp32s3\n'
+    printf 'esp_idf_path=%s\n' "$IDF_PATH"
+    printf 'github_sha=%s\n' "${GITHUB_SHA:-unknown}"
+    printf '\n[idf.py --version]\n'
+    idf.py --version
+    printf '\n[qemu-system-xtensa --version]\n'
+    if command -v qemu-system-xtensa >/dev/null 2>&1; then
+        qemu-system-xtensa --version
+    else
+        printf 'qemu-system-xtensa not found on PATH before install check\n'
+    fi
+} >"$meta_file" 2>&1 || true
+
+idf.py build 2>&1 | tee "$artifact_dir/esp32s3-build.log"
 
 log_file="$(mktemp)"
 cleanup() {
-    rm -f "$log_file"
+    if [[ -f "$log_file" ]]; then
+        cp "$log_file" "$artifact_dir/esp32s3-qemu.log" 2>/dev/null || true
+        rm -f "$log_file"
+    fi
 }
 trap cleanup EXIT
 

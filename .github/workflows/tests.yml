@@ -171,3 +171,11 @@ jobs:
           target: esp32s3
           path: .
           command: bash .github/scripts/esp32s3-qemu-smoke.sh
+      - name: Upload ESP32-S3 smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp32s3-qemu-evidence-${{ github.run_id }}
+          path: artifacts/esp32s3-*
+          if-no-files-found: warn
+          retention-days: 14
