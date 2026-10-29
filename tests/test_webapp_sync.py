@@ -240,3 +240,14 @@ def test_esp32_runtime_api_rejects_unknown_backend_without_launching_process():
         )
         assert response.status_code == 400
         assert "auto、esp-emu 或 qemu" in response.json()["error"]
+
+
+def test_esp32_runtime_backend_availability_api_reports_supported_choices():
+    with TestClient(build_app()) as client:
+        response = client.get("/api/esp32/runtime/backends")
+        assert response.status_code == 200
+        items = {item["id"]: item for item in response.json()["items"]}
+        assert set(items) == {"auto", "esp-emu", "qemu"}
+        assert items["auto"]["available"] is True
+        assert isinstance(items["esp-emu"]["available"], bool)
+        assert isinstance(items["qemu"]["available"], bool)

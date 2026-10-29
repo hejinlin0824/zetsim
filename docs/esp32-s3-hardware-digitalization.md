@@ -146,3 +146,8 @@ The runtime monitor now offers `Auto`, `esp-emu`, and `QEMU` in the UI. Its live
 ### Windows host note
 
 The official `esp-emu` README currently documents prebuilt native binaries for Linux x86_64/arm64 and macOS Apple Silicon, but does not list a native Windows binary. The local backend therefore does not suggest running the POSIX shell installer in PowerShell. On a Windows host with no compatible binary, Auto selects the existing Espressif QEMU/ESP-IDF path; an explicit esp-emu selection explains that the supported route is to run the project from WSL2 Ubuntu (including the ESP-IDF environment) or to use QEMU on Windows. The browser-hosted WASM emulator is an alternative for visual/manual experiments, but its hosted page does not provide local TCP networking and is not interchangeable with the native UART1 TCP test.
+
+
+### Backend availability preflight
+
+The UI calls `GET /api/esp32/runtime/backends` before launching a project. It reports whether the pinned `esp-emu` executable was found and whether the host has the ESP-IDF command, QEMU executable, and interactive console transport needed by the QEMU backend. Missing prerequisites include actionable reasons; this check does not start the emulator, compile firmware, or make a promise that the firmware itself will run successfully.

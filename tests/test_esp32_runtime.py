@@ -178,3 +178,14 @@ def test_esp_emu_install_hint_has_pinned_posix_install_command():
     hint = ESP32RuntimeSession._esp_emu_install_hint("posix")
     assert "--version 0.51.0" in hint
     assert ".tools/esp-emu-0.51.0" in hint
+
+
+def test_backend_availability_status_has_actionable_fields_without_launching_engine():
+    from zetsim.esp32_runtime import ESP32RuntimeSession
+
+    status = ESP32RuntimeSession.backend_availability()
+    items = {item["id"]: item for item in status["items"]}
+    assert items["auto"]["available"] is True
+    assert items["esp-emu"]["version"] == "0.51.0"
+    assert "reason" in items["esp-emu"]
+    assert "reason" in items["qemu"]

@@ -322,6 +322,7 @@ input[type=text]:focus{border-color:var(--accent)}
 .esp32RuntimeTitle small{color:#91a2b5;font-size:10px}
 #esp32ProjectSel,#esp32BackendSel{background:#111a26;color:#e6edf3;border:1px solid #354456;border-radius:6px;padding:6px 8px}
 #esp32BackendSel{max-width:180px}
+#esp32BackendAvailability{font-size:10px;color:#8ca1b7;line-height:1.5}
 .esp32StatePill{font:10px var(--mono);padding:5px 8px;border:1px solid #33475b;border-radius:999px;color:#a8bbd0}
 .esp32StatePill.ready{color:#8cdaa0;border-color:#315d3d;background:#14261c}
 .esp32StatePill.failed,.esp32StatePill.panic{color:#ff9b94;border-color:#713b3b;background:#301a1d}
@@ -1900,7 +1901,7 @@ resize();
 <div id="esp32RuntimeModal" aria-hidden="true">
   <section class="esp32RuntimeBox" role="dialog" aria-modal="true" aria-labelledby="esp32RuntimeTitle">
     <header class="esp32RuntimeHead">
-      <div class="esp32RuntimeTitle"><strong id="esp32RuntimeTitle">ESP32-S3 · Runtime Monitor</strong><small id="esp32RuntimeEngine">自动模式：优先 esp-emu；不可用时使用 QEMU</small></div>
+      <div class="esp32RuntimeTitle"><strong id="esp32RuntimeTitle">ESP32-S3 · Runtime Monitor</strong><small id="esp32RuntimeEngine">自动模式：优先 esp-emu；不可用时使用 QEMU</small><small id="esp32BackendAvailability">正在检测本机仿真后端…</small></div>
       <select id="esp32ProjectSel" aria-label="ESP-IDF 项目"><option value="esp32s3_blink">esp32s3_blink（GPIO）</option></select>
       <select id="esp32BackendSel" aria-label="仿真后端"><option value="auto">自动选择后端</option><option value="esp-emu">esp-emu（GPIO/UART）</option><option value="qemu">Espressif QEMU</option></select>
       <span id="esp32StatePill" class="esp32StatePill">STOPPED</span>
@@ -1984,6 +1985,7 @@ resize();
     boardSummary: $("esp32BoardSummary"), boardDimensions: $("esp32BoardDimensions"),
     boardHeaders: $("esp32BoardHeaders"), boardLeds: $("esp32BoardLeds"), wirePin:$("esp32WirePin"), wireRole:$("esp32WireRole"), duringReset:$("esp32DuringReset"), externalLevel:$("esp32ExternalLevel"), addAssignment:$("esp32AddAssignment"), runBoardCheck:$("esp32RunBoardCheck"), assignmentList:$("esp32AssignmentList"), boardCheckResult:$("esp32BoardCheckResult")
   };
+  let backendStatusLoaded = false;
   let pollHandle = null;
   let lastLines = "";
   let latestSnapshot = null;
@@ -2214,6 +2216,29 @@ resize();
       ids.boardDimensions.textContent = "元数据不可用";
     }
   }
+  async function loadBackendAvailability(force=false) {
+    if (backendStatusLoaded && !force) return;
+    const el = $("esp32BackendAvailability");
+    try {
+      const data = await request("/api/esp32/runtime/backends");
+      const items = Object.fromEntries((data.items || []).map(item=>[item.id,item]));
+      const emu = items["esp-emu"];
+      const qemu = items.qemu;
+      const emuText = emu && emu.available ? "esp-emu 可用" : "esp-emu 未安装";
+      const qemuText = qemu && qemu.available ? "QEMU 可用" : "QEMU 依赖未就绪";
+      el.textContent = emuText + " · " + qemuText;
+      el.title = [
+        emu && emu.reason ? "esp-emu: " + emu.reason : "",
+        qemu && qemu.reason ? "QEMU: " + qemu.reason : ""
+      ].filter(Boolean).join("\n");
+      el.style.color = (emu && emu.available) || (qemu && qemu.available) ? "#8ca1b7" : "#ffbd68";
+      backendStatusLoaded = true;
+    } catch (err) {
+      el.textContent = "无法检测后端依赖";
+      el.title = err.message || String(err);
+      el.style.color = "#ffbd68";
+    }
+  }
   async function poll() {
     if (requestBusy) return;
     requestBusy = true;
@@ -2225,6 +2250,7 @@ resize();
     modal.classList.add("open");
     modal.setAttribute("aria-hidden","false");
     loadBoardMap();
+    loadBackendAvailability(true);
     poll();
     if (!pollHandle) pollHandle = setInterval(poll,650);
   }

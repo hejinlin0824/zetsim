@@ -306,6 +306,10 @@ def build_app(firmware: str | None = None) -> FastAPI:
     async def esp32_runtime_state():
         return JSONResponse(esp32_runtime.snapshot())
 
+    @app.get("/api/esp32/runtime/backends")
+    async def esp32_runtime_backends():
+        return JSONResponse(ESP32RuntimeSession.backend_availability())
+
     @app.post("/api/esp32/runtime/start")
     async def esp32_runtime_start(body: dict):
         name = body.get("project", "esp32s3_blink")

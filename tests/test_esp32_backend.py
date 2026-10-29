@@ -205,3 +205,12 @@ def test_runtime_backend_selector_is_wired_to_the_start_api():
     assert '"auto", "qemu", "esp-emu"' in runtime
     assert "merged_flash.bin" in runtime
     assert 'state["backend"] = self._engine_kind or "none"' in runtime
+
+
+def test_runtime_backend_availability_ui_is_wired_to_read_only_api():
+    html = (ROOT / "zetsim" / "static" / "index.html").read_text(encoding="utf-8")
+    assert 'id="esp32BackendAvailability"' in html
+    assert 'request("/api/esp32/runtime/backends")' in html
+    assert "esp-emu 可用" in html
+    web = (ROOT / "zetsim" / "webapp.py").read_text(encoding="utf-8")
+    assert '@app.get("/api/esp32/runtime/backends")' in web

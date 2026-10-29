@@ -624,6 +624,55 @@ class ESP32RuntimeSession:
             self.observer.set_process_state(False, error=f"停止 ESP32-S3 仿真失败：{exc}")
         return self.snapshot()
 
+    @classmethod
+    def backend_availability(cls) -> dict[str, Any]:
+        """Describe locally available backend prerequisites without starting them."""
+        emu = cls._find_esp_emu()
+        idf_command, idf_error = resolve_idf_command()
+        if os.name == "nt":
+            try:
+                from winpty import PtyProcess  # noqa: F401
+                qemu_console_ready = True
+            except ImportError:
+                qemu_console_ready = False
+                qemu_console_error = 'Windows 交互式串口缺少 pywinpty；运行 python -m pip install -e ".[windows-pty]"'
+            else:
+                qemu_console_error = ""
+        else:
+            qemu_console_ready = shutil.which("script") is not None
+            qemu_console_error = "" if qemu_console_ready else "未找到 util-linux 的 script 伪终端工具。"
+
+        qemu_binary = any(shutil.which(name) for name in ("qemu-system-xtensa", "qemu-system-xtensa.exe"))
+        qemu_available = bool(idf_command and qemu_binary and qemu_console_ready)
+        qemu_reasons = []
+        if idf_error:
+            qemu_reasons.append(idf_error)
+        if not qemu_binary:
+            qemu_reasons.append("PATH 中未找到 qemu-system-xtensa；请激活 ESP-IDF 环境并安装 qemu-xtensa。")
+        if not qemu_console_ready:
+            qemu_reasons.append(qemu_console_error)
+        return {
+            "items": [
+                {
+                    "id": "auto",
+                    "available": True,
+                    "description": "存在 esp-emu 时优先使用；否则回退到 QEMU。",
+                },
+                {
+                    "id": "esp-emu",
+                    "available": emu is not None,
+                    "version": cls.ESP_EMU_VERSION,
+                    "executable": emu.name if emu else None,
+                    "reason": "" if emu else cls._esp_emu_install_hint(),
+                },
+                {
+                    "id": "qemu",
+                    "available": qemu_available,
+                    "reason": "" if qemu_available else " ".join(qemu_reasons),
+                },
+            ]
+        }
+
     def snapshot(self) -> dict[str, Any]:
         state = self.observer.snapshot()
         state["backend"] = self._engine_kind or "none"
