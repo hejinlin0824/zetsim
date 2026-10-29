@@ -136,3 +136,9 @@ def test_esp32s3_blink_firmware_checks_gpio_output_readback():
     assert "gpio_get_level(BLINK_GPIO)" in source
     assert "ZETSIM_ESP32S3_GPIO2_READBACK=%d" in source
     assert "ZETSIM_ESP32S3_GPIO2_READBACK_MISMATCH" in source
+
+
+def test_gpio_readback_fixture_enables_the_pad_input_path():
+    source = (ROOT / "projects" / "esp32s3_blink" / "main" / "main.c").read_text(encoding="utf-8")
+    assert ".mode = GPIO_MODE_INPUT_OUTPUT" in source
+    assert ".mode = GPIO_MODE_OUTPUT," not in source

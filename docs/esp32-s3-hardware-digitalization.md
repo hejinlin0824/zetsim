@@ -101,3 +101,6 @@ The read-only `GET /api/hardware/soc` endpoint serves this spec to tooling and t
 ## GPIO output/readback regression
 
 The ESP32-S3 blink smoke firmware now reads GPIO2 immediately after each output-level update and emits both the requested level and the readback value. CI requires both levels to be observed and fails if the readback differs from the requested output. This is a firmware-driven test of the selected ESP-IDF/QEMU combination, not proof that every GPIO matrix field or IO MUX register is implemented. If the check fails, retain the captured UART log and treat it as a QEMU fidelity gap to investigate rather than weakening the assertion.
+
+
+The first readback run consistently returned 0 because the fixture configured GPIO2 as `GPIO_MODE_OUTPUT`, while `gpio_get_level()` samples the input path and ESP-IDF documents that it returns 0 when input is not enabled. The fixture now uses `GPIO_MODE_INPUT_OUTPUT`; this is a correction to the test setup, not evidence of a QEMU bug. If bidirectional mode still fails after this change, then investigate the selected QEMU GPIO feedback model separately.
