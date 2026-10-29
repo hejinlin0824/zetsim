@@ -250,10 +250,19 @@ def build_app(firmware: str | None = None) -> FastAPI:
     dash = Dashboard(firmware)
     if firmware:
         dash.start()          # 带固件启动即自动开跑
-    app = FastAPI(title="zetsim")
+    from contextlib import asynccontextmanager
+
     esp32_runtime = ESP32RuntimeSession()
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        try:
+            yield
+        finally:
+            esp32_runtime.stop()
+
+    app = FastAPI(title="zetsim", lifespan=lifespan)
     app.state.esp32_runtime = esp32_runtime
-    app.add_event_handler("shutdown", esp32_runtime.stop)
     static_dir = Path(__file__).parent / "static"
 
     @app.get("/", response_class=HTMLResponse)
