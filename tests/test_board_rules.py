@@ -22,16 +22,26 @@ def test_uart_usb_jtag_and_flash_psram_repurposing_are_warned(board):
 
 def test_same_physical_pin_cannot_be_assigned_twice(board):
     report=check_board_wiring(board,{"assignments":[{"pin":"TX","mode":"uart_tx"},{"pin":"TX","mode":"gpio_output"}]})
-    assert report["ok"] is False
+    assert report["valid"] is False
     assert "GPIO_ASSIGNED_MULTIPLE_TIMES" in codes(report)
 
+@pytest.mark.parametrize(("entry","expected_code"),[
+ ({"pin":"MISSING","mode":"gpio_input"},"PIN_UNKNOWN"),
+ ({"pin":"5V","mode":"gpio_output"},"PIN_NOT_GPIO"),
+])
+def test_unknown_or_non_gpio_pin_is_reported_as_a_wiring_error(board,entry,expected_code):
+    report=check_board_wiring(board,{"assignments":[entry]})
+    assert report["valid"] is False
+    assert expected_code in codes(report)
+
 @pytest.mark.parametrize("entry",[
- {"pin":"MISSING","mode":"gpio_input"},{"pin":"5V","mode":"gpio_output"},
- {"pin":"0","mode":"unsafe"},{"pin":"1","mode":"gpio_output","during_reset":"yes"},
+ {"pin":"0","mode":"unsafe"},
+ {"pin":"1","mode":"gpio_output","during_reset":"yes"},
  {"pin":"1","mode":"gpio_output","external_level":"maybe"}
 ])
-def test_invalid_board_wiring_inputs_are_rejected(board,entry):
-    with pytest.raises(ValueError): check_board_wiring(board,{"assignments":[entry]})
+def test_malformed_board_wiring_fields_are_rejected(board,entry):
+    with pytest.raises(ValueError):
+        check_board_wiring(board,{"assignments":[entry]})
 
 def test_empty_or_clean_board_wiring_plan_has_explanatory_result(board):
     assert "NO_ASSIGNMENTS" in codes(check_board_wiring(board,{"assignments":[]}))
