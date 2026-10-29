@@ -141,3 +141,8 @@ Selecting `esp-emu` builds the selected ESP-IDF project, merges the flash image,
 ### Workbench selector and active engine display
 
 The runtime monitor now offers `Auto`, `esp-emu`, and `QEMU` in the UI. Its live status identifies the engine that actually launched, rather than merely echoing the requested preference. The start, stop, and UART0 input operations run through worker threads so IDF build/merge preparation and process lifecycle locks do not stall the web event loop. A request using an unsupported backend is rejected before a process is launched.
+
+
+### Windows host note
+
+The official `esp-emu` README currently documents prebuilt native binaries for Linux x86_64/arm64 and macOS Apple Silicon, but does not list a native Windows binary. The local backend therefore does not suggest running the POSIX shell installer in PowerShell. On a Windows host with no compatible binary, Auto selects the existing Espressif QEMU/ESP-IDF path; an explicit esp-emu selection explains that the supported route is to run the project from WSL2 Ubuntu (including the ESP-IDF environment) or to use QEMU on Windows. The browser-hosted WASM emulator is an alternative for visual/manual experiments, but its hosted page does not provide local TCP networking and is not interchangeable with the native UART1 TCP test.

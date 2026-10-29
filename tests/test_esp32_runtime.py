@@ -159,3 +159,22 @@ def test_runtime_snapshot_discloses_selected_backend():
     assert session.snapshot()["backend"] == "none"
     session._engine_kind = "esp-emu"
     assert session.snapshot()["backend"] == "esp-emu"
+
+
+
+def test_esp_emu_install_hint_is_platform_aware_for_windows():
+    from zetsim.esp32_runtime import ESP32RuntimeSession
+
+    hint = ESP32RuntimeSession._esp_emu_install_hint("nt")
+    assert "没有列出 Windows 原生二进制" in hint
+    assert "WSL2 Ubuntu" in hint
+    assert "Espressif QEMU" in hint
+    assert "0.51.0" in hint
+
+
+def test_esp_emu_install_hint_has_pinned_posix_install_command():
+    from zetsim.esp32_runtime import ESP32RuntimeSession
+
+    hint = ESP32RuntimeSession._esp_emu_install_hint("posix")
+    assert "--version 0.51.0" in hint
+    assert ".tools/esp-emu-0.51.0" in hint

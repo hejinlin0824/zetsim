@@ -315,8 +315,19 @@ class ESP32RuntimeSession:
         return True, output
 
     @classmethod
-    def _esp_emu_install_hint(cls) -> str:
+    def _esp_emu_install_hint(cls, platform_name: str | None = None) -> str:
         version = cls.ESP_EMU_VERSION
+        platform = os.name if platform_name is None else platform_name
+        if platform == "nt":
+            return (
+                f"未找到 esp-emu（建议版本 {version}）。Espressif 当前安装说明提供 Linux x86_64/arm64 "
+                "和 macOS Apple Silicon 原生二进制，没有列出 Windows 原生二进制。"
+                "在 Windows 上请继续选择“Espressif QEMU”，或在 WSL2 Ubuntu 中安装/运行 zetsim，"
+                "再在 WSL 的仓库根目录执行：\n"
+                "curl -fsSL https://raw.githubusercontent.com/espressif/esp-emulator/v"
+                f"{version}/install.sh | sh -s -- --version {version} --bin-dir "
+                f".tools/esp-emu-{version} --force"
+            )
         return (
             f"未找到 esp-emu（建议版本 {version}）。在仓库根目录运行以下命令安装到本地 .tools/ 目录：\n"
             "curl -fsSL https://raw.githubusercontent.com/espressif/esp-emulator/v"
