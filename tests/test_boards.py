@@ -76,7 +76,7 @@ def test_board_loader_rejects_non_finite_pin_coordinates(tmp_path: Path):
     path = tmp_path / "bad.json"
     path.write_text(
         '{"id":"bad","name":"Bad","mcu":"esp32-s3","target":"esp32s3",'
-        '"pins":{"1":{"target":"GPIO1","x":NaN}}}',
+        '"pins":{"1":{"target":"GPIO1","x":NaN,"y":10}}}',
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="有限数字"):
